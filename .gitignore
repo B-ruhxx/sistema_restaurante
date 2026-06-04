@@ -1,0 +1,15 @@
+# Ignorar la carpeta de dependencias de Node (¡pesa muchísimo!)
+node_modules/
+
+# Ignorar archivos de variables de entorno (donde guardas contraseñas y llaves de API)
+.env
+.env.local
+
+# Ignorar carpetas del sistema operativo o editores
+.DS_Store
+.vscode/
+.idea/
+
+# Ignorar entornos virtuales de Python (si usas Python)
+venv/
+.venv/
