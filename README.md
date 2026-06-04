@@ -1,4 +1,4 @@
-# 🍽️ Sistema de Gestión para Restaurantes
+<p align="center"> Sistema de Gestión para Restaurantes </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Backend-Java%20Spring%20Boot-brightgreen?style=for-the-badge&logo=springboot" alt="Spring Boot">
