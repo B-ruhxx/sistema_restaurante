@@ -1,0 +1,39 @@
+package com.restaurante.controller;
+
+import com.restaurante.dto.UploadResponse;
+import com.restaurante.service.UploadService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+@RestController
+@RequestMapping("/api/uploads")
+public class UploadController {
+
+    @Autowired
+    private UploadService uploadService;
+
+    @PostMapping
+    public ResponseEntity<UploadResponse> uploadFile(@RequestParam("file") MultipartFile file) {
+        String filename = uploadService.storeFile(file);
+        
+        // The URL is relative to server root: /api/uploads/{filename}
+        String fileUrl = "/api/uploads/" + filename;
+        
+        UploadResponse response = new UploadResponse(
+                filename,
+                fileUrl,
+                file.getSize(),
+                file.getContentType()
+        );
+        
+        return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/{filename}")
+    public ResponseEntity<Void> deleteFile(@PathVariable String filename) {
+        uploadService.deleteFile(filename);
+        return ResponseEntity.ok().build();
+    }
+}

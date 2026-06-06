@@ -13,3 +13,4 @@ node_modules/
 # Ignorar entornos virtuales de Python (si usas Python)
 venv/
 .venv/
+.agent/

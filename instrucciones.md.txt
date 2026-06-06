@@ -1,0 +1,184 @@
+@mackdown
+# Documento de instrucciones Antigravity 2.0
+
+Este documento consolida las instrucciones para el agente de UI/UX y desarrollo frontend, tomando en cuenta el backend construido en Spring Boot y la estructura inicial del frontend.
+
+---
+
+## 1️⃣ Gestión de Imágenes y Archivos
+
+### Objetivo
+Implementar soporte completo para carga, visualización, actualización y eliminación de imágenes asociadas a entidades del sistema.
+
+Entidades que soportan imágenes:
+
+- `ConfiguracionEmpresa.logo_url`
+- `Producto.imagen_url`
+- `Categoria.imagen_url`
+- `Empleado.avatar_url`
+
+---
+
+### Nuevo módulo frontend
+
+Crear un módulo compartido:
+
+```text
+src/
+├── shared/
+│   ├── components/
+│   │   ├── ImageUploader.tsx
+│   │   ├── ImagePreview.tsx
+│   │   ├── DragDropUploader.tsx
+│   │   └── AvatarUploader.tsx
+│   │
+│   └── services/
+│       └── uploadApi.ts
+Experiencia UX requerida
+
+El usuario debe poder:
+
+Seleccionar imagen desde dispositivo
+Arrastrar y soltar imagen
+Ver previsualización inmediata
+Reemplazar imagen existente
+Eliminar imagen antes de guardar
+Visualizar progreso de carga
+Restricciones
+Formatos permitidos: JPG, JPEG, PNG, WEBP
+Tamaño máximo recomendado: 5 MB
+Mostrar mensaje de error si: formato inválido, tamaño excedido, error de conexión
+Integración por módulo
+
+Productos:
+Formulario ProductoPage → producto.imagen_url
+
+Categorías:
+Formulario CategoriaPage → categoria.imagen_url
+
+Empleados:
+Formulario EmpleadoPage → empleado.avatar_url
+
+Configuración Empresa:
+Formulario ConfiguracionEmpresaPage → configuracion_empresa.logo_url
+
+API esperada
+POST /api/uploads
+PUT /api/uploads/{id}
+DELETE /api/uploads/{id}
+GET /api/uploads/{filename}
+
+Arquitectura desacoplada para:
+
+almacenamiento local
+servidor
+S3
+Cloudinary
+Componentes reutilizables obligatorios
+ImageUploader: Upload simple
+AvatarUploader: Upload circular para usuarios
+ImagePreview: Vista previa responsiva
+GalleryModal: Visualización ampliada
+Dashboard
+
+Mostrar imágenes de:
+
+Productos más vendidos
+Categorías destacadas
+Logo de empresa
+Diseño visual
+Skeleton loaders durante carga
+Indicador de progreso
+Placeholder cuando no exista imagen
+Compresión automática antes del envío si es posible
+2️⃣ Módulos backend recomendados
+
+Para gestionar realmente las imágenes, se recomienda agregar:
+
+controller/
+    UploadController.java
+
+service/
+    UploadService.java
+
+dto/
+    UploadResponse.java
+
+config/
+    FileStorageConfig.java
+
+Actualmente tu BD almacena URLs, pero no hay lógica de subida ni almacenamiento real.
+
+3️⃣ Rediseño UI/UX profesional y paleta de colores
+Objetivo
+
+Asumir el rol de Diseñador UI/UX Senior especializado en sistemas ERP y POS.
+Revisar:
+
+Arquitectura visual
+Sistema de diseño
+Navegación
+Accesibilidad
+Experiencia de usuario
+Jerarquía visual
+Consistencia de componentes
+Rediseño Visual Obligatorio
+Material Design 3, Ant Design, IBM Carbon Design
+Patrón de dashboards de ERP
+Evitar apariencia académica o genérica
+Resultado profesional SaaS listo para producción
+Sistema de Colores
+Alto contraste, legibilidad y consistencia
+Color primario: Naranja profesional, Terracota moderna, Rojo suave corporativo
+Color secundario: Slate, Zinc, Gray
+Colores de estados: éxito, error, advertencia, información
+Sistema de Diseño
+
+Tokens reutilizables:
+
+colors, typography, spacing, borderRadius, shadows, transitions
+
+Ejemplo:
+
+primary, secondary, success, warning, danger, surface, background, textPrimary, textSecondary
+Tipografía
+Inter, Manrope, Poppins
+Definir: H1, H2, H3, Body, Caption, Labels
+Navegación
+
+Sidebar:
+Dashboard, POS, Pedidos, Cocina, Ventas, Caja, Inventario, Compras, Clientes, Proveedores, Usuarios, Configuración, Reportes
+
+Dashboard
+KPIs: ventas del día, pedidos pendientes, caja actual, productos más vendidos, alertas de stock
+Widgets: gráficos, tendencias, indicadores rápidos
+Formularios
+Etiquetas claras, validación visual inmediata, mensajes de error consistentes, ayudas contextuales
+Tablas
+Paginación, filtros, búsqueda, ordenamiento, exportación futura
+Diseño profesional similar a ERP modernos
+Gestión de Imágenes
+Vista previa, Drag & Drop, indicador de carga, imagen por defecto, reemplazo de imagen
+Entidades: Producto, Categoría, Empleado, Configuración Empresa
+Responsive Design
+Desktop, Laptop, Tablet
+Priorizar escritorio sobre móvil (ERP administrativo)
+Accesibilidad
+Navegación por teclado, contraste adecuado, estados focus visibles, etiquetas accesibles
+Componentes Reutilizables
+Button, Input, Select, Modal, Drawer, Table, Card, Badge, Alert, Toast, ImageUploader, AvatarUploader, Loader
+Modo Oscuro
+Preparar toda la arquitectura visual para soportar Dark Mode
+Diseñar todos los tokens para soporte futuro
+Resultado Esperado
+
+Interfaz visual similar a:
+
+Toast POS
+Square POS
+Lightspeed Restaurant
+Odoo ERP
+ERPNext
+Shopify Admin
+
+Debe justificar decisiones de diseño y documentar el sistema visual creado
