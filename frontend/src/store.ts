@@ -1,10 +1,11 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { Caja, Producto, ComboProducto } from './types'
+import { Caja, Producto, ComboProducto, VarianteProducto } from './types'
 
 export interface CartItem {
   producto?: Producto;
   combo?: ComboProducto;
+  variante?: VarianteProducto;
   cantidad: number;
   precioUnitario: number;
   observacion?: string;
@@ -19,14 +20,20 @@ interface AppState {
     apellido: string;
     username: string;
     rol: string;
+    avatarUrl?: string | null;
+    avatar_url?: string | null;
   } | null;
   caja: Caja | null;
   cart: CartItem[];
+  companyName: string | null;
+  companyLogo: string | null;
   
   // Actions
   login: (token: string, user: AppState['user']) => void;
   logout: () => void;
   setCaja: (caja: Caja | null) => void;
+  setCompanyInfo: (name: string, logo: string | null) => void;
+  updateUser: (user: Partial<NonNullable<AppState['user']>>) => void;
   
   // Cart Actions
   addToCart: (item: Omit<CartItem, 'cartId'>) => void;
@@ -43,17 +50,24 @@ export const useAppStore = create<AppState>()(
       user: null,
       caja: null,
       cart: [],
+      companyName: null,
+      companyLogo: null,
 
       login: (token, user) => set({ token, user }),
       logout: () => set({ token: null, user: null, caja: null, cart: [] }),
       setCaja: (caja) => set({ caja }),
+      setCompanyInfo: (name, logo) => set({ companyName: name, companyLogo: logo }),
+      updateUser: (user) => set((state) => ({
+        user: state.user ? { ...state.user, ...user } : null
+      })),
 
       addToCart: (item) => set((state) => {
         const existingIndex = state.cart.findIndex(
           (i) => 
             (i.producto?.idProducto === item.producto?.idProducto && 
              i.combo?.idCombo === item.combo?.idCombo &&
-             i.observacion === item.observacion)
+             i.observacion === item.observacion &&
+             i.variante?.idVariante === item.variante?.idVariante)
         );
 
         if (existingIndex > -1) {
@@ -99,6 +113,8 @@ export const useAppStore = create<AppState>()(
         token: state.token,
         user: state.user,
         caja: state.caja,
+        companyName: state.companyName,
+        companyLogo: state.companyLogo,
       } as any),
     }
   )

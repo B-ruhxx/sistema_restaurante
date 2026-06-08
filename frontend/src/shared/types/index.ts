@@ -227,6 +227,8 @@ export interface AuthResponse {
     apellido: string;
     username: string;
     rol: string;
+    avatarUrl?: string | null;
+    avatar_url?: string | null;
   };
 }
 
@@ -249,3 +251,13 @@ export interface UploadResponse {
   size?: number;
   contentType?: string;
 }
+
+export interface VarianteProducto {
+  idVariante?: number;
+  producto?: Producto;
+  nombre: string;
+  descripcion?: string;
+  precioExtra: number;
+  estado?: 'ACTIVO' | 'INACTIVO';
+}
+

@@ -1,21 +1,16 @@
 import React, { useState, useEffect } from 'react'
 import { useAppStore } from '../store'
 import { api } from '../shared/services/api'
+import { getImageUrl } from '../shared/services/uploadApi'
 
 // Domain Pages
 import { DashboardPage }    from '../domains/dashboard/pages/DashboardPage'
 import { PosPage }          from '../domains/pos/pages/PosPage'
+import { CatalogosPage }    from '../domains/catalogos/pages/CatalogosPage'
+import { AdministracionPage } from '../domains/administracion/pages/AdministracionPage'
+import { ReportesPage }     from '../domains/reportes/pages/ReportesPage'
 import { CocinaPage }       from '../domains/cocina/pages/CocinaPage'
 import { CajaPage }         from '../domains/caja/pages/CajaPage'
-import { ProductosPage }    from '../domains/productos/pages/ProductosPage'
-import { CategoriasPage }   from '../domains/categorias/pages/CategoriasPage'
-import { InsumosPage }      from '../domains/insumos/pages/InsumosPage'
-import { CombosPage }       from '../domains/combos/pages/CombosPage'
-import { ClientesPage }     from '../domains/clientes/pages/ClientesPage'
-import { ProveedoresPage }  from '../domains/proveedores/pages/ProveedoresPage'
-import { EmpleadosPage }    from '../domains/empleados/pages/EmpleadosPage'
-import { ConfiguracionPage } from '../domains/configuracion/pages/ConfiguracionPage'
-import { ReportesPage }     from '../domains/reportes/pages/ReportesPage'
 
 import {
   Gauge, ShoppingCart, CookingPot, Coins, Package,
@@ -25,10 +20,7 @@ import {
 } from '@phosphor-icons/react'
 
 export type AppPage =
-  | 'DASHBOARD' | 'POS' | 'COCINA' | 'CAJA'
-  | 'PRODUCTOS' | 'CATEGORIAS' | 'INSUMOS' | 'COMBOS'
-  | 'CLIENTES' | 'PROVEEDORES' | 'EMPLEADOS'
-  | 'CONFIGURACION' | 'REPORTES'
+  | 'DASHBOARD' | 'POS' | 'CATALOGOS' | 'ADMINISTRACION' | 'REPORTES' | 'COCINA' | 'CAJA'
 
 interface NavItem {
   id: AppPage
@@ -43,68 +35,163 @@ interface NavGroup {
   collapsible?: boolean
 }
 
-const NAV_GROUPS: NavGroup[] = [
-  {
-    label: 'Principal',
-    items: [
-      { id: 'DASHBOARD',  label: 'Dashboard',    icon: <Gauge size={18} /> },
-      { id: 'POS',        label: 'Punto de Venta', icon: <ShoppingCart size={18} /> },
-      { id: 'COCINA',     label: 'Monitor Cocina', icon: <CookingPot size={18} /> },
-      { id: 'CAJA',       label: 'Caja',           icon: <Coins size={18} /> },
-    ],
-  },
-  {
-    label: 'Catálogos',
-    collapsible: true,
-    items: [
-      { id: 'PRODUCTOS',   label: 'Productos',    icon: <ForkKnife size={18} /> },
-      { id: 'CATEGORIAS',  label: 'Categorías',   icon: <Tag size={18} /> },
-      { id: 'INSUMOS',     label: 'Insumos',      icon: <Package size={18} /> },
-      { id: 'COMBOS',      label: 'Combos',       icon: <Archive size={18} /> },
-    ],
-  },
-  {
-    label: 'Gestión',
-    collapsible: true,
-    items: [
-      { id: 'CLIENTES',    label: 'Clientes',     icon: <Users size={18} /> },
-      { id: 'PROVEEDORES', label: 'Proveedores',  icon: <Truck size={18} /> },
-      { id: 'EMPLEADOS',   label: 'Empleados',    icon: <UserCircle size={18} /> },
-    ],
-  },
-  {
-    label: 'Sistema',
-    items: [
-      { id: 'REPORTES',      label: 'Reportes',       icon: <ChartBar size={18} /> },
-      { id: 'CONFIGURACION', label: 'Configuración',  icon: <Gear size={18} /> },
-    ],
-  },
-]
+const ALLOWED_PAGES_BY_ROLE: Record<string, AppPage[]> = {
+  ADMINISTRADOR: ['DASHBOARD', 'POS', 'CATALOGOS', 'ADMINISTRACION', 'REPORTES', 'COCINA', 'CAJA'],
+  MESERO: ['POS', 'ADMINISTRACION'],
+  CAJERO: ['POS', 'CAJA', 'ADMINISTRACION'],
+  COCINERO: ['COCINA']
+}
+
+const getNavGroups = (role: string): NavGroup[] => {
+  const allowed = ALLOWED_PAGES_BY_ROLE[role] || ['POS']
+  return [
+    {
+      label: 'Principal',
+      items: (
+        [
+          { 
+            id: 'DASHBOARD', 
+            label: 'Dashboard', 
+            icon: <i className="fa-solid fa-chart-line text-[15px] w-5 text-center"></i> 
+          },
+          { 
+            id: 'POS', 
+            label: 'Punto de Venta', 
+            icon: <i className="fa-solid fa-cash-register text-[15px] w-5 text-center"></i> 
+          },
+        ] as NavItem[]
+      ).filter(item => allowed.includes(item.id)),
+    },
+    {
+      label: 'Operaciones',
+      items: (
+        [
+          { 
+            id: 'COCINA', 
+            label: 'Monitor Cocina', 
+            icon: <i className="fa-solid fa-fire-burner text-[15px] w-5 text-center"></i> 
+          },
+          { 
+            id: 'CAJA', 
+            label: 'Control Caja', 
+            icon: <i className="fa-solid fa-vault text-[15px] w-5 text-center"></i> 
+          },
+        ] as NavItem[]
+      ).filter(item => allowed.includes(item.id)),
+    },
+    {
+      label: 'Catálogos',
+      items: (
+        [
+          { 
+            id: 'CATALOGOS', 
+            label: 'Catálogos', 
+            icon: <i className="fa-solid fa-pizza-slice text-[15px] w-5 text-center"></i> 
+          },
+        ] as NavItem[]
+      ).filter(item => allowed.includes(item.id)),
+    },
+    {
+      label: 'Gestión',
+      items: (
+        [
+          { 
+            id: 'ADMINISTRACION', 
+            label: role === 'ADMINISTRADOR' ? 'Administración' : 'Clientes', 
+            icon: <i className="fa-solid fa-id-card text-[15px] w-5 text-center"></i> 
+          },
+        ] as NavItem[]
+      ).filter(item => allowed.includes(item.id)),
+    },
+    {
+      label: 'Sistema',
+      items: (
+        [
+          { 
+            id: 'REPORTES', 
+            label: 'Reportes', 
+            icon: <i className="fa-solid fa-file-invoice-dollar text-[15px] w-5 text-center"></i> 
+          },
+        ] as NavItem[]
+      ).filter(item => allowed.includes(item.id)),
+    },
+  ].filter(group => group.items.length > 0)
+}
 
 function renderPage(page: AppPage) {
   switch (page) {
     case 'DASHBOARD':    return <DashboardPage />
     case 'POS':          return <PosPage />
+    case 'CATALOGOS':    return <CatalogosPage />
+    case 'ADMINISTRACION': return <AdministracionPage />
+    case 'REPORTES':     return <ReportesPage />
     case 'COCINA':       return <CocinaPage />
     case 'CAJA':         return <CajaPage />
-    case 'PRODUCTOS':    return <ProductosPage />
-    case 'CATEGORIAS':   return <CategoriasPage />
-    case 'INSUMOS':      return <InsumosPage />
-    case 'COMBOS':       return <CombosPage />
-    case 'CLIENTES':     return <ClientesPage />
-    case 'PROVEEDORES':  return <ProveedoresPage />
-    case 'EMPLEADOS':    return <EmpleadosPage />
-    case 'CONFIGURACION': return <ConfiguracionPage />
-    case 'REPORTES':     return <ReportesPage />
     default:             return <DashboardPage />
   }
 }
 
 export const Layout: React.FC = () => {
+  const { user, caja, setCaja, logout, companyName, companyLogo, setCompanyInfo, updateUser } = useAppStore()
   const [activePage, setActivePage] = useState<AppPage>('DASHBOARD')
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
   const [clock, setClock] = useState(new Date())
-  const { user, caja, logout } = useAppStore()
+
+  const userRole = user?.rol || 'MESERO'
+  const allowedPages = ALLOWED_PAGES_BY_ROLE[userRole] || ['POS']
+
+  const filteredNavGroups = getNavGroups(userRole)
+
+  // Redirect to first allowed page if activePage is not allowed for the user's role
+  useEffect(() => {
+    const allowed = ALLOWED_PAGES_BY_ROLE[user?.rol || 'MESERO'] || ['POS']
+    if (allowed.length > 0 && !allowed.includes(activePage)) {
+      setActivePage(allowed[0])
+    }
+  }, [user?.rol, activePage])
+
+  // Fetch company, user and caja info on mount
+  useEffect(() => {
+    const fetchCompanyInfo = async () => {
+      try {
+        const res = await api.get<any>('/api/v1/configuracion')
+        setCompanyInfo(res.nombreEmpresa, res.logoUrl || res.logo_url || null)
+      } catch (e) {
+        console.error('Error fetching company info', e)
+      }
+    }
+    const fetchUserInfo = async () => {
+      if (user?.idEmpleado) {
+        try {
+          const res = await api.get<any>(`/api/v1/empleados/${user.idEmpleado}`)
+          updateUser({
+            nombre: res.nombre,
+            apellido: res.apellido,
+            username: res.username,
+            avatarUrl: res.avatarUrl || res.avatar_url || null,
+            avatar_url: res.avatarUrl || res.avatar_url || null,
+          })
+        } catch (e) {
+          console.error('Error fetching user info', e)
+        }
+      }
+    }
+    const fetchActiveCaja = async () => {
+      try {
+        const active = await api.get<any>('/api/v1/cajas/activa')
+        if (active) {
+          setCaja(active)
+        } else {
+          setCaja(null)
+        }
+      } catch (e) {
+        console.error('Error fetching active caja', e)
+      }
+    }
+    fetchCompanyInfo()
+    fetchUserInfo()
+    fetchActiveCaja()
+  }, [setCompanyInfo, updateUser, setCaja, user?.idEmpleado])
 
   // Live clock
   useEffect(() => {
@@ -126,11 +213,13 @@ export const Layout: React.FC = () => {
   }
 
   const pageTitles: Record<AppPage, string> = {
-    DASHBOARD: 'Dashboard', POS: 'Punto de Venta', COCINA: 'Monitor de Cocina',
-    CAJA: 'Control de Caja', PRODUCTOS: 'Productos', CATEGORIAS: 'Categorías',
-    INSUMOS: 'Insumos', COMBOS: 'Combos & Promociones', CLIENTES: 'Clientes',
-    PROVEEDORES: 'Proveedores', EMPLEADOS: 'Empleados', CONFIGURACION: 'Configuración',
+    DASHBOARD: 'Dashboard',
+    POS: 'Punto de Venta',
+    CATALOGOS: 'Catálogos de Sistema',
+    ADMINISTRACION: userRole === 'ADMINISTRADOR' ? 'Administración del Sistema' : 'Base de Clientes',
     REPORTES: 'Reportes & Analytics',
+    COCINA: 'Monitor de Cocina',
+    CAJA: 'Control de Caja & Cobros',
   }
 
   return (
@@ -146,20 +235,34 @@ export const Layout: React.FC = () => {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div
-              style={{
-                background: 'var(--color-primary)',
-                borderRadius: 'var(--radius-md)',
-                padding: '0.5rem',
-                boxShadow: 'var(--shadow-primary)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}
-            >
-              <Storefront size={22} weight="bold" color="white" />
-            </div>
+            {companyLogo ? (
+              <img
+                src={getImageUrl(companyLogo) || ''}
+                alt="Logo"
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '6px',
+                  objectFit: 'cover',
+                  boxShadow: 'var(--shadow-sm)',
+                }}
+              />
+            ) : (
+              <div
+                style={{
+                  background: 'var(--color-primary)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '0.5rem',
+                  boxShadow: 'var(--shadow-primary)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}
+              >
+                <i className="fa-solid fa-store text-white text-[15px]"></i>
+              </div>
+            )}
             <div>
               <p style={{ color: 'white', fontWeight: 800, fontSize: '0.8125rem', fontFamily: 'var(--font-display)', lineHeight: 1.2 }}>
-                RestaurantePOS
+                {companyName || 'RestaurantePOS'}
               </p>
               <p style={{ color: 'hsl(30,15%,55%)', fontSize: '0.625rem', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: 2 }}>
                 ERP &amp; POS Sistema
@@ -170,7 +273,7 @@ export const Layout: React.FC = () => {
 
         {/* Nav */}
         <nav style={{ flex: 1, overflowY: 'auto', padding: '0.75rem 0.625rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          {NAV_GROUPS.map(group => {
+          {filteredNavGroups.map(group => {
             const isCollapsed = collapsedGroups.has(group.label)
             return (
               <div key={group.label}>
@@ -224,16 +327,31 @@ export const Layout: React.FC = () => {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
-            <div
-              style={{
-                width: 34, height: 34, borderRadius: '50%',
-                background: 'var(--color-primary)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                flexShrink: 0,
-              }}
-            >
-              <User size={16} weight="bold" color="white" />
-            </div>
+            {(user?.avatarUrl || user?.avatar_url) ? (
+              <img
+                src={getImageUrl(user.avatarUrl || user.avatar_url) || ''}
+                alt="Avatar"
+                style={{
+                  width: '34px',
+                  height: '34px',
+                  borderRadius: '50%',
+                  objectFit: 'cover',
+                  boxShadow: 'var(--shadow-sm)',
+                  flexShrink: 0,
+                }}
+              />
+            ) : (
+              <div
+                style={{
+                  width: 34, height: 34, borderRadius: '50%',
+                  background: 'var(--color-primary)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                <User size={16} weight="bold" color="white" />
+              </div>
+            )}
             <div style={{ minWidth: 0 }}>
               <p style={{ color: 'white', fontSize: '0.75rem', fontWeight: 700, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {user?.nombre} {user?.apellido}

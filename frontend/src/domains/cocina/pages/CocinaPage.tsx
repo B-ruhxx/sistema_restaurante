@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react'
 import { api } from '../../../shared/services/api'
 import { Pedido, DetallePedido } from '../../../shared/types'
 import { Clock, Check, CookingPot, Hourglass, CheckCircle, ArrowsClockwise } from '@phosphor-icons/react'
+import { Card } from '../../../components/Ui/Card'
+import { Button } from '../../../components/Ui/Button'
 
 export const CocinaPage: React.FC = () => {
   const [orders, setOrders] = useState<Pedido[]>([])
@@ -109,25 +111,27 @@ export const CocinaPage: React.FC = () => {
             Órdenes activas en preparación y despacho
           </p>
         </div>
-        <button
+        <Button
           onClick={fetchOrders}
-          className="btn btn-secondary btn-sm flex items-center gap-2"
+          variant="secondary"
+          size="sm"
+          className="flex items-center gap-2"
         >
           <ArrowsClockwise size={16} />
           Actualizar
-        </button>
+        </Button>
       </div>
 
       {orders.length === 0 ? (
-        <div className="flex flex-col items-center justify-center p-12 text-center h-[50vh] card border-default max-w-lg mx-auto">
+        <Card padded={true} hoverable={false} className="flex flex-col items-center justify-center p-12 text-center h-[50vh] border-default max-w-lg mx-auto">
           <CookingPot size={64} style={{ color: 'var(--text-muted)' }} className="mb-4" />
           <h3 className="text-xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>Sin pedidos activos</h3>
           <p style={{ color: 'var(--text-secondary)' }} className="max-w-sm">
             No hay comandas pendientes de preparación en este momento.
           </p>
-        </div>
+        </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(290px,1fr))] gap-6">
           {orders.map((order) => {
             const details = detailsMap[order.idPedido!] || []
             let borderColor = 'var(--color-warning)'
@@ -135,9 +139,11 @@ export const CocinaPage: React.FC = () => {
             if (order.estado === 'LISTO') borderColor = 'var(--color-success)'
 
             return (
-              <div
+              <Card
                 key={order.idPedido}
-                className="card flex flex-col justify-between overflow-hidden text-left border-default"
+                padded={false}
+                hoverable={true}
+                className="flex flex-col justify-between overflow-hidden text-left border-default h-full"
                 style={{
                   background: 'var(--color-surface)',
                   borderTop: `4px solid ${borderColor}`
@@ -191,36 +197,36 @@ export const CocinaPage: React.FC = () => {
                 {/* Footer Action */}
                 <div className="p-4 border-t" style={{ borderColor: 'var(--border-color)' }}>
                   {order.estado === 'PENDIENTE' && (
-                    <button
+                    <Button
                       onClick={() => handleUpdateStatus(order.idPedido!, 'PENDIENTE')}
-                      className="w-full btn btn-primary text-xs flex items-center justify-center gap-1.5"
-                      style={{ background: 'var(--color-warning)', color: 'white', boxShadow: 'none' }}
+                      className="w-full flex items-center justify-center gap-1.5 font-bold text-xs"
+                      style={{ background: 'var(--color-warning)', color: 'white', border: 'none', boxShadow: 'none' }}
                     >
                       <CookingPot size={16} />
                       Iniciar Preparación
-                    </button>
+                    </Button>
                   )}
                   {order.estado === 'EN_COCINA' && (
-                    <button
+                    <Button
                       onClick={() => handleUpdateStatus(order.idPedido!, 'EN_COCINA')}
-                      className="w-full btn btn-primary text-xs flex items-center justify-center gap-1.5"
+                      className="w-full flex items-center justify-center gap-1.5 font-bold text-xs"
                     >
                       <Check size={16} />
                       Marcar como Listo
-                    </button>
+                    </Button>
                   )}
                   {order.estado === 'LISTO' && (
-                    <button
+                    <Button
                       onClick={() => handleUpdateStatus(order.idPedido!, 'LISTO')}
-                      className="w-full btn text-xs flex items-center justify-center gap-1.5"
-                      style={{ background: 'var(--color-success)', color: 'white' }}
+                      className="w-full flex items-center justify-center gap-1.5 font-bold text-xs"
+                      style={{ background: 'var(--color-success)', color: 'white', border: 'none', boxShadow: 'none' }}
                     >
                       <Check size={16} />
                       Despachar Pedido
-                    </button>
+                    </Button>
                   )}
                 </div>
-              </div>
+              </Card>
             )
           })}
         </div>

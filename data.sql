@@ -35,10 +35,10 @@ INSERT INTO rol_permiso (id_rol, id_permiso) VALUES
 -- 5. Empleados
 -- Contraseñas por defecto (username/password): admin/admin123, mesero/admin123, cajero/admin123, cocinero/admin123
 INSERT INTO empleado (id_empleado, nombre, apellido, username, password_hash, telefono, email, estado, id_rol, version) VALUES
-(1, 'Admin', 'Pizzería', 'admin', '$2a$10$dXJ3SW6G7P50lGpoDyf0ouGf04dF0.u6Uq4J21K9fA9Uq4/p4rG92', '999999999', 'admin@bellaitalia.com', 'ACTIVO', 1, 0),
-(2, 'Carlos', 'Rossi', 'mesero', '$2a$10$dXJ3SW6G7P50lGpoDyf0ouGf04dF0.u6Uq4J21K9fA9Uq4/p4rG92', '988888888', 'carlos@bellaitalia.com', 'ACTIVO', 2, 0),
-(3, 'Elena', 'Nastri', 'cajero', '$2a$10$dXJ3SW6G7P50lGpoDyf0ouGf04dF0.u6Uq4J21K9fA9Uq4/p4rG92', '977777777', 'elena@bellaitalia.com', 'ACTIVO', 3, 0),
-(4, 'Pizzaiolo', 'Mario', 'cocinero', '$2a$10$dXJ3SW6G7P50lGpoDyf0ouGf04dF0.u6Uq4J21K9fA9Uq4/p4rG92', '966666666', 'mario@bellaitalia.com', 'ACTIVO', 4, 0);
+(1, 'Admin', 'Pizzería', 'admin', '$2b$10$b4k2bRiYZzqIP/0UBOCUG.EI3dxZsy/t9G7cb01FBB7jr/l4dLkHu', '999999999', 'admin@bellaitalia.com', 'ACTIVO', 1, 0),
+(2, 'Carlos', 'Rossi', 'mesero', '$2b$10$b4k2bRiYZzqIP/0UBOCUG.EI3dxZsy/t9G7cb01FBB7jr/l4dLkHu', '988888888', 'carlos@bellaitalia.com', 'ACTIVO', 2, 0),
+(3, 'Elena', 'Nastri', 'cajero', '$2b$10$b4k2bRiYZzqIP/0UBOCUG.EI3dxZsy/t9G7cb01FBB7jr/l4dLkHu', '977777777', 'elena@bellaitalia.com', 'ACTIVO', 3, 0),
+(4, 'Pizzaiolo', 'Mario', 'cocinero', '$2b$10$b4k2bRiYZzqIP/0UBOCUG.EI3dxZsy/t9G7cb01FBB7jr/l4dLkHu', '966666666', 'mario@bellaitalia.com', 'ACTIVO', 4, 0);
 
 -- 6. Metodos de Pago
 INSERT INTO metodo_pago (id_metodo_pago, nombre, requiere_operacion, estado) VALUES

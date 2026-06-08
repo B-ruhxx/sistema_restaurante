@@ -75,6 +75,7 @@ public class EmpleadoController {
             empleado.setUsername(details.getUsername());
             empleado.setTelefono(details.getTelefono());
             empleado.setEmail(details.getEmail());
+            empleado.setAvatarUrl(details.getAvatarUrl());
             empleado.setEstado(details.getEstado());
 
             if (details.getPasswordHash() != null && !details.getPasswordHash().isEmpty() && !details.getPasswordHash().startsWith("$2a$")) {

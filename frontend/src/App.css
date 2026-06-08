@@ -1,24 +1,40 @@
+/* ============================================================
+   ADAPTACIÓN — Vistas de Bienvenida Vite a ERP Premium
+   ============================================================ */
+
 .counter {
-  font-size: 16px;
-  padding: 5px 10px;
-  border-radius: 5px;
-  color: var(--accent);
-  background: var(--accent-bg);
-  border: 2px solid transparent;
-  transition: border-color 0.3s;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 600;
+  height: 42px;
+  /* Forzamos tu estándar de altura */
+  padding: 0 1.25rem;
+  border-radius: var(--radius-md);
+  color: var(--text-on-primary);
+  background: var(--color-primary);
+  /* Cambiado al nuevo Rojo Tomate */
+  box-shadow: var(--shadow-primary);
+  border: 1px solid transparent;
+  transition: all var(--transition-fast);
   margin-bottom: 24px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 
   &:hover {
-    border-color: var(--accent-border);
+    background: var(--color-primary-dark);
+    transform: translateY(-1px);
   }
+
   &:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
+    outline: 3px solid var(--color-primary-glow);
   }
 }
 
 .hero {
   position: relative;
+  margin-bottom: 2rem;
 
   .base,
   .framework,
@@ -42,8 +58,7 @@
     z-index: 1;
     top: 34px;
     height: 28px;
-    transform: perspective(2000px) rotateZ(300deg) rotateX(44deg) rotateY(39deg)
-      scale(1.4);
+    transform: perspective(2000px) rotateZ(300deg) rotateX(44deg) rotateY(39deg) scale(1.4);
   }
 
   .vite {
@@ -51,8 +66,7 @@
     top: 107px;
     height: 26px;
     width: auto;
-    transform: perspective(2000px) rotateZ(300deg) rotateX(40deg) rotateY(39deg)
-      scale(0.8);
+    transform: perspective(2000px) rotateZ(300deg) rotateX(40deg) rotateY(39deg) scale(0.8);
   }
 }
 
@@ -63,6 +77,7 @@
   place-content: center;
   place-items: center;
   flex-grow: 1;
+  padding: 3rem 1.5rem;
 
   @media (max-width: 1024px) {
     padding: 32px 20px 24px;
@@ -72,12 +87,18 @@
 
 #next-steps {
   display: flex;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--border-color);
+  /* Tu nuevo borde sutil */
   text-align: left;
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  margin: 0 24px;
 
-  & > div {
+  &>div {
     flex: 1 1 0;
     padding: 32px;
+
     @media (max-width: 1024px) {
       padding: 24px 20px;
     }
@@ -87,20 +108,23 @@
     margin-bottom: 16px;
     width: 22px;
     height: 22px;
+    color: var(--color-primary);
+    /* Iconos ahora combinan con la pizzería */
   }
 
   @media (max-width: 1024px) {
     flex-direction: column;
     text-align: center;
+    margin: 0 16px;
   }
 }
 
 #docs {
-  border-right: 1px solid var(--border);
+  border-right: 1px solid var(--border-color);
 
   @media (max-width: 1024px) {
     border-right: none;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--border-color);
   }
 }
 
@@ -116,20 +140,27 @@
   }
 
   a {
-    color: var(--text-h);
-    font-size: 16px;
-    border-radius: 6px;
-    background: var(--social-bg);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    font-weight: 500;
+    border-radius: var(--radius-md);
+    background: var(--color-surface-2);
+    /* Gris limpio de fondo */
+    border: 1px solid var(--border-color);
     display: flex;
-    padding: 6px 12px;
+    padding: 8px 16px;
     align-items: center;
     gap: 8px;
     text-decoration: none;
-    transition: box-shadow 0.3s;
+    transition: all var(--transition-fast);
 
     &:hover {
-      box-shadow: var(--shadow);
+      background: var(--color-surface);
+      border-color: var(--color-primary);
+      color: var(--color-primary);
+      box-shadow: var(--shadow-md);
     }
+
     .button-icon {
       height: 18px;
       width: 18px;
@@ -155,7 +186,7 @@
 
 #spacer {
   height: 88px;
-  border-top: 1px solid var(--border);
+
   @media (max-width: 1024px) {
     height: 48px;
   }
@@ -175,10 +206,11 @@
 
   &::before {
     left: 0;
-    border-left-color: var(--border);
+    border-left-color: var(--border-color);
   }
+
   &::after {
     right: 0;
-    border-right-color: var(--border);
+    border-right-color: var(--border-color);
   }
 }

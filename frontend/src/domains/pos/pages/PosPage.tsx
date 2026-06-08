@@ -1,13 +1,19 @@
 import React, { useEffect, useState } from 'react'
 import { useAppStore } from '../../../store'
 import { api } from '../../../shared/services/api'
-import { Categoria, Producto, ComboProducto, Cliente, MetodoPago, Pedido, Venta } from '../../../shared/types'
+import { Categoria, Producto, ComboProducto, Cliente, MetodoPago, Pedido, Venta, VarianteProducto } from '../../../shared/types'
 import { Modal } from '../../../shared/components/ui/Modal'
-import { ShoppingCart, Tag, MagnifyingGlass, User, Trash, Plus, Minus, CreditCard, Coins, Check, FileText } from '@phosphor-icons/react'
+import { ProductGrid } from '../components/ProductGrid'
+import { CartPanel } from '../components/CartPanel'
+import { CajaModal } from '../components/CajaModal'
+import { Coins, Check, CreditCard, User, Key, Receipt, IdentificationCard } from '@phosphor-icons/react'
+import { Card } from '../../../components/Ui/Card'
+import { Button } from '../../../components/Ui/Button'
+import { Input } from '../../../components/Ui/Input'
 
 export const PosPage: React.FC = () => {
-  const { caja, cart, addToCart, removeFromCart, updateCartQty, updateCartObservacion, clearCart } = useAppStore()
-  
+  const { caja, setCaja, cart, addToCart, removeFromCart, updateCartQty, updateCartObservacion, clearCart } = useAppStore()
+
   // Data loading
   const [categories, setCategories] = useState<Categoria[]>([])
   const [products, setProducts] = useState<Producto[]>([])
@@ -20,38 +26,41 @@ export const PosPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedClient, setSelectedClient] = useState<Cliente | null>(null)
 
-  // New client form modal
+  // Modals visibility
   const [showClientModal, setShowClientModal] = useState(false)
+  const [showCajaModal, setShowCajaModal] = useState(false)
+
+  // New client form state
   const [newClientName, setNewClientName] = useState('')
   const [newClientApellido, setNewClientApellido] = useState('')
   const [newClientDocType, setNewClientDocType] = useState<'DNI' | 'RUC'>('DNI')
   const [newClientDocNum, setNewClientDocNum] = useState('')
 
-  // Checkout modal
-  const [showCheckout, setShowCheckout] = useState(false)
-  const [tipoComprobante, setTipoComprobante] = useState<'BOLETA' | 'FACTURA'>('BOLETA')
-  const [serie, setSerie] = useState('B001')
-  const [correlativo, setCorrelativo] = useState('')
-  const [payments, setPayments] = useState<{ idMetodoPago: number; monto: number; numeroOperacion?: string }[]>([])
   const [loading, setLoading] = useState(false)
 
-  // Fetch initial data
+  // Variant selector modal state
+  const [showVariantModal, setShowVariantModal] = useState(false)
+  const [selectedProductForVariant, setSelectedProductForVariant] = useState<Producto | null>(null)
+  const [availableVariants, setAvailableVariants] = useState<VarianteProducto[]>([])
+  const [selectedVariant, setSelectedVariant] = useState<VarianteProducto | null>(null)
+
   const loadData = async () => {
     try {
-      const [catsRes, prodsRes, combosRes, clientsRes, pmRes] = await Promise.all([
+      const [catsRes, prodsRes, combosRes, clientsRes, pmRes, activeCaja] = await Promise.all([
         api.get<Categoria[]>('/api/v1/categorias'),
         api.get<Producto[]>('/api/v1/productos'),
         api.get<ComboProducto[]>('/api/v1/combos'),
         api.get<Cliente[]>('/api/v1/clientes'),
-        api.get<MetodoPago[]>('/api/v1/metodo-pagos').catch(() => [])
+        api.get<MetodoPago[]>('/api/v1/metodo-pagos').catch(() => []),
+        api.get<any>('/api/v1/cajas/activa').catch(() => null)
       ])
-      
+
       setCategories(catsRes.filter(c => c.estado === 'ACTIVO'))
       setProducts(prodsRes.filter(p => p.estado === 'ACTIVO'))
       setCombos(combosRes.filter(c => c.estado === 'ACTIVO'))
       setClients(clientsRes.filter(c => c.estado === 'ACTIVO'))
+      setCaja(activeCaja)
 
-      // Fallback for payment methods if endpoint not loaded
       if (pmRes.length > 0) {
         setPaymentMethods(pmRes.filter(p => p.estado === 'ACTIVO'))
       } else {
@@ -62,55 +71,57 @@ export const PosPage: React.FC = () => {
         ])
       }
     } catch (e) {
-      console.error(e)
+      console.error('Error loading POS data', e)
     }
   }
 
   useEffect(() => {
     loadData()
-    setCorrelativo(Math.floor(100000 + Math.random() * 900000).toString())
   }, [])
 
-  // Auto series update on comprobante change
-  useEffect(() => {
-    setSerie(tipoComprobante === 'BOLETA' ? 'B001' : 'F001')
-  }, [tipoComprobante])
-
-  if (!caja) {
-    return (
-      <div className="flex flex-col items-center justify-center p-12 text-center h-[70vh] card border-default max-w-lg mx-auto my-12">
-        <Coins size={64} style={{ color: 'var(--text-muted)' }} className="mb-4" />
-        <h2 className="text-2xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>Punto de Venta Bloqueado</h2>
-        <p style={{ color: 'var(--text-secondary)' }} className="max-w-md">
-          Debe abrir el control de Caja para poder habilitar la pantalla de ventas y facturación.
-        </p>
-      </div>
-    )
-  }
-
-  // Filter products
-  const filteredProducts = products.filter(p => {
-    const matchesSearch = p.nombre.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          (p.descripcion && p.descripcion.toLowerCase().includes(searchQuery.toLowerCase()))
-    if (selectedCategory === 'ALL') return matchesSearch
-    if (selectedCategory === 'COMBOS') return false // Combos handles separately
-    return p.categoria?.idCategoria === selectedCategory && matchesSearch
-  })
-
-  // Cart Totals
   const subtotalCart = cart.reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0)
 
-  // Handle click on product to add
-  const handleAddProduct = (p: Producto) => {
-    addToCart({
-      producto: p,
-      cantidad: 1,
-      precioUnitario: p.precio,
-      observacion: ''
-    })
+  const handleAddProduct = async (p: Producto) => {
+    try {
+      const vars = await api.get<VarianteProducto[]>(`/api/v1/variantes/producto/${p.idProducto}`)
+      const activeVars = vars.filter(v => v.estado === 'ACTIVO')
+      if (activeVars.length > 0) {
+        setSelectedProductForVariant(p)
+        setAvailableVariants(activeVars)
+        setSelectedVariant(activeVars[0])
+        setShowVariantModal(true)
+      } else {
+        addToCart({
+          producto: p,
+          cantidad: 1,
+          precioUnitario: p.precio,
+          observacion: ''
+        })
+      }
+    } catch (e) {
+      addToCart({
+        producto: p,
+        cantidad: 1,
+        precioUnitario: p.precio,
+        observacion: ''
+      })
+    }
   }
 
-  // Handle click on combo to add
+  const handleConfirmVariant = () => {
+    if (!selectedProductForVariant || !selectedVariant) return
+    addToCart({
+      producto: selectedProductForVariant,
+      variante: selectedVariant,
+      cantidad: 1,
+      precioUnitario: selectedProductForVariant.precio + selectedVariant.precioExtra,
+      observacion: ''
+    })
+    setShowVariantModal(false)
+    setSelectedProductForVariant(null)
+    setSelectedVariant(null)
+  }
+
   const handleAddCombo = (c: ComboProducto) => {
     addToCart({
       combo: c,
@@ -120,7 +131,6 @@ export const PosPage: React.FC = () => {
     })
   }
 
-  // Handle create new client
   const handleCreateClient = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
@@ -138,32 +148,18 @@ export const PosPage: React.FC = () => {
       setNewClientApellido('')
       setNewClientDocNum('')
     } catch (e: any) {
-      alert(e.message || 'Error registrando cliente')
+      console.error(e.message || 'Error registrando cliente')
     }
   }
 
-  // Open checkout drawer
-  const handleOpenCheckout = () => {
+  const handleConfirmPedido = async () => {
     if (cart.length === 0) return
-    // Default payment as full cash
-    const cashMethod = paymentMethods.find(p => p.nombre.toUpperCase() === 'EFECTIVO')
-    setPayments([
-      {
-        idMetodoPago: cashMethod?.idMetodoPago || 1,
-        monto: subtotalCart
-      }
-    ])
-    setShowCheckout(true)
-  }
-
-  // Process order flow
-  const handleProcessOrder = async () => {
     setLoading(true)
     try {
-      // 1. Create Pedido (Order)
       const detalles = cart.map(item => ({
         idProducto: item.producto?.idProducto || null,
         idCombo: item.combo?.idCombo || null,
+        idVariante: item.variante?.idVariante || null,
         cantidad: item.cantidad,
         observacion: item.observacion || null,
         extrasIds: []
@@ -174,471 +170,166 @@ export const PosPage: React.FC = () => {
         detalles
       }
 
-      const orderRes = await api.post<Pedido>('/api/v1/pedidos', pedidoReq)
-
-      // 2. Register Sale (Venta) in PENDING
-      const ventaReq = {
-        idPedido: orderRes.idPedido,
-        tipoComprobante,
-        serie,
-        correlativo,
-        pagos: payments.map(p => ({
-          idMetodoPago: p.idMetodoPago,
-          monto: p.monto,
-          numeroOperacion: p.numeroOperacion || null
-        }))
-      }
-
-      const saleRes = await api.post<Venta>('/api/v1/ventas', ventaReq)
-
-      // 3. Mark Venta as PAID and update stock
-      await api.post<Venta>(`/api/v1/ventas/${saleRes.idVenta}/pagar`, payments.map(p => ({
-        idMetodoPago: p.idMetodoPago,
-        monto: p.monto,
-        numeroOperacion: p.numeroOperacion || null
-      })))
-
-      alert('¡Venta realizada con éxito!')
+      await api.post<Pedido>('/api/v1/pedidos', pedidoReq)
       clearCart()
       setSelectedClient(null)
-      setShowCheckout(false)
-      setCorrelativo(Math.floor(100000 + Math.random() * 900000).toString())
+      alert('Comanda registrada y enviada a cocina con éxito')
     } catch (e: any) {
-      alert(e.message || 'Error procesando la venta')
+      console.error(e.message || 'Error registrando el pedido')
+      alert(e.message || 'Error registrando el pedido')
     } finally {
       setLoading(false)
     }
   }
 
+  // 1. Vista de bloqueo con Estética Premium si la caja está cerrada
+  if (!caja) {
+    return (
+      <div className="flex flex-col h-[82vh] justify-center items-center bg-[var(--color-surface-2)] -m-6">
+        <Card padded={false} className="flex flex-col items-center justify-center p-8 text-center border-default max-w-md w-full shadow-xl bg-[var(--color-surface)] rounded-2xl">
+          <div className="p-4 rounded-full bg-red-50 text-[var(--color-danger)] mb-4 animate-bounce">
+            <Coins size={42} weight="duotone" />
+          </div>
+          <h2 className="text-lg font-black mb-1.5" style={{ color: 'var(--text-primary)' }}>Terminal de Venta Inactivo</h2>
+          <p style={{ color: 'var(--text-muted)' }} className="text-xs leading-relaxed max-w-xs mb-6">
+            Es obligatorio realizar la apertura de turno de la caja registradora para poder procesar transacciones y facturar órdenes.
+          </p>
+          <Button onClick={() => setShowCajaModal(true)} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold">
+            <Key size={16} weight="bold" />
+            Abrir Caja y Turno Real
+          </Button>
+        </Card>
+        <CajaModal open={showCajaModal} onClose={() => setShowCajaModal(false)} />
+      </div>
+    )
+  }
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[82vh]">
-      {/* Left side: Catalog Browser */}
-      <div className="lg:col-span-2 flex flex-col space-y-4 h-full overflow-hidden">
-        {/* Search & Tabs */}
-        <div className="card p-4 flex flex-col md:flex-row gap-4 justify-between items-center shrink-0">
-          <div className="relative w-full md:w-72">
-            <span className="absolute inset-y-0 left-0 flex items-center pl-3" style={{ color: 'var(--text-muted)' }}>
-              <MagnifyingGlass size={18} />
-            </span>
-            <input
-              type="text"
-              className="erp-input pl-10 py-1.5 w-full text-sm"
-              placeholder="Buscar plato o bebida..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
+    <div className="flex flex-col h-[82vh] -m-6 overflow-hidden bg-[var(--color-surface-2)]">
 
-          <div className="flex gap-2 overflow-x-auto w-full md:w-auto pb-1 max-w-full">
-            <button
-              onClick={() => setSelectedCategory('ALL')}
-              className={`btn btn-sm ${selectedCategory === 'ALL' ? 'btn-primary' : 'btn-secondary'}`}
-            >
-              Todos
-            </button>
-            {categories.map(cat => (
-              <button
-                key={cat.idCategoria}
-                onClick={() => setSelectedCategory(cat.idCategoria!)}
-                className={`btn btn-sm ${selectedCategory === cat.idCategoria ? 'btn-primary' : 'btn-secondary'}`}
-              >
-                {cat.nombre}
-              </button>
-            ))}
-            <button
-              onClick={() => setSelectedCategory('COMBOS')}
-              className={`btn btn-sm ${selectedCategory === 'COMBOS' ? 'btn-primary' : 'btn-secondary'}`}
-            >
-              Promos/Combos
-            </button>
-          </div>
-        </div>
-
-        {/* Product Cards Grid */}
-        <div className="flex-1 overflow-y-auto pr-1">
-          {selectedCategory === 'COMBOS' ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {combos.map(combo => (
-                <div
-                  key={combo.idCombo}
-                  onClick={() => handleAddCombo(combo)}
-                  className="card card-hover p-4 text-left cursor-pointer flex flex-col justify-between h-36 border-default"
-                  style={{ background: 'var(--color-surface)' }}
-                >
-                  <div>
-                    <span className="badge badge-primary mb-2">
-                      COMBO
-                    </span>
-                    <h4 className="text-sm font-semibold m-0 leading-tight line-clamp-2" style={{ color: 'var(--text-primary)' }}>
-                      {combo.nombre}
-                    </h4>
-                    <p className="text-[11px] mt-1 line-clamp-2" style={{ color: 'var(--text-secondary)' }}>
-                      {combo.descripcion || 'Sin descripción'}
-                    </p>
-                  </div>
-                  <span className="font-bold text-sm mt-2" style={{ color: 'var(--color-primary)' }}>
-                    S/. {combo.precio.toFixed(2)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {filteredProducts.map(prod => (
-                <div
-                  key={prod.idProducto}
-                  onClick={() => handleAddProduct(prod)}
-                  className="card card-hover p-4 text-left cursor-pointer flex flex-col justify-between h-36 border-default"
-                  style={{ background: 'var(--color-surface)' }}
-                >
-                  <div>
-                    <span className="badge badge-neutral mb-2">
-                      {prod.tipoProducto === 'PREPARADO' ? 'Cocina' : 'Inventario'}
-                    </span>
-                    <h4 className="text-sm font-semibold m-0 leading-tight line-clamp-2" style={{ color: 'var(--text-primary)' }}>
-                      {prod.nombre}
-                    </h4>
-                    <p className="text-[11px] mt-1 line-clamp-2" style={{ color: 'var(--text-secondary)' }}>
-                      {prod.descripcion || 'Sin descripción'}
-                    </p>
-                  </div>
-                  <span className="font-bold text-sm mt-2" style={{ color: 'var(--color-primary)' }}>
-                    S/. {prod.precio.toFixed(2)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
+      {/* BARRA DE ACCIÓN SUPERIOR CONTROLADA (Toma de pedidos simplificada) */}
+      <div className="bg-[var(--color-surface)] px-6 py-2.5 border-b border-default flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] font-mono">
+            Terminal POS Toma de Pedidos • Turno #{caja.idCaja}
+          </span>
         </div>
       </div>
 
-      {/* Right side: Shopping Cart & Checkout drawer */}
-      <div className="lg:col-span-1 card p-6 flex flex-col h-full overflow-hidden text-left border-default" style={{ background: 'var(--color-surface)' }}>
-        <h3 className="text-lg font-bold mb-4 flex items-center gap-2 shrink-0" style={{ color: 'var(--text-primary)' }}>
-          <ShoppingCart size={22} style={{ color: 'var(--color-primary)' }} />
-          Orden de Venta
-        </h3>
+      {/* ÁREA DE TRABAJO SPLIT: Catálogo / Carrito */}
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-0 overflow-hidden">
 
-        {/* Client selector */}
-        <div className="mb-4 shrink-0 p-3 rounded-xl flex items-center justify-between border-default" style={{ background: 'var(--color-surface-2)' }}>
-          <div className="flex items-center gap-2">
-            <User size={18} style={{ color: 'var(--color-primary)' }} />
-            {selectedClient ? (
-              <div>
-                <span className="text-xs font-semibold block" style={{ color: 'var(--text-primary)' }}>
-                  {selectedClient.nombre} {selectedClient.apellido}
-                </span>
-                <span className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>
-                  {selectedClient.tipoDocumento}: {selectedClient.documentoIdentidad}
-                </span>
-              </div>
-            ) : (
-              <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>Público General (Por defecto)</span>
-            )}
-          </div>
-          <div className="flex gap-2 items-center">
-            {selectedClient && (
-              <button
-                onClick={() => setSelectedClient(null)}
-                className="text-[10px] hover:underline cursor-pointer"
-                style={{ color: 'var(--color-danger)' }}
-              >
-                Limpiar
-              </button>
-            )}
-            <select
-              className="erp-select text-[11px] py-1 max-w-[120px]"
-              style={{ paddingRight: '1.5rem', backgroundPosition: 'right 0.4rem center' }}
-              onChange={(e) => {
-                const val = e.target.value
-                if (val === 'NEW') {
-                  setShowClientModal(true)
-                } else if (val) {
-                  const cl = clients.find(c => c.idCliente === parseInt(val))
-                  if (cl) setSelectedClient(cl)
-                }
-              }}
-              value={selectedClient?.idCliente || ''}
-            >
-              <option value="">Buscar/Elegir...</option>
-              {clients.map(c => (
-                <option key={c.idCliente} value={c.idCliente}>{c.nombre} {c.apellido}</option>
-              ))}
-              <option value="NEW">+ Nuevo Cliente</option>
-            </select>
-          </div>
+        {/* Lado Izquierdo: Buscador y Grilla de Productos */}
+        <div className="lg:col-span-2 flex flex-col h-full overflow-hidden p-5">
+          <ProductGrid
+            categories={categories}
+            products={products}
+            combos={combos}
+            selectedCategory={selectedCategory}
+            setSelectedCategory={setSelectedCategory}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            onAddProduct={handleAddProduct}
+            onAddCombo={handleAddCombo}
+          />
         </div>
 
-        {/* Cart Items List */}
-        <div className="flex-1 overflow-y-auto space-y-3 mb-4 pr-1">
-          {cart.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center py-12" style={{ color: 'var(--text-muted)' }}>
-              <ShoppingCart size={32} className="mb-2" />
-              <p className="text-xs">El carrito está vacío</p>
-            </div>
-          ) : (
-            cart.map((item) => (
-              <div key={item.cartId} className="p-3 rounded-xl space-y-2 border-default" style={{ background: 'var(--color-surface-2)' }}>
-                <div className="flex justify-between items-start gap-2">
-                  <div>
-                    <h5 className="text-xs font-semibold leading-snug" style={{ color: 'var(--text-primary)' }}>
-                      {item.producto?.nombre || item.combo?.nombre}
-                    </h5>
-                    <span className="text-[10px] font-bold" style={{ color: 'var(--color-primary)' }}>
-                      S/. {item.precioUnitario.toFixed(2)} c/u
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => removeFromCart(item.cartId)}
-                    className="hover:opacity-80 cursor-pointer shrink-0"
-                    style={{ color: 'var(--color-danger)' }}
-                  >
-                    <Trash size={16} />
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-between gap-4 pt-1">
-                  <input
-                    type="text"
-                    placeholder="Nota..."
-                    className="erp-input py-0.5 px-2 text-[10px] flex-1"
-                    value={item.observacion || ''}
-                    onChange={(e) => updateCartObservacion(item.cartId, e.target.value)}
-                  />
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => updateCartQty(item.cartId, item.cantidad - 1)}
-                      className="p-1 rounded btn-secondary cursor-pointer"
-                      style={{ padding: '0.2rem' }}
-                    >
-                      <Minus size={10} />
-                    </button>
-                    <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{item.cantidad}</span>
-                    <button
-                      onClick={() => updateCartQty(item.cartId, item.cantidad + 1)}
-                      className="p-1 rounded btn-secondary cursor-pointer"
-                      style={{ padding: '0.2rem' }}
-                    >
-                      <Plus size={10} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        {/* Action Panel */}
-        <div className="shrink-0 border-t pt-4 space-y-4" style={{ borderColor: 'var(--border-color)' }}>
-          <div className="flex justify-between font-semibold" style={{ color: 'var(--text-primary)' }}>
-            <span>Total a Pagar</span>
-            <span className="text-lg" style={{ color: 'var(--color-primary)' }}>S/. {subtotalCart.toFixed(2)}</span>
-          </div>
-
-          <button
-            onClick={handleOpenCheckout}
-            disabled={cart.length === 0}
-            className="w-full py-3 btn btn-primary font-semibold flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer"
-          >
-            <CreditCard size={20} />
-            Proceder al Cobro
-          </button>
+        {/* Lado Derecho: Sidebar de la Orden en cola */}
+        <div className="lg:col-span-1 bg-[var(--color-surface)] lg:border-l border-default p-5 flex flex-col h-full overflow-hidden shadow-sm">
+          <CartPanel
+            cart={cart}
+            clients={clients}
+            selectedClient={selectedClient}
+            setSelectedClient={setSelectedClient}
+            onRemove={removeFromCart}
+            onUpdateQty={updateCartQty}
+            onUpdateObs={updateCartObservacion}
+            onCheckout={handleConfirmPedido}
+            setShowClientModal={setShowClientModal}
+            onCajaClick={() => setShowCajaModal(true)}
+          />
         </div>
       </div>
 
-      {/* New Client Modal */}
-      <Modal
-        open={showClientModal}
-        onClose={() => setShowClientModal(false)}
-        title="Registrar Nuevo Cliente"
-        maxWidth="400px"
-      >
-        <form onSubmit={handleCreateClient} className="space-y-4">
-          <div>
-            <label className="block text-xs mb-1 font-semibold" style={{ color: 'var(--text-secondary)' }}>Nombre</label>
-            <input
-              type="text"
-              required
-              className="erp-input w-full text-xs"
-              value={newClientName}
-              onChange={(e) => setNewClientName(e.target.value)}
-            />
+      {/* Modales Compartidos Re-estructurados */}
+      <CajaModal open={showCajaModal} onClose={() => setShowCajaModal(false)} />
+
+      {/* Registrar Cliente Nuevo */}
+      <Modal open={showClientModal} onClose={() => setShowClientModal(false)} title="Registrar Nuevo Cliente" maxWidth="420px">
+        <form onSubmit={handleCreateClient} className="space-y-4 text-left p-1">
+          <div className="flex items-center gap-2.5 mb-2 pb-2 border-b border-default">
+            <IdentificationCard size={20} className="text-[var(--color-primary)]" />
+            <span className="text-xs font-bold text-[var(--text-secondary)]">Datos de Identidad Comercial</span>
           </div>
-          <div>
-            <label className="block text-xs mb-1 font-semibold" style={{ color: 'var(--text-secondary)' }}>Apellido</label>
-            <input
-              type="text"
-              required
-              className="erp-input w-full text-xs"
-              value={newClientApellido}
-              onChange={(e) => setNewClientApellido(e.target.value)}
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Nombres" type="text" required value={newClientName} onChange={(e) => setNewClientName(e.target.value)} />
+            <Input label="Apellidos" type="text" required value={newClientApellido} onChange={(e) => setNewClientApellido(e.target.value)} />
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-3 items-end">
             <div>
-              <label className="block text-xs mb-1 font-semibold" style={{ color: 'var(--text-secondary)' }}>Tipo Doc.</label>
-              <select
-                className="erp-select w-full text-xs"
-                value={newClientDocType}
-                onChange={(e) => setNewClientDocType(e.target.value as 'DNI' | 'RUC')}
-              >
+              <label className="block text-[11px] mb-1 font-bold text-[var(--text-secondary)]">Tipo Doc.</label>
+              <select className="erp-select w-full text-xs rounded-xl h-[38px]" value={newClientDocType} onChange={(e) => setNewClientDocType(e.target.value as 'DNI' | 'RUC')}>
                 <option value="DNI">DNI</option>
                 <option value="RUC">RUC</option>
               </select>
             </div>
-            <div>
-              <label className="block text-xs mb-1 font-semibold" style={{ color: 'var(--text-secondary)' }}>Número</label>
-              <input
-                type="text"
-                required
-                className="erp-input w-full text-xs"
-                value={newClientDocNum}
-                onChange={(e) => setNewClientDocNum(e.target.value)}
-              />
+            <div className="col-span-2">
+              <Input label="Número de Documento" type="text" required value={newClientDocNum} onChange={(e) => setNewClientDocNum(e.target.value)} />
             </div>
           </div>
-          <div className="flex gap-2 justify-end pt-2">
-            <button
-              type="button"
-              onClick={() => setShowClientModal(false)}
-              className="btn btn-ghost btn-sm"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              className="btn btn-primary btn-sm"
-            >
-              Registrar
-            </button>
+          <div className="flex gap-2 justify-end pt-3 border-t border-default">
+            <Button variant="ghost" size="sm" type="button" onClick={() => setShowClientModal(false)}>Cancelar</Button>
+            <Button size="sm" type="submit" className="font-bold">Guardar Cliente</Button>
           </div>
         </form>
       </Modal>
 
-      {/* Checkout Modal */}
-      <Modal
-        open={showCheckout}
-        onClose={() => setShowCheckout(false)}
-        title="Finalizar Venta e Imprimir Comprobante"
-        maxWidth="500px"
-      >
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs mb-1 font-semibold" style={{ color: 'var(--text-secondary)' }}>Tipo de Comprobante</label>
-              <select
-                className="erp-select w-full text-sm"
-                value={tipoComprobante}
-                onChange={(e) => setTipoComprobante(e.target.value as 'BOLETA' | 'FACTURA')}
-              >
-                <option value="BOLETA">Boleta de Venta</option>
-                <option value="FACTURA">Factura de Venta</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs mb-1 font-semibold" style={{ color: 'var(--text-secondary)' }}>Número de Serie & Correlativo</label>
-              <div className="flex gap-1">
-                <input
-                  type="text"
-                  className="erp-input w-16 text-center text-sm"
-                  disabled
-                  value={serie}
-                />
-                <input
-                  type="text"
-                  className="erp-input w-full text-sm"
-                  placeholder="Correlativo"
-                  value={correlativo}
-                  onChange={(e) => setCorrelativo(e.target.value)}
-                />
-              </div>
-            </div>
-          </div>
 
-          {/* Cash payments */}
+
+      {/* Selector de Variantes Integrado */}
+      <Modal open={showVariantModal} onClose={() => { setShowVariantModal(false); setSelectedProductForVariant(null); setSelectedVariant(null); }} title={`Opciones de Presentación`} maxWidth="400px">
+        <div className="space-y-4 text-left p-1">
           <div>
-            <label className="block text-xs mb-2 font-semibold" style={{ color: 'var(--text-secondary)' }}>Método de Pago</label>
-            <div className="grid grid-cols-3 gap-2">
-              {paymentMethods.map(pm => {
-                const isSelected = payments.some(p => p.idMetodoPago === pm.idMetodoPago)
-                return (
-                  <button
-                    key={pm.idMetodoPago}
-                    type="button"
-                    onClick={() => {
-                      setPayments([
-                        {
-                          idMetodoPago: pm.idMetodoPago!,
-                          monto: subtotalCart,
-                          numeroOperacion: pm.requiereOperacion ? 'OP-' + Math.floor(1000 + Math.random() * 9000) : undefined
-                        }
-                      ])
-                    }}
-                    className={`btn text-xs font-semibold cursor-pointer transition-all text-center flex items-center justify-center gap-1.5 ${isSelected ? 'btn-primary' : 'btn-secondary'}`}
-                  >
-                    {isSelected && <Check size={14} />}
-                    {pm.nombre}
-                  </button>
-                )
-              })}
-            </div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] block mb-0.5">Producto Base</span>
+            <span className="text-sm font-black text-[var(--text-primary)]">{selectedProductForVariant?.nombre}</span>
           </div>
-
-          {/* Operation code if required */}
-          {payments.some(p => {
-            const pm = paymentMethods.find(m => m.idMetodoPago === p.idMetodoPago)
-            return pm?.requiereOperacion
-          }) && (
-            <div>
-              <label className="block text-xs mb-1 font-semibold" style={{ color: 'var(--text-secondary)' }}>Número de Operación / Ref</label>
-              <input
-                type="text"
-                className="erp-input w-full text-sm"
-                placeholder="Ingrese código de transacción bancaria"
-                value={payments[0]?.numeroOperacion || ''}
-                onChange={(e) => {
-                  const updated = [...payments]
-                  updated[0].numeroOperacion = e.target.value
-                  setPayments(updated)
-                }}
-              />
-            </div>
-          )}
-
-          <div className="p-4 rounded-xl space-y-2 border-default" style={{ background: 'var(--color-surface-2)' }}>
-            <div className="flex justify-between text-xs" style={{ color: 'var(--text-secondary)' }}>
-              <span>Subtotal</span>
-              <span>S/. {(subtotalCart / 1.18).toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-xs" style={{ color: 'var(--text-secondary)' }}>
-              <span>IGV (18%)</span>
-              <span>S/. {(subtotalCart - (subtotalCart / 1.18)).toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-sm font-bold border-t pt-2" style={{ color: 'var(--text-primary)', borderColor: 'var(--border-color)' }}>
-              <span>Monto Total</span>
-              <span>S/. {subtotalCart.toFixed(2)}</span>
-            </div>
+          <div className="flex flex-col gap-2 max-h-[220px] overflow-y-auto pr-0.5">
+            {availableVariants.map(v => {
+              const isSelected = selectedVariant?.idVariante === v.idVariante
+              return (
+                <Button
+                  key={v.idVariante}
+                  type="button"
+                  variant={isSelected ? 'primary' : 'secondary'}
+                  onClick={() => setSelectedVariant(v)}
+                  className="w-full text-xs font-bold text-left flex justify-between items-center bg-[var(--color-surface)] border"
+                  style={{
+                    padding: '0.875rem 1.25rem',
+                    borderColor: isSelected ? 'var(--color-primary)' : 'var(--border-color)',
+                    color: isSelected ? 'var(--color-primary)' : 'var(--text-primary)',
+                    background: isSelected ? 'var(--color-primary-light)' : 'var(--color-surface)',
+                    boxShadow: 'none'
+                  }}
+                >
+                  <div>
+                    <span>{v.nombre}</span>
+                    {v.descripcion && <span className="block text-[10px] font-normal text-gray-400 mt-0.5">{v.descripcion}</span>}
+                  </div>
+                  <span className="font-mono font-bold bg-[var(--color-surface-2)] px-2 py-0.5 rounded-md text-[11px]" style={{ color: isSelected ? 'var(--color-primary)' : 'var(--text-primary)' }}>
+                    {v.precioExtra >= 0 ? `+ S/. ${v.precioExtra.toFixed(2)}` : `- S/. ${Math.abs(v.precioExtra).toFixed(2)}`}
+                  </span>
+                </Button>
+              )
+            })}
           </div>
-
-          <div className="flex gap-2 justify-end pt-4">
-            <button
-              type="button"
-              onClick={() => setShowCheckout(false)}
-              className="btn btn-ghost"
-            >
-              Atrás
-            </button>
-            <button
-              type="button"
-              onClick={handleProcessOrder}
-              disabled={loading}
-              className="btn btn-primary"
-            >
-              {loading ? 'Procesando...' : 'Confirmar Venta y Pago'}
-            </button>
+          <div className="flex gap-2 justify-end pt-3 border-t border-default">
+            <Button variant="ghost" size="sm" onClick={() => { setShowVariantModal(false); setSelectedProductForVariant(null); setSelectedVariant(null); }}>Cancelar</Button>
+            <Button size="sm" onClick={handleConfirmVariant} disabled={!selectedVariant} className="font-bold">Agregar Variación</Button>
           </div>
         </div>
       </Modal>
+
     </div>
   )
 }

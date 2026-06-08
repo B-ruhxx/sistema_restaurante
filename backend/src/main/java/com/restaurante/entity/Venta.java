@@ -1,5 +1,6 @@
 package com.restaurante.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -60,6 +61,7 @@ public class Venta {
     private Empleado empleado;
 
     // [NUEVA RELACIÓN] Enlace directo al turno/sesión de caja activa
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_caja", nullable = false)
     private Caja caja;

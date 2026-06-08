@@ -29,11 +29,11 @@ export async function uploadFile(file: File): Promise<UploadResponse> {
   validateImageFile(file)
   const formData = new FormData()
   formData.append('file', file)
-  return api.upload<UploadResponse>('/api/uploads', formData)
+  return api.upload<UploadResponse>('/api/v1/uploads', formData)
 }
 
 export async function deleteFile(filename: string): Promise<void> {
-  return api.delete<void>(`/api/uploads/${filename}`)
+  return api.delete<void>(`/api/v1/uploads/${filename}`)
 }
 
 export function getImageUrl(filenameOrUrl: string | undefined | null): string | null {
@@ -42,9 +42,11 @@ export function getImageUrl(filenameOrUrl: string | undefined | null): string | 
   if (filenameOrUrl.startsWith('http://') || filenameOrUrl.startsWith('https://')) {
     return filenameOrUrl
   }
-  // Strip leading slash if present
-  const clean = filenameOrUrl.startsWith('/') ? filenameOrUrl : `/${filenameOrUrl}`
-  return `/api/uploads${clean.includes('/api/uploads') ? '' : clean}`
+  if (filenameOrUrl.includes('/api/uploads/')) {
+    return filenameOrUrl
+  }
+  const clean = filenameOrUrl.startsWith('/') ? filenameOrUrl.substring(1) : filenameOrUrl
+  return `/api/uploads/${clean}`
 }
 
 export function readFileAsDataUrl(file: File): Promise<string> {

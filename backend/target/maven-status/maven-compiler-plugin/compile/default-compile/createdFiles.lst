@@ -13,6 +13,7 @@ com/restaurante/entity/Insumo$Estado.class
 com/restaurante/entity/MovimientoCaja$Tipo.class
 com/restaurante/repository/ExtraProductoRepository.class
 com/restaurante/entity/Rol.class
+com/restaurante/controller/AuditoriaController.class
 com/restaurante/repository/MovimientoInventarioRepository.class
 com/restaurante/aspect/AuditoriaHelperService.class
 com/restaurante/repository/DetalleVentaRepository.class
@@ -21,6 +22,7 @@ com/restaurante/entity/Proveedor.class
 com/restaurante/controller/CajaController.class
 com/restaurante/repository/DetallePedidoRepository.class
 com/restaurante/repository/MovimientoCajaRepository.class
+com/restaurante/controller/VarianteProductoController.class
 com/restaurante/repository/CategoriaRepository.class
 com/restaurante/entity/MetodoPago.class
 com/restaurante/dto/DetalleCompraRequest.class
@@ -44,8 +46,11 @@ com/restaurante/service/CajaService.class
 com/restaurante/entity/Categoria.class
 com/restaurante/controller/ClienteController.class
 com/restaurante/controller/AuthController.class
+com/restaurante/dto/UploadResponse.class
+com/restaurante/controller/MovimientoInventarioController.class
 com/restaurante/repository/ClienteRepository.class
 com/restaurante/repository/PedidoEstadoHistorialRepository.class
+com/restaurante/config/FileStorageConfig.class
 com/restaurante/entity/DetalleCompraInsumo.class
 com/restaurante/entity/Empleado$Estado.class
 com/restaurante/dto/DetallePedidoRequest.class
@@ -62,6 +67,7 @@ com/restaurante/entity/Caja$Estado.class
 com/restaurante/entity/Auditoria.class
 com/restaurante/repository/ComboProductoRepository.class
 com/restaurante/controller/CategoriaController.class
+com/restaurante/controller/VarianteProductoController$VarianteProductoRequest.class
 com/restaurante/RestauranteApplication.class
 com/restaurante/repository/VentaRepository.class
 com/restaurante/entity/Producto.class
@@ -71,6 +77,7 @@ com/restaurante/entity/ComboProducto$Estado.class
 com/restaurante/controller/ProveedorController.class
 com/restaurante/aspect/AuditoriaAspect.class
 com/restaurante/entity/MovimientoInventario$Origen.class
+com/restaurante/controller/UploadController.class
 com/restaurante/dto/LoginRequest.class
 com/restaurante/repository/ConsumoInsumoVentaRepository.class
 com/restaurante/entity/ExtraProducto.class
@@ -101,6 +108,7 @@ com/restaurante/entity/Producto$TipoProducto.class
 com/restaurante/entity/SesionUsuario.class
 com/restaurante/entity/InventarioProducto.class
 com/restaurante/entity/Venta.class
+com/restaurante/service/UploadService.class
 com/restaurante/entity/Proveedor$Estado.class
 com/restaurante/repository/PedidoRepository.class
 com/restaurante/controller/ComboController.class
@@ -129,6 +137,7 @@ com/restaurante/repository/EmpleadoRepository.class
 com/restaurante/dto/StockInsuficienteDto.class
 com/restaurante/entity/Rol$Estado.class
 com/restaurante/entity/VentaPago.class
+com/restaurante/controller/MetodoPagoController.class
 com/restaurante/controller/InsumoController.class
 com/restaurante/entity/DetalleVenta.class
 com/restaurante/entity/ConfiguracionEmpresa.class

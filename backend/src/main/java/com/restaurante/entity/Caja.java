@@ -1,5 +1,6 @@
 package com.restaurante.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -56,6 +57,7 @@ public class Caja {
 
     // [NUEVA RELACIÓN] Permite mapear todas las ventas cobradas durante este turno
     // de caja
+    @JsonIgnore
     @OneToMany(mappedBy = "caja", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Venta> ventas = new ArrayList<>();
 

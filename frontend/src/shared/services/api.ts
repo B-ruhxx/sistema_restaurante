@@ -24,8 +24,20 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   }
 
   if (!response.ok) {
-    const errorText = await response.text()
-    throw new Error(errorText || `Error ${response.status}: ${response.statusText}`)
+    let message = `Error ${response.status}: ${response.statusText}`
+    try {
+      const clone = response.clone()
+      const errorData = await clone.json()
+      if (errorData && errorData.message) {
+        message = errorData.message
+      }
+    } catch {
+      try {
+        const errorText = await response.text()
+        if (errorText) message = errorText
+      } catch { /* ignore */ }
+    }
+    throw new Error(message)
   }
 
   const contentType = response.headers.get('content-type')

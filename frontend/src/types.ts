@@ -229,3 +229,13 @@ export interface StockInsuficienteDto {
   stock: number;
   cantidadNecesaria: number;
 }
+
+export interface VarianteProducto {
+  idVariante?: number;
+  producto?: Producto;
+  nombre: string;
+  descripcion?: string;
+  precioExtra: number;
+  estado?: 'ACTIVO' | 'INACTIVO';
+}
+

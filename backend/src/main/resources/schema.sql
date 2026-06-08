@@ -199,8 +199,8 @@ CREATE TABLE variante_producto (
     descripcion TEXT,
     precio_extra DECIMAL(10,2) DEFAULT 0,
     estado ENUM('ACTIVO', 'INACTIVO') DEFAULT 'ACTIVO',
-    FOREIGN KEY (id_producto) REFERENCES producto(id_producto),
-    CONSTRAINT chk_variante_precio CHECK (precio_extra >= 0)
+    FOREIGN KEY (id_producto) REFERENCES producto(id_producto)
+    -- CONSTRAINT chk_variante_precio CHECK (precio_extra >= 0)
 ) ENGINE=InnoDB;
 
 CREATE TABLE receta_producto (

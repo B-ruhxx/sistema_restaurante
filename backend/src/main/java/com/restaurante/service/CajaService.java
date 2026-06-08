@@ -92,7 +92,11 @@ public class CajaService {
     }
 
     public Optional<Caja> obtenerCajaAbiertaParaEmpleado(Empleado empleado) {
-        return cajaRepository.findByEmpleadoAndEstado(empleado, Caja.Estado.ABIERTA);
+        Optional<Caja> cajaPropia = cajaRepository.findByEmpleadoAndEstado(empleado, Caja.Estado.ABIERTA);
+        if (cajaPropia.isPresent()) {
+            return cajaPropia;
+        }
+        return cajaRepository.findFirstByEstadoOrderByFechaAperturaDesc(Caja.Estado.ABIERTA);
     }
 
     public List<MovimientoCaja> obtenerMovimientos(Integer idCaja) {

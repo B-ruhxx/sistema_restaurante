@@ -2,10 +2,11 @@ import React, { useEffect, useState } from 'react'
 import { api } from '../../../shared/services/api'
 import { AlertaStockDto } from '../../../shared/types'
 import { useAppStore } from '../../../store'
-import {
-  CurrencyDollar, ShoppingCart, Coins, Package,
-  TrendUp, Warning, ArrowsClockwise, Gauge
-} from '@phosphor-icons/react'
+import { KpiCards } from '../components/KpiCards'
+import { KitchenOrders } from '../components/KitchenOrders'
+import { ShoppingCart, TrendUp, Warning, Gauge, ArrowsClockwise, Package } from '@phosphor-icons/react'
+import { Card } from '../../../components/Ui/Card'
+import { Button } from '../../../components/Ui/Button'
 
 interface FinancialSummary {
   totalVentas: number
@@ -35,7 +36,14 @@ export const DashboardPage: React.FC = () => {
   const [dailySales, setDailySales] = useState<DailySale[]>([])
   const [loading, setLoading] = useState(true)
 
+  const userRole = user?.rol || 'MESERO'
+
   const loadData = async () => {
+    if (userRole === 'COCINERO') {
+      // Cooks don't need financial metrics
+      setLoading(false)
+      return
+    }
     setLoading(true)
     try {
       const [fin, stock, popular, daily] = await Promise.allSettled([
@@ -53,93 +61,55 @@ export const DashboardPage: React.FC = () => {
     }
   }
 
-  useEffect(() => { loadData() }, [])
+  useEffect(() => {
+    loadData()
+  }, [userRole])
 
   const maxDaily = Math.max(...dailySales.map(d => d.total), 1)
   const maxPopular = Math.max(...popularProducts.map(p => p.cantidad), 1)
 
-  const KPICard = ({ icon, label, value, sub, color, loading: l }: {
-    icon: React.ReactNode, label: string, value: string, sub?: string, color: string, loading?: boolean
-  }) => (
-    <div className="kpi-card" style={{ ['--kpi-color' as any]: color, borderLeftColor: color } as React.CSSProperties}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div>
-          <p style={{ fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-            {label}
-          </p>
-          {l ? (
-            <div className="skeleton" style={{ width: 120, height: 32, borderRadius: 8 }} />
-          ) : (
-            <p style={{ fontSize: '1.625rem', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-display)', lineHeight: 1 }}>
-              {value}
-            </p>
-          )}
-          {sub && !l && (
-            <p style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginTop: '0.375rem' }}>{sub}</p>
-          )}
-        </div>
-        <div style={{
-          background: `${color}18`, borderRadius: 'var(--radius-md)',
-          padding: '0.625rem', color,
-        }}>
-          {icon}
-        </div>
+  // 1. If cook, show only kitchen comanda orders
+  if (userRole === 'COCINERO') {
+    return (
+      <div style={{ padding: '0.25rem' }}>
+        <KitchenOrders />
       </div>
-    </div>
-  )
+    )
+  }
 
+  // 2. Otherwise show admin KPIs & kitchen orders section below
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div className="section-header flex items-center justify-between">
         <div>
-          <h1 style={{ fontSize: '1.5rem', fontFamily: 'var(--font-display)' }}>
+          <h1 style={{ fontSize: '1.5rem', fontFamily: 'var(--font-display)', margin: 0 }}>
             Bienvenido, {user?.nombre} 👋
           </h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem', marginTop: '0.25rem', margin: 0 }}>
             {new Date().toLocaleDateString('es-PE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </p>
         </div>
-        <button onClick={loadData} className="btn btn-secondary" disabled={loading}>
+        <Button onClick={loadData} variant="secondary" disabled={loading}>
           <ArrowsClockwise size={15} className={loading ? 'animate-spin-slow' : ''} />
-          Actualizar
-        </button>
+          Actualizar Datos
+        </Button>
       </div>
 
-      {/* KPI Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '1rem' }}>
-        <KPICard loading={loading}
-          icon={<CurrencyDollar size={22} />} label="Ingresos Totales"
-          value={financials ? `S/. ${financials.totalVentas.toFixed(2)}` : '—'}
-          sub={financials ? `IGV: S/. ${financials.igv.toFixed(2)}` : 'Sin datos aún'}
-          color="var(--color-primary)"
-        />
-        <KPICard loading={loading}
-          icon={<TrendUp size={22} />} label="Ganancia Neta"
-          value={financials ? `S/. ${financials.gananciaNeta.toFixed(2)}` : '—'}
-          sub="Descontando costo de insumos"
-          color="var(--color-success)"
-        />
-        <KPICard loading={loading}
-          icon={<Coins size={22} />} label="Estado de Caja"
-          value={caja ? `S/. ${(caja.montoSistema ?? caja.montoApertura).toFixed(2)}` : 'Cerrada'}
-          sub={caja ? `Turno #${caja.idCaja}` : 'Debe abrir caja para vender'}
-          color={caja ? 'var(--color-success)' : 'var(--color-danger)'}
-        />
-        <KPICard loading={loading}
-          icon={<Warning size={22} />} label="Alertas de Stock"
-          value={loading ? '...' : String(alertaStock.length)}
-          sub={alertaStock.length === 0 ? 'Inventario en orden ✓' : 'Productos bajo mínimo'}
-          color={alertaStock.length > 0 ? 'var(--color-warning)' : 'var(--color-success)'}
-        />
-      </div>
+      {/* KPI Cards Grid */}
+      <KpiCards
+        financials={financials}
+        alertaStockCount={alertaStock.length}
+        caja={caja}
+        loading={loading}
+      />
 
       {/* Charts & Lists */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
 
         {/* Daily Sales */}
-        <div className="card" style={{ padding: '1.25rem' }}>
-          <h3 style={{ fontSize: '0.9375rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <Card padded={true}>
+          <h3 style={{ fontSize: '0.9375rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <ShoppingCart size={18} style={{ color: 'var(--color-primary)' }} />
             Ventas Diarias (últimos 7 días)
           </h3>
@@ -153,7 +123,7 @@ export const DashboardPage: React.FC = () => {
               <p>Sin registros de ventas aún</p>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
               {dailySales.map((d, i) => (
                 <div key={i}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
@@ -167,11 +137,11 @@ export const DashboardPage: React.FC = () => {
               ))}
             </div>
           )}
-        </div>
+        </Card>
 
         {/* Popular Products */}
-        <div className="card" style={{ padding: '1.25rem' }}>
-          <h3 style={{ fontSize: '0.9375rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <Card padded={true}>
+          <h3 style={{ fontSize: '0.9375rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <TrendUp size={18} style={{ color: 'var(--color-success)' }} />
             Productos Más Vendidos
           </h3>
@@ -185,7 +155,7 @@ export const DashboardPage: React.FC = () => {
               <p>Sin estadísticas disponibles</p>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
               {popularProducts.map((p, i) => (
                 <div key={i}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
@@ -202,11 +172,11 @@ export const DashboardPage: React.FC = () => {
               ))}
             </div>
           )}
-        </div>
+        </Card>
 
         {/* Stock Alerts */}
-        <div className="card" style={{ padding: '1.25rem', gridColumn: 'span 2' }}>
-          <h3 style={{ fontSize: '0.9375rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <Card padded={true} style={{ gridColumn: 'span 2' }}>
+          <h3 style={{ fontSize: '0.9375rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Warning size={18} style={{ color: 'var(--color-warning)' }} />
             Alertas de Stock Crítico
             {alertaStock.length > 0 && (
@@ -228,23 +198,33 @@ export const DashboardPage: React.FC = () => {
               ✓ Todo el inventario se encuentra en niveles correctos
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem' }}>
               {alertaStock.map((item, i) => (
                 <div key={i} style={{
                   background: 'var(--color-warning-light)',
                   border: '1px solid hsl(45, 80%, 80%)',
                   borderRadius: 'var(--radius-md)',
-                  padding: '0.75rem',
+                  padding: '0.75rem 1rem',
+                  textAlign: 'left'
                 }}>
-                  <p style={{ fontWeight: 700, fontSize: '0.8125rem', color: 'var(--text-primary)' }}>{item.nombre}</p>
-                  <p style={{ fontSize: '0.75rem', color: 'hsl(45, 60%, 30%)', marginTop: '0.2rem' }}>
-                    Stock: <strong>{item.stock}</strong> / Mín: {item.stockMinimo}
+                  <p style={{ fontWeight: 700, fontSize: '0.8125rem', color: 'var(--text-primary)', margin: 0 }}>{item.nombre}</p>
+                  <p style={{ fontSize: '0.75rem', color: 'hsl(45, 60%, 30%)', marginTop: '0.3rem', display: 'flex', alignItems: 'center', gap: '4px', margin: 0 }}>
+                    Stock:
+                    <span className={`badge ${item.stock === 0 ? 'badge-danger' : 'badge-warning'} text-[10px] px-1.5 py-0.5`}>
+                      {item.stock}
+                    </span>
+                    / Mín: {item.stockMinimo}
                   </p>
                 </div>
               ))}
             </div>
           )}
-        </div>
+        </Card>
+      </div>
+
+      {/* Kitchen Orders Section */}
+      <div style={{ marginTop: '0.5rem' }}>
+        <KitchenOrders />
       </div>
     </div>
   )

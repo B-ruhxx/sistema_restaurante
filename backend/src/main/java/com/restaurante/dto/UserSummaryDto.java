@@ -6,6 +6,7 @@ public class UserSummaryDto {
     private String apellido;
     private String username;
     private String rol;
+    private String avatarUrl;
 
     public UserSummaryDto() {}
 
@@ -15,6 +16,15 @@ public class UserSummaryDto {
         this.apellido = apellido;
         this.username = username;
         this.rol = rol;
+    }
+
+    public UserSummaryDto(Integer idEmpleado, String nombre, String apellido, String username, String rol, String avatarUrl) {
+        this.idEmpleado = idEmpleado;
+        this.nombre = nombre;
+        this.apellido = apellido;
+        this.username = username;
+        this.rol = rol;
+        this.avatarUrl = avatarUrl;
     }
 
     public Integer getIdEmpleado() { return idEmpleado; }
@@ -31,4 +41,7 @@ public class UserSummaryDto {
 
     public String getRol() { return rol; }
     public void setRol(String rol) { this.rol = rol; }
+
+    public String getAvatarUrl() { return avatarUrl; }
+    public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
 }

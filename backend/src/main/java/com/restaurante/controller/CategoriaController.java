@@ -41,6 +41,7 @@ public class CategoriaController {
         return repository.findById(id).map(categoria -> {
             categoria.setNombre(details.getNombre());
             categoria.setDescripcion(details.getDescripcion());
+            categoria.setImagenUrl(details.getImagenUrl());
             categoria.setEstado(details.getEstado());
             return ResponseEntity.ok(repository.save(categoria));
         }).orElse(ResponseEntity.notFound().build());

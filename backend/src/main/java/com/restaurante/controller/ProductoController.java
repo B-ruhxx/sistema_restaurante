@@ -33,6 +33,21 @@ public class ProductoController {
     @Autowired
     private InsumoRepository insumoRepository;
 
+    @Autowired
+    private DetallePedidoRepository detallePedidoRepository;
+
+    @Autowired
+    private DetalleVentaRepository detalleVentaRepository;
+
+    @Autowired
+    private ComboDetalleRepository comboDetalleRepository;
+
+    @Autowired
+    private MovimientoInventarioRepository movimientoInventarioRepository;
+
+    @Autowired
+    private VarianteProductoRepository varianteProductoRepository;
+
     @GetMapping
     public ResponseEntity<List<Producto>> getAllProductos() {
         return ResponseEntity.ok(productoRepository.findAll());
@@ -62,6 +77,7 @@ public class ProductoController {
         producto.setNombre(request.getNombre());
         producto.setDescripcion(request.getDescripcion());
         producto.setPrecio(request.getPrecio());
+        producto.setImagenUrl(request.getImagenUrl());
         producto.setTipoProducto(Producto.TipoProducto.valueOf(request.getTipoProducto().toUpperCase()));
         producto.setEstado(request.getEstado() != null ? Producto.Estado.valueOf(request.getEstado().toUpperCase()) : Producto.Estado.ACTIVO);
 
@@ -108,6 +124,7 @@ public class ProductoController {
             producto.setNombre(request.getNombre());
             producto.setDescripcion(request.getDescripcion());
             producto.setPrecio(request.getPrecio());
+            producto.setImagenUrl(request.getImagenUrl());
             producto.setEstado(request.getEstado() != null ? Producto.Estado.valueOf(request.getEstado().toUpperCase()) : Producto.Estado.ACTIVO);
 
             if (request.getIdCategoria() != null) {
@@ -159,11 +176,46 @@ public class ProductoController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteProducto(@PathVariable Integer id) {
+    @Transactional
+    public ResponseEntity<?> deleteProducto(
+            @PathVariable Integer id,
+            @RequestParam(value = "physical", defaultValue = "false") boolean physical) {
         return productoRepository.findById(id).map(producto -> {
-            producto.setEstado(Producto.Estado.INACTIVO);
-            productoRepository.save(producto);
-            return ResponseEntity.ok().build();
+            if (physical) {
+                // Check if product is referenced anywhere
+                boolean usedInPedidos = detallePedidoRepository.existsByProductoIdProducto(id);
+                boolean usedInVentas = detalleVentaRepository.existsByProductoIdProducto(id);
+                boolean usedInCombos = comboDetalleRepository.existsByProductoIdProducto(id);
+                boolean usedInInventario = movimientoInventarioRepository.existsByProductoIdProducto(id);
+
+                if (usedInPedidos || usedInVentas || usedInCombos || usedInInventario) {
+                    return ResponseEntity.badRequest().body(Map.of(
+                        "message", "No se puede eliminar el producto físicamente porque está siendo usado en transacciones del sistema (pedidos, ventas, combos o movimientos de inventario)."
+                    ));
+                }
+
+                // Delete in cascade:
+                // 1. Delete variants
+                List<VarianteProducto> variantes = varianteProductoRepository.findByProductoIdProducto(id);
+                varianteProductoRepository.deleteAll(variantes);
+
+                // 2. Delete recipes
+                List<RecetaProducto> recetas = recetaProductoRepository.findByProductoIdProducto(id);
+                recetaProductoRepository.deleteAll(recetas);
+
+                // 3. Delete stock definition
+                inventarioProductoRepository.findByProductoIdProducto(id).ifPresent(inv -> {
+                    inventarioProductoRepository.delete(inv);
+                });
+
+                // 4. Finally delete product
+                productoRepository.delete(producto);
+                return ResponseEntity.ok(Map.of("message", "Producto eliminado físicamente con éxito."));
+            } else {
+                producto.setEstado(Producto.Estado.INACTIVO);
+                productoRepository.save(producto);
+                return ResponseEntity.ok(Map.of("message", "Producto desactivado con éxito."));
+            }
         }).orElse(ResponseEntity.notFound().build());
     }
 
@@ -172,6 +224,7 @@ public class ProductoController {
         private String nombre;
         private String descripcion;
         private BigDecimal precio;
+        private String imagenUrl;
         private String tipoProducto;
         private String estado;
         private Integer idCategoria;
@@ -205,6 +258,9 @@ public class ProductoController {
 
         public List<RecetaItemRequest> getReceta() { return receta; }
         public void setReceta(List<RecetaItemRequest> receta) { this.receta = receta; }
+
+        public String getImagenUrl() { return imagenUrl; }
+        public void setImagenUrl(String imagenUrl) { this.imagenUrl = imagenUrl; }
     }
 
     public static class RecetaItemRequest {
