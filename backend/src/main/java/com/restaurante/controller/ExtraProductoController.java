@@ -1,7 +1,8 @@
 package com.restaurante.controller;
 
-import com.restaurante.entity.ExtraProducto;
-import com.restaurante.repository.ExtraProductoRepository;
+import com.restaurante.dto.request.ExtraProductoRequest;
+import com.restaurante.dto.response.ExtraProductoResponse;
+import com.restaurante.service.ExtraProductoService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -14,44 +15,43 @@ import java.util.List;
 public class ExtraProductoController {
 
     @Autowired
-    private ExtraProductoRepository repository;
+    private ExtraProductoService extraProductoService;
 
     @GetMapping
-    public ResponseEntity<List<ExtraProducto>> getAllExtras() {
-        return ResponseEntity.ok(repository.findAll());
+    public ResponseEntity<List<ExtraProductoResponse>> getAllExtras() {
+        return ResponseEntity.ok(extraProductoService.getAllExtras());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ExtraProducto> getExtraById(@PathVariable Integer id) {
-        return repository.findById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<ExtraProductoResponse> getExtraById(@PathVariable Integer id) {
+        try {
+            return ResponseEntity.ok(extraProductoService.getExtraById(id));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @PostMapping
-    public ResponseEntity<ExtraProducto> createExtra(@Valid @RequestBody ExtraProducto extra) {
-        if (extra.getEstado() == null) {
-            extra.setEstado(ExtraProducto.Estado.ACTIVO);
-        }
-        return ResponseEntity.ok(repository.save(extra));
+    public ResponseEntity<ExtraProductoResponse> createExtra(@Valid @RequestBody ExtraProductoRequest request) {
+        return ResponseEntity.ok(extraProductoService.createExtra(request));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ExtraProducto> updateExtra(@PathVariable Integer id, @Valid @RequestBody ExtraProducto details) {
-        return repository.findById(id).map(extra -> {
-            extra.setNombre(details.getNombre());
-            extra.setPrecio(details.getPrecio());
-            extra.setEstado(details.getEstado());
-            return ResponseEntity.ok(repository.save(extra));
-        }).orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<ExtraProductoResponse> updateExtra(@PathVariable Integer id, @Valid @RequestBody ExtraProductoRequest request) {
+        try {
+            return ResponseEntity.ok(extraProductoService.updateExtra(id, request));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteExtra(@PathVariable Integer id) {
-        return repository.findById(id).map(extra -> {
-            extra.setEstado(ExtraProducto.Estado.INACTIVO);
-            repository.save(extra);
+        try {
+            extraProductoService.deleteExtra(id);
             return ResponseEntity.ok().build();
-        }).orElse(ResponseEntity.notFound().build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 }

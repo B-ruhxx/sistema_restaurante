@@ -1,7 +1,8 @@
 package com.restaurante.controller;
 
-import com.restaurante.entity.Cliente;
-import com.restaurante.repository.ClienteRepository;
+import com.restaurante.dto.request.ClienteRequest;
+import com.restaurante.dto.response.ClienteResponse;
+import com.restaurante.service.ClienteService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -14,49 +15,43 @@ import java.util.List;
 public class ClienteController {
 
     @Autowired
-    private ClienteRepository repository;
+    private ClienteService clienteService;
 
     @GetMapping
-    public ResponseEntity<List<Cliente>> getAllClientes() {
-        return ResponseEntity.ok(repository.findAll());
+    public ResponseEntity<List<ClienteResponse>> getAllClientes() {
+        return ResponseEntity.ok(clienteService.getAllClientes());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Cliente> getClienteById(@PathVariable Integer id) {
-        return repository.findById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<ClienteResponse> getClienteById(@PathVariable Integer id) {
+        try {
+            return ResponseEntity.ok(clienteService.getClienteById(id));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @PostMapping
-    public ResponseEntity<Cliente> createCliente(@Valid @RequestBody Cliente cliente) {
-        if (cliente.getEstado() == null) {
-            cliente.setEstado(Cliente.Estado.ACTIVO);
-        }
-        return ResponseEntity.ok(repository.save(cliente));
+    public ResponseEntity<ClienteResponse> createCliente(@Valid @RequestBody ClienteRequest request) {
+        return ResponseEntity.ok(clienteService.createCliente(request));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Cliente> updateCliente(@PathVariable Integer id, @Valid @RequestBody Cliente clienteDetails) {
-        return repository.findById(id).map(cliente -> {
-            cliente.setNombre(clienteDetails.getNombre());
-            cliente.setApellido(clienteDetails.getApellido());
-            cliente.setTipoDocumento(clienteDetails.getTipoDocumento());
-            cliente.setDocumentoIdentidad(clienteDetails.getDocumentoIdentidad());
-            cliente.setTelefono(clienteDetails.getTelefono());
-            cliente.setEmail(clienteDetails.getEmail());
-            cliente.setDireccion(clienteDetails.getDireccion());
-            cliente.setEstado(clienteDetails.getEstado());
-            return ResponseEntity.ok(repository.save(cliente));
-        }).orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<ClienteResponse> updateCliente(@PathVariable Integer id, @Valid @RequestBody ClienteRequest request) {
+        try {
+            return ResponseEntity.ok(clienteService.updateCliente(id, request));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteCliente(@PathVariable Integer id) {
-        return repository.findById(id).map(cliente -> {
-            cliente.setEstado(Cliente.Estado.INACTIVO);
-            repository.save(cliente);
+        try {
+            clienteService.deleteCliente(id);
             return ResponseEntity.ok().build();
-        }).orElse(ResponseEntity.notFound().build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 }

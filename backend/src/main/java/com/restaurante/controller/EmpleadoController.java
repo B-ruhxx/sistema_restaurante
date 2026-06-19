@@ -1,13 +1,12 @@
 package com.restaurante.controller;
 
-import com.restaurante.entity.Empleado;
-import com.restaurante.entity.Rol;
-import com.restaurante.repository.EmpleadoRepository;
-import com.restaurante.repository.RolRepository;
+import com.restaurante.dto.request.EmpleadoRequest;
+import com.restaurante.dto.response.EmpleadoResponse;
+import com.restaurante.dto.response.RolResponse;
+import com.restaurante.service.EmpleadoService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,92 +16,57 @@ import java.util.List;
 public class EmpleadoController {
 
     @Autowired
-    private EmpleadoRepository repository;
-
-    @Autowired
-    private RolRepository rolRepository;
-
-    @Autowired
-    private PasswordEncoder passwordEncoder;
+    private EmpleadoService empleadoService;
 
     @GetMapping
-    public ResponseEntity<List<Empleado>> getAllEmpleados() {
-        return ResponseEntity.ok(repository.findAll());
+    public ResponseEntity<List<EmpleadoResponse>> getAllEmpleados() {
+        return ResponseEntity.ok(empleadoService.getAllEmpleados());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Empleado> getEmpleadoById(@PathVariable Integer id) {
-        return repository.findById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<EmpleadoResponse> getEmpleadoById(@PathVariable Integer id) {
+        try {
+            return ResponseEntity.ok(empleadoService.getEmpleadoById(id));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @PostMapping
-    public ResponseEntity<?> createEmpleado(@Valid @RequestBody Empleado empleado) {
-        if (repository.findByUsername(empleado.getUsername()).isPresent()) {
-            return ResponseEntity.badRequest().body("El nombre de usuario ya está registrado.");
+    public ResponseEntity<?> createEmpleado(@Valid @RequestBody EmpleadoRequest request) {
+        try {
+            EmpleadoResponse response = empleadoService.createEmpleado(request);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
-        if (empleado.getEmail() != null && repository.findAll().stream().anyMatch(e -> empleado.getEmail().equalsIgnoreCase(e.getEmail()))) {
-            return ResponseEntity.badRequest().body("El correo electrónico ya está registrado.");
-        }
-
-        // Encrypt password
-        empleado.setPasswordHash(passwordEncoder.encode(empleado.getPasswordHash()));
-        if (empleado.getEstado() == null) {
-            empleado.setEstado(Empleado.Estado.ACTIVO);
-        }
-
-        // Resolve Rol
-        if (empleado.getRol() != null && empleado.getRol().getIdRol() != null) {
-            Rol rol = rolRepository.findById(empleado.getRol().getIdRol())
-                    .orElseThrow(() -> new IllegalArgumentException("Rol no encontrado."));
-            empleado.setRol(rol);
-        }
-
-        return ResponseEntity.ok(repository.save(empleado));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateEmpleado(@PathVariable Integer id, @Valid @RequestBody Empleado details) {
-        return repository.findById(id).map(empleado -> {
-            if (!empleado.getUsername().equals(details.getUsername()) &&
-                    repository.findByUsername(details.getUsername()).isPresent()) {
-                return ResponseEntity.badRequest().body("El nombre de usuario ya está registrado.");
+    public ResponseEntity<?> updateEmpleado(@PathVariable Integer id, @Valid @RequestBody EmpleadoRequest request) {
+        try {
+            EmpleadoResponse response = empleadoService.updateEmpleado(id, request);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            if (e.getMessage().contains("no encontrado")) {
+                return ResponseEntity.notFound().build();
             }
-
-            empleado.setNombre(details.getNombre());
-            empleado.setApellido(details.getApellido());
-            empleado.setUsername(details.getUsername());
-            empleado.setTelefono(details.getTelefono());
-            empleado.setEmail(details.getEmail());
-            empleado.setAvatarUrl(details.getAvatarUrl());
-            empleado.setEstado(details.getEstado());
-
-            if (details.getPasswordHash() != null && !details.getPasswordHash().isEmpty() && !details.getPasswordHash().startsWith("$2a$")) {
-                empleado.setPasswordHash(passwordEncoder.encode(details.getPasswordHash()));
-            }
-
-            if (details.getRol() != null && details.getRol().getIdRol() != null) {
-                Rol rol = rolRepository.findById(details.getRol().getIdRol())
-                        .orElseThrow(() -> new IllegalArgumentException("Rol no encontrado."));
-                empleado.setRol(rol);
-            }
-
-            return ResponseEntity.ok(repository.save(empleado));
-        }).orElse(ResponseEntity.notFound().build());
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteEmpleado(@PathVariable Integer id) {
-        return repository.findById(id).map(empleado -> {
-            empleado.setEstado(Empleado.Estado.INACTIVO);
-            repository.save(empleado);
+        try {
+            empleadoService.deleteEmpleado(id);
             return ResponseEntity.ok().build();
-        }).orElse(ResponseEntity.notFound().build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @GetMapping("/roles")
-    public ResponseEntity<List<Rol>> getAllRoles() {
-        return ResponseEntity.ok(rolRepository.findAll());
+    public ResponseEntity<List<RolResponse>> getAllRoles() {
+        return ResponseEntity.ok(empleadoService.getAllRoles());
     }
 }

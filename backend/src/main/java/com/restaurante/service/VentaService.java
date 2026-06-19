@@ -1,5 +1,10 @@
 package com.restaurante.service;
 
+import com.restaurante.dto.VentaPagoRequest;
+import com.restaurante.dto.VentaRequest;
+import com.restaurante.dto.response.CajaResponse;
+import com.restaurante.dto.response.VentaResponse;
+import com.restaurante.dto.mapper.VentaMapper;
 import com.restaurante.entity.*;
 import com.restaurante.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,7 +14,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -45,15 +53,79 @@ public class VentaService {
     @Autowired
     private PedidoRepository pedidoRepository;
 
-    public Venta registrarVenta(Venta venta, List<DetalleVenta> detalles, List<VentaPago> pagos) {
+    @Autowired
+    private DetallePedidoRepository detallePedidoRepository;
+
+    @Autowired
+    private MetodoPagoRepository metodoPagoRepository;
+
+    @Autowired
+    private VentaPagoRepository ventaPagoRepository;
+
+    @Autowired
+    private ConfiguracionEmpresaRepository configuracionEmpresaRepository;
+
+    @Autowired
+    private VentaMapper ventaMapper;
+
+    public VentaResponse registrarVenta(VentaRequest request, Empleado empleado) {
         // 1. Verificar sesión de Caja abierta para el empleado
-        Caja caja = cajaService.obtenerCajaAbiertaParaEmpleado(venta.getEmpleado())
+        CajaResponse cajaResponse = cajaService.obtenerCajaAbiertaParaEmpleado(empleado)
                 .orElseThrow(() -> new IllegalStateException(
                         "El empleado debe tener una caja abierta para realizar una venta."));
 
-        // [NUEVO] Asignamos la caja activa a la venta para mantener la integridad en la
-        // BD
+        // Load the actual Caja entity to set on Venta
+        Caja caja = new Caja();
+        caja.setIdCaja(cajaResponse.getIdCaja());
+
+        // Fetch IGV percentage from company configuration
+        ConfiguracionEmpresa config = configuracionEmpresaRepository.findAll().stream().findFirst().orElse(null);
+        BigDecimal igvPorcentaje = (config != null && config.getIgv() != null)
+                ? config.getIgv() : new BigDecimal("18.00");
+
+        Venta venta = new Venta();
+        venta.setEmpleado(empleado);
         venta.setCaja(caja);
+        venta.setTipoComprobante(Venta.TipoComprobante.valueOf(request.getTipoComprobante().toUpperCase()));
+        venta.setSerie(request.getSerie());
+        venta.setCorrelativo(request.getCorrelativo());
+        venta.setIgvPorcentaje(igvPorcentaje);
+
+        if (request.getIdPedido() != null) {
+            Pedido pedido = pedidoRepository.findById(request.getIdPedido())
+                    .orElseThrow(() -> new IllegalArgumentException("Pedido no encontrado."));
+            venta.setPedido(pedido);
+        }
+
+        // Build detalles from pedido
+        List<DetalleVenta> detalles = new ArrayList<>();
+        if (venta.getPedido() != null) {
+            List<DetallePedido> detallesPedido = detallePedidoRepository.findByPedidoIdPedido(venta.getPedido().getIdPedido());
+            for (DetallePedido dp : detallesPedido) {
+                DetalleVenta dv = new DetalleVenta();
+                dv.setProducto(dp.getProducto());
+                dv.setCombo(dp.getCombo());
+                dv.setCantidad(dp.getCantidad());
+                dv.setPrecioUnitario(dp.getPrecioUnitario());
+                dv.setSubtotal(dp.getSubtotal());
+                detalles.add(dv);
+            }
+        }
+
+        // Build VentaPago objects from request
+        List<VentaPago> pagos = new ArrayList<>();
+        if (request.getPagos() != null) {
+            for (VentaPagoRequest pagoReq : request.getPagos()) {
+                VentaPago pago = new VentaPago();
+                MetodoPago metodoPago = metodoPagoRepository.findById(pagoReq.getIdMetodoPago())
+                        .orElseThrow(() -> new IllegalArgumentException("Método de pago no encontrado."));
+                pago.setMetodoPago(metodoPago);
+                pago.setMonto(pagoReq.getMonto());
+                pago.setNumeroOperacion(pagoReq.getNumeroOperacion());
+                pago.setEstado(VentaPago.Estado.PENDIENTE);
+                pagos.add(pago);
+            }
+        }
 
         // 2. Validaciones de negocio y restricciones Check
         BigDecimal totalCalculado = BigDecimal.ZERO;
@@ -92,7 +164,7 @@ public class VentaService {
         venta.setIgv(igv.setScale(2, RoundingMode.HALF_UP));
         venta.setEstado(Venta.Estado.PENDIENTE);
 
-        // Persistencia inicial de la venta (created_at se autogenera aquí)
+        // Persistencia inicial de la venta
         Venta ventaGuardada = ventaRepository.save(venta);
 
         for (DetalleVenta det : detalles) {
@@ -105,10 +177,16 @@ public class VentaService {
             detalleVentaRepository.save(det);
         }
 
-        return ventaGuardada;
+        // Persistencia inicial de los pagos
+        for (VentaPago pago : pagos) {
+            pago.setVenta(ventaGuardada);
+            ventaPagoRepository.save(pago);
+        }
+
+        return mapToDetailedResponse(ventaGuardada);
     }
 
-    public Venta pagarVenta(Integer idVenta, List<VentaPago> pagos) {
+    public VentaResponse pagarVenta(Integer idVenta, List<VentaPagoRequest> pagosReq) {
         Venta venta = ventaRepository.findById(idVenta)
                 .orElseThrow(() -> new IllegalArgumentException("Venta no encontrada."));
 
@@ -116,11 +194,23 @@ public class VentaService {
             throw new IllegalStateException("La venta no está en estado PENDIENTE.");
         }
 
-        // [OPTIMIZADO] Ya no consultamos a cajaService, usamos la relación directa
-        // mapeada de la venta
         Caja caja = venta.getCaja();
         if (caja == null || caja.getEstado() != Caja.Estado.ABIERTA) {
             throw new IllegalStateException("La caja asociada a esta venta ya no se encuentra abierta.");
+        }
+
+        // Resolve VentaPago entities
+        List<VentaPago> pagos = new ArrayList<>();
+        for (VentaPagoRequest pagoReq : pagosReq) {
+            VentaPago pago = new VentaPago();
+            MetodoPago metodoPago = metodoPagoRepository.findById(pagoReq.getIdMetodoPago())
+                    .orElseThrow(() -> new IllegalArgumentException("Método de pago no encontrado con ID: " + pagoReq.getIdMetodoPago()));
+            pago.setVenta(venta);
+            pago.setMetodoPago(metodoPago);
+            pago.setMonto(pagoReq.getMonto());
+            pago.setNumeroOperacion(pagoReq.getNumeroOperacion());
+            pago.setEstado(VentaPago.Estado.APROBADO);
+            pagos.add(pago);
         }
 
         BigDecimal totalPagos = BigDecimal.ZERO;
@@ -148,6 +238,8 @@ public class VentaService {
                         "Venta de productos - Comprobante: " + venta.getCodigoVenta(),
                         pago.getMonto());
             }
+            // Save the payment update
+            ventaPagoRepository.save(pago);
         }
 
         venta.setEstado(Venta.Estado.PAGADA);
@@ -159,10 +251,11 @@ public class VentaService {
             pedidoRepository.save(pedido);
         }
 
-        return ventaRepository.save(venta);
+        Venta savedVenta = ventaRepository.save(venta);
+        return mapToDetailedResponse(savedVenta);
     }
 
-    public Venta anularVenta(Integer idVenta, String motivo, Empleado empleadoAnulacion) {
+    public VentaResponse anularVenta(Integer idVenta, String motivo, Empleado empleadoAnulacion) {
         Venta venta = ventaRepository.findById(idVenta)
                 .orElseThrow(() -> new IllegalArgumentException("Venta no encontrada."));
 
@@ -178,7 +271,6 @@ public class VentaService {
 
         // 2. Registro de contramovimiento (EGRESO) en la caja si ya estaba pagada
         if (venta.getEstado() == Venta.Estado.PAGADA) {
-            // [OPTIMIZADO] Obtenemos la caja real con la que se operó el registro original
             Caja caja = venta.getCaja();
             if (caja != null) {
                 cajaService.registrarMovimiento(
@@ -200,7 +292,20 @@ public class VentaService {
             pedidoRepository.save(pedido);
         }
 
-        return ventaRepository.save(venta);
+        Venta savedVenta = ventaRepository.save(venta);
+        return mapToDetailedResponse(savedVenta);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<VentaResponse> obtenerVentaPorId(Integer id) {
+        return ventaRepository.findById(id).map(this::mapToDetailedResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public List<VentaResponse> listarVentas() {
+        return ventaRepository.findAll().stream()
+                .map(this::mapToDetailedResponse)
+                .collect(Collectors.toList());
     }
 
     private BigDecimal calcularCostoUnitario(DetalleVenta det) {
@@ -365,5 +470,11 @@ public class VentaService {
                 movimientoInventarioRepository.save(mov);
             }
         }
+    }
+
+    private VentaResponse mapToDetailedResponse(Venta venta) {
+        List<DetalleVenta> detalles = detalleVentaRepository.findByVentaIdVenta(venta.getIdVenta());
+        List<VentaPago> pagos = ventaPagoRepository.findByVentaIdVenta(venta.getIdVenta());
+        return ventaMapper.toResponse(venta, detalles, pagos);
     }
 }

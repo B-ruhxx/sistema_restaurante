@@ -1,7 +1,8 @@
 package com.restaurante.controller;
 
-import com.restaurante.entity.MetodoPago;
-import com.restaurante.repository.MetodoPagoRepository;
+import com.restaurante.dto.request.MetodoPagoRequest;
+import com.restaurante.dto.response.MetodoPagoResponse;
+import com.restaurante.service.MetodoPagoService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -14,52 +15,48 @@ import java.util.List;
 public class MetodoPagoController {
 
     @Autowired
-    private MetodoPagoRepository metodoPagoRepository;
+    private MetodoPagoService metodoPagoService;
 
     @GetMapping
-    public ResponseEntity<List<MetodoPago>> getAllMetodoPagos() {
-        return ResponseEntity.ok(metodoPagoRepository.findAll());
+    public ResponseEntity<List<MetodoPagoResponse>> getAllMetodoPagos() {
+        return ResponseEntity.ok(metodoPagoService.getAllMetodoPagos());
     }
 
     @GetMapping("/activos")
-    public ResponseEntity<List<MetodoPago>> getActivosMetodoPagos() {
-        return ResponseEntity.ok(metodoPagoRepository.findByEstado(MetodoPago.Estado.ACTIVO));
+    public ResponseEntity<List<MetodoPagoResponse>> getActivosMetodoPagos() {
+        return ResponseEntity.ok(metodoPagoService.getActivosMetodoPagos());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<MetodoPago> getMetodoPagoById(@PathVariable Integer id) {
-        return metodoPagoRepository.findById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<MetodoPagoResponse> getMetodoPagoById(@PathVariable Integer id) {
+        try {
+            return ResponseEntity.ok(metodoPagoService.getMetodoPagoById(id));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @PostMapping
-    public ResponseEntity<MetodoPago> createMetodoPago(@Valid @RequestBody MetodoPago metodoPago) {
-        if (metodoPago.getEstado() == null) {
-            metodoPago.setEstado(MetodoPago.Estado.ACTIVO);
-        }
-        if (metodoPago.getRequiereOperacion() == null) {
-            metodoPago.setRequiereOperacion(false);
-        }
-        return ResponseEntity.ok(metodoPagoRepository.save(metodoPago));
+    public ResponseEntity<MetodoPagoResponse> createMetodoPago(@Valid @RequestBody MetodoPagoRequest request) {
+        return ResponseEntity.ok(metodoPagoService.createMetodoPago(request));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<MetodoPago> updateMetodoPago(@PathVariable Integer id, @Valid @RequestBody MetodoPago details) {
-        return metodoPagoRepository.findById(id).map(metodoPago -> {
-            metodoPago.setNombre(details.getNombre());
-            metodoPago.setRequiereOperacion(details.getRequiereOperacion());
-            metodoPago.setEstado(details.getEstado());
-            return ResponseEntity.ok(metodoPagoRepository.save(metodoPago));
-        }).orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<MetodoPagoResponse> updateMetodoPago(@PathVariable Integer id, @Valid @RequestBody MetodoPagoRequest request) {
+        try {
+            return ResponseEntity.ok(metodoPagoService.updateMetodoPago(id, request));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteMetodoPago(@PathVariable Integer id) {
-        return metodoPagoRepository.findById(id).map(metodoPago -> {
-            metodoPago.setEstado(MetodoPago.Estado.INACTIVO);
-            metodoPagoRepository.save(metodoPago);
+        try {
+            metodoPagoService.deleteMetodoPago(id);
             return ResponseEntity.ok().build();
-        }).orElse(ResponseEntity.notFound().build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 }

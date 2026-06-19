@@ -1,7 +1,8 @@
 package com.restaurante.controller;
 
-import com.restaurante.entity.Categoria;
-import com.restaurante.repository.CategoriaRepository;
+import com.restaurante.dto.request.CategoriaRequest;
+import com.restaurante.dto.response.CategoriaResponse;
+import com.restaurante.service.CategoriaService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -14,45 +15,44 @@ import java.util.List;
 public class CategoriaController {
 
     @Autowired
-    private CategoriaRepository repository;
+    private CategoriaService categoriaService;
 
     @GetMapping
-    public ResponseEntity<List<Categoria>> getAllCategorias() {
-        return ResponseEntity.ok(repository.findAll());
+    public ResponseEntity<List<CategoriaResponse>> getAllCategorias() {
+        return ResponseEntity.ok(categoriaService.getAllCategorias());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Categoria> getCategoriaById(@PathVariable Integer id) {
-        return repository.findById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<CategoriaResponse> getCategoriaById(@PathVariable Integer id) {
+        try {
+            CategoriaResponse response = categoriaService.getCategoriaById(id);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @PostMapping
-    public ResponseEntity<Categoria> createCategoria(@Valid @RequestBody Categoria categoria) {
-        if (categoria.getEstado() == null) {
-            categoria.setEstado(Categoria.Estado.ACTIVO);
-        }
-        return ResponseEntity.ok(repository.save(categoria));
+    public ResponseEntity<CategoriaResponse> createCategoria(@Valid @RequestBody CategoriaRequest request) {
+        return ResponseEntity.ok(categoriaService.createCategoria(request));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Categoria> updateCategoria(@PathVariable Integer id, @Valid @RequestBody Categoria details) {
-        return repository.findById(id).map(categoria -> {
-            categoria.setNombre(details.getNombre());
-            categoria.setDescripcion(details.getDescripcion());
-            categoria.setImagenUrl(details.getImagenUrl());
-            categoria.setEstado(details.getEstado());
-            return ResponseEntity.ok(repository.save(categoria));
-        }).orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<CategoriaResponse> updateCategoria(@PathVariable Integer id, @Valid @RequestBody CategoriaRequest request) {
+        try {
+            return ResponseEntity.ok(categoriaService.updateCategoria(id, request));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteCategoria(@PathVariable Integer id) {
-        return repository.findById(id).map(categoria -> {
-            categoria.setEstado(Categoria.Estado.INACTIVO);
-            repository.save(categoria);
+        try {
+            categoriaService.deleteCategoria(id);
             return ResponseEntity.ok().build();
-        }).orElse(ResponseEntity.notFound().build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 }

@@ -6,5 +6,4 @@ import java.util.List;
 
 public interface DetalleVentaRepository extends JpaRepository<DetalleVenta, Integer> {
     List<DetalleVenta> findByVentaIdVenta(Integer idVenta);
-    boolean existsByProductoIdProducto(Integer idProducto);
 }

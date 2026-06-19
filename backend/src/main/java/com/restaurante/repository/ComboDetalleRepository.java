@@ -6,5 +6,4 @@ import java.util.List;
 
 public interface ComboDetalleRepository extends JpaRepository<ComboDetalle, Integer> {
     List<ComboDetalle> findByComboIdCombo(Integer idCombo);
-    boolean existsByProductoIdProducto(Integer idProducto);
 }

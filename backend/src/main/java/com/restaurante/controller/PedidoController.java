@@ -2,6 +2,8 @@ package com.restaurante.controller;
 
 import com.restaurante.dto.PedidoEstadoRequest;
 import com.restaurante.dto.PedidoRequest;
+import com.restaurante.dto.response.DetallePedidoResponse;
+import com.restaurante.dto.response.PedidoResponse;
 import com.restaurante.entity.Empleado;
 import com.restaurante.entity.Pedido;
 import com.restaurante.security.CustomUserDetails;
@@ -22,40 +24,37 @@ public class PedidoController {
     private PedidoService pedidoService;
 
     @PostMapping
-    public ResponseEntity<Pedido> crearPedido(@Valid @RequestBody PedidoRequest request,
-                                               @AuthenticationPrincipal CustomUserDetails userDetails) {
+    public ResponseEntity<PedidoResponse> crearPedido(@Valid @RequestBody PedidoRequest request,
+                                                       @AuthenticationPrincipal CustomUserDetails userDetails) {
         Empleado empleado = userDetails.getEmpleado();
-        Pedido pedido = pedidoService.crearPedido(request, empleado);
-        return ResponseEntity.ok(pedido);
+        PedidoResponse response = pedidoService.crearPedido(request, empleado);
+        return ResponseEntity.ok(response);
     }
 
     @PutMapping("/{id}/estado")
-    public ResponseEntity<Pedido> actualizarEstado(@PathVariable Integer id,
-                                                    @Valid @RequestBody PedidoEstadoRequest request,
-                                                    @AuthenticationPrincipal CustomUserDetails userDetails) {
+    public ResponseEntity<PedidoResponse> actualizarEstado(@PathVariable Integer id,
+                                                            @Valid @RequestBody PedidoEstadoRequest request,
+                                                            @AuthenticationPrincipal CustomUserDetails userDetails) {
         Pedido.Estado nuevoEstado = Pedido.Estado.valueOf(request.getEstado().toUpperCase());
         Empleado empleado = userDetails.getEmpleado();
-        Pedido pedido = pedidoService.actualizarEstado(id, nuevoEstado, empleado);
-        return ResponseEntity.ok(pedido);
+        PedidoResponse response = pedidoService.actualizarEstado(id, nuevoEstado, empleado);
+        return ResponseEntity.ok(response);
     }
 
-    @Autowired
-    private com.restaurante.repository.DetallePedidoRepository detallePedidoRepository;
-
     @GetMapping("/{id}/detalles")
-    public ResponseEntity<List<com.restaurante.entity.DetallePedido>> obtenerDetalles(@PathVariable Integer id) {
-        return ResponseEntity.ok(detallePedidoRepository.findByPedidoIdPedido(id));
+    public ResponseEntity<List<DetallePedidoResponse>> obtenerDetalles(@PathVariable Integer id) {
+        return ResponseEntity.ok(pedidoService.obtenerDetalles(id));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Pedido> obtenerPedido(@PathVariable Integer id) {
+    public ResponseEntity<PedidoResponse> obtenerPedido(@PathVariable Integer id) {
         return pedidoService.obtenerPedidoPorId(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping
-    public ResponseEntity<List<Pedido>> listarPedidos() {
+    public ResponseEntity<List<PedidoResponse>> listarPedidos() {
         return ResponseEntity.ok(pedidoService.listarPedidos());
     }
 }

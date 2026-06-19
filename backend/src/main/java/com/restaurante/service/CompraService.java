@@ -1,5 +1,9 @@
 package com.restaurante.service;
 
+import com.restaurante.dto.CompraRequest;
+import com.restaurante.dto.DetalleCompraRequest;
+import com.restaurante.dto.response.CompraResponse;
+import com.restaurante.dto.mapper.CompraMapper;
 import com.restaurante.entity.*;
 import com.restaurante.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -8,7 +12,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -24,29 +31,56 @@ public class CompraService {
     private InsumoRepository insumoRepository;
 
     @Autowired
+    private ProveedorRepository proveedorRepository;
+
+    @Autowired
     private MovimientoInventarioRepository movimientoInventarioRepository;
 
-    public CompraInsumo registrarCompra(CompraInsumo compra, List<DetalleCompraInsumo> detalles) {
-        if (detalles == null || detalles.isEmpty()) {
+    @Autowired
+    private CompraMapper compraMapper;
+
+    public CompraResponse registrarCompra(CompraRequest request, Empleado empleado) {
+        if (request.getDetalles() == null || request.getDetalles().isEmpty()) {
             throw new IllegalArgumentException("La compra debe tener al menos un detalle.");
         }
 
+        Proveedor proveedor = proveedorRepository.findById(request.getIdProveedor())
+                .orElseThrow(() -> new IllegalArgumentException("Proveedor no encontrado con ID: " + request.getIdProveedor()));
+
+        CompraInsumo compra = new CompraInsumo();
+        compra.setCodigoCompra(request.getCodigoCompra());
+        compra.setProveedor(proveedor);
+        compra.setEmpleado(empleado);
+        compra.setObservacion(request.getObservacion());
+
         BigDecimal totalCalculado = BigDecimal.ZERO;
-        for (DetalleCompraInsumo det : detalles) {
-            if (det.getCantidad().compareTo(BigDecimal.ZERO) <= 0) {
+        List<DetalleCompraInsumo> detalles = new ArrayList<>();
+
+        for (DetalleCompraRequest detReq : request.getDetalles()) {
+            if (detReq.getCantidad().compareTo(BigDecimal.ZERO) <= 0) {
                 throw new IllegalArgumentException("La cantidad del insumo debe ser mayor a 0.");
             }
-            if (det.getPrecioUnitario().compareTo(BigDecimal.ZERO) < 0) {
+            if (detReq.getPrecioUnitario().compareTo(BigDecimal.ZERO) < 0) {
                 throw new IllegalArgumentException("El precio unitario no puede ser negativo.");
             }
 
-            BigDecimal subtotal = det.getPrecioUnitario().multiply(det.getCantidad());
+            Insumo insumo = insumoRepository.findById(detReq.getIdInsumo())
+                    .orElseThrow(() -> new IllegalArgumentException("Insumo no encontrado con ID: " + detReq.getIdInsumo()));
+
+            BigDecimal subtotal = detReq.getPrecioUnitario().multiply(detReq.getCantidad());
+
+            DetalleCompraInsumo det = new DetalleCompraInsumo();
+            det.setInsumo(insumo);
+            det.setCantidad(detReq.getCantidad());
+            det.setPrecioUnitario(detReq.getPrecioUnitario());
             det.setSubtotal(subtotal);
+
+            detalles.add(det);
             totalCalculado = totalCalculado.add(subtotal);
         }
 
-        // Calculate subtotal and IGV using company default (18.00%)
-        BigDecimal igvPorcentaje = compra.getProveedor() != null ? new BigDecimal("18.00") : new BigDecimal("18.00");
+        // Calculate subtotal and IGV using default (18.00%)
+        BigDecimal igvPorcentaje = new BigDecimal("18.00");
         BigDecimal cienMasIgv = BigDecimal.valueOf(100).add(igvPorcentaje);
         BigDecimal subtotalGravado = totalCalculado.multiply(BigDecimal.valueOf(100))
                 .divide(cienMasIgv, 4, RoundingMode.HALF_UP);
@@ -62,10 +96,8 @@ public class CompraService {
         for (DetalleCompraInsumo det : detalles) {
             det.setCompra(compraGuardada);
             
-            // Fetch insumo and recalculate weighted average cost (Costo Promedio Ponderado)
-            Insumo insumo = insumoRepository.findById(det.getInsumo().getIdInsumo())
-                    .orElseThrow(() -> new IllegalArgumentException("Insumo no encontrado: " + det.getInsumo().getIdInsumo()));
-
+            // Recalculate weighted average cost (Costo Promedio Ponderado)
+            Insumo insumo = det.getInsumo();
             BigDecimal stockActual = insumo.getStock();
             BigDecimal costoPromedioActual = insumo.getCostoPromedio();
             if (costoPromedioActual == null) {
@@ -102,10 +134,10 @@ public class CompraService {
             movimientoInventarioRepository.save(mov);
         }
 
-        return compraGuardada;
+        return mapToDetailedResponse(compraGuardada);
     }
 
-    public CompraInsumo anularCompra(Integer idCompra, Empleado empleadoAnulacion) {
+    public CompraResponse anularCompra(Integer idCompra, Empleado empleadoAnulacion) {
         CompraInsumo compra = compraInsumoRepository.findById(idCompra)
                 .orElseThrow(() -> new IllegalArgumentException("Compra no encontrada."));
 
@@ -127,8 +159,7 @@ public class CompraService {
 
             BigDecimal stockNuevo = stockActual.subtract(det.getCantidad());
             
-            // Recalculating the average cost when annulling:
-            // Formula: (Current Value - Value of this purchase) / (Current Stock - Quantity of this purchase)
+            // Recalculating the average cost when annulling
             BigDecimal costoPromedioActual = insumo.getCostoPromedio();
             if (costoPromedioActual == null) {
                 costoPromedioActual = BigDecimal.ZERO;
@@ -165,6 +196,24 @@ public class CompraService {
         }
 
         compra.setEstado(CompraInsumo.Estado.ANULADA);
-        return compraInsumoRepository.save(compra);
+        CompraInsumo compraAnulada = compraInsumoRepository.save(compra);
+        return mapToDetailedResponse(compraAnulada);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<CompraResponse> obtenerCompraPorId(Integer id) {
+        return compraInsumoRepository.findById(id).map(this::mapToDetailedResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public List<CompraResponse> listarCompras() {
+        return compraInsumoRepository.findAll().stream()
+                .map(this::mapToDetailedResponse)
+                .collect(Collectors.toList());
+    }
+
+    private CompraResponse mapToDetailedResponse(CompraInsumo compra) {
+        List<DetalleCompraInsumo> detalles = detalleCompraInsumoRepository.findByCompraIdCompra(compra.getIdCompra());
+        return compraMapper.toResponse(compra, detalles);
     }
 }

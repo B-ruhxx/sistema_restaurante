@@ -11,12 +11,12 @@ import java.nio.file.Paths;
 @Configuration
 public class FileStorageConfig implements WebMvcConfigurer {
 
-    @Value("${upload.dir:./uploads}")
-    private String uploadDir;
+    @org.springframework.beans.factory.annotation.Autowired
+    private StorageProperties storageProperties;
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        Path path = Paths.get(uploadDir).toAbsolutePath().normalize();
+        Path path = Paths.get(storageProperties.getDir()).toAbsolutePath().normalize();
         registry.addResourceHandler("/api/uploads/**")
                 .addResourceLocations("file:" + path.toString() + "/");
     }

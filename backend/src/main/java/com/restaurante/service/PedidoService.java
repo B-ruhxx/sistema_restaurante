@@ -2,6 +2,9 @@ package com.restaurante.service;
 
 import com.restaurante.dto.DetallePedidoRequest;
 import com.restaurante.dto.PedidoRequest;
+import com.restaurante.dto.response.DetallePedidoResponse;
+import com.restaurante.dto.response.PedidoResponse;
+import com.restaurante.dto.mapper.PedidoMapper;
 import com.restaurante.entity.*;
 import com.restaurante.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -43,7 +47,10 @@ public class PedidoService {
     @Autowired
     private ExtraProductoRepository extraProductoRepository;
 
-    public Pedido crearPedido(PedidoRequest request, Empleado empleado) {
+    @Autowired
+    private PedidoMapper pedidoMapper;
+
+    public PedidoResponse crearPedido(PedidoRequest request, Empleado empleado) {
         Pedido pedido = new Pedido();
         pedido.setEmpleado(empleado);
         pedido.setEstado(Pedido.Estado.PENDIENTE);
@@ -97,8 +104,7 @@ public class PedidoService {
             // Subtotal inicial base (precio unitario * cantidad)
             BigDecimal subtotalAcumulado = precioUnitario.multiply(BigDecimal.valueOf(item.getCantidad()));
 
-            // Sumar el costo de los extras directamente al subtotal antes de guardar el
-            // detalle
+            // Sumar el costo de los extras directamente al subtotal antes de guardar el detalle
             if (item.getExtrasIds() != null && !item.getExtrasIds().isEmpty()) {
                 for (Integer extraId : item.getExtrasIds()) {
                     ExtraProducto extra = extraProductoRepository.findById(extraId)
@@ -120,7 +126,6 @@ public class PedidoService {
             // 4. Guardar los registros de la tabla intermedia de extras
             if (item.getExtrasIds() != null && !item.getExtrasIds().isEmpty()) {
                 for (Integer extraId : item.getExtrasIds()) {
-                    // Usamos findById que es el método estándar y seguro de Spring Data
                     ExtraProducto extra = extraProductoRepository.findById(extraId)
                             .orElseThrow(
                                     () -> new IllegalArgumentException("Extra de producto no encontrado: " + extraId));
@@ -134,18 +139,17 @@ public class PedidoService {
             }
         }
 
-        // 5. Registrar estado inicial en el historial (Se llena el campo 'fecha' vía
-        // @CreationTimestamp)
+        // 5. Registrar estado inicial en el historial
         PedidoEstadoHistorial historial = new PedidoEstadoHistorial();
         historial.setPedido(pedidoGuardado);
         historial.setEstado(Pedido.Estado.PENDIENTE);
         historial.setEmpleado(empleado);
         pedidoEstadoHistorialRepository.save(historial);
 
-        return pedidoGuardado;
+        return mapToDetailedResponse(pedidoGuardado);
     }
 
-    public Pedido actualizarEstado(Integer idPedido, Pedido.Estado nuevoEstado, Empleado empleado) {
+    public PedidoResponse actualizarEstado(Integer idPedido, Pedido.Estado nuevoEstado, Empleado empleado) {
         Pedido pedido = pedidoRepository.findById(idPedido)
                 .orElseThrow(() -> new IllegalArgumentException("Pedido no encontrado."));
 
@@ -159,16 +163,38 @@ public class PedidoService {
         historial.setEmpleado(empleado);
         pedidoEstadoHistorialRepository.save(historial);
 
-        return pedidoActualizado;
+        return mapToDetailedResponse(pedidoActualizado);
     }
 
     @Transactional(readOnly = true)
-    public Optional<Pedido> obtenerPedidoPorId(Integer idPedido) {
-        return pedidoRepository.findById(idPedido);
+    public Optional<PedidoResponse> obtenerPedidoPorId(Integer idPedido) {
+        return pedidoRepository.findById(idPedido).map(this::mapToDetailedResponse);
     }
 
     @Transactional(readOnly = true)
-    public List<Pedido> listarPedidos() {
-        return pedidoRepository.findAll();
+    public List<PedidoResponse> listarPedidos() {
+        return pedidoRepository.findAll().stream()
+                .map(this::mapToDetailedResponse)
+                .collect(Collectors.toList());
+    }
+
+    public List<DetallePedidoResponse> obtenerDetalles(Integer idPedido) {
+        return detallePedidoRepository.findByPedidoIdPedido(idPedido).stream()
+                .map(det -> {
+                    List<PedidoExtra> extras = pedidoExtraRepository.findByDetallePedidoIdDetallePedido(det.getIdDetallePedido());
+                    return pedidoMapper.toDetalleResponse(det, extras);
+                })
+                .collect(Collectors.toList());
+    }
+
+    private PedidoResponse mapToDetailedResponse(Pedido pedido) {
+        List<DetallePedido> detalles = detallePedidoRepository.findByPedidoIdPedido(pedido.getIdPedido());
+        List<DetallePedidoResponse> detalleResponses = detalles.stream()
+                .map(det -> {
+                    List<PedidoExtra> extras = pedidoExtraRepository.findByDetallePedidoIdDetallePedido(det.getIdDetallePedido());
+                    return pedidoMapper.toDetalleResponse(det, extras);
+                })
+                .collect(Collectors.toList());
+        return pedidoMapper.toResponse(pedido, detalleResponses);
     }
 }

@@ -15,14 +15,14 @@ import java.util.UUID;
 @Service
 public class UploadService {
 
-    @Value("${upload.dir:./uploads}")
-    private String uploadDir;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.restaurante.config.StorageProperties storageProperties;
 
     private Path rootLocation;
 
     @PostConstruct
     public void init() {
-        this.rootLocation = Paths.get(uploadDir).toAbsolutePath().normalize();
+        this.rootLocation = Paths.get(storageProperties.getDir()).toAbsolutePath().normalize();
         try {
             Files.createDirectories(this.rootLocation);
         } catch (IOException e) {

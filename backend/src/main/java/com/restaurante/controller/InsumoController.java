@@ -1,7 +1,8 @@
 package com.restaurante.controller;
 
-import com.restaurante.entity.Insumo;
-import com.restaurante.repository.InsumoRepository;
+import com.restaurante.dto.request.InsumoRequest;
+import com.restaurante.dto.response.InsumoResponse;
+import com.restaurante.service.InsumoService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -14,46 +15,43 @@ import java.util.List;
 public class InsumoController {
 
     @Autowired
-    private InsumoRepository repository;
+    private InsumoService insumoService;
 
     @GetMapping
-    public ResponseEntity<List<Insumo>> getAllInsumos() {
-        return ResponseEntity.ok(repository.findAll());
+    public ResponseEntity<List<InsumoResponse>> getAllInsumos() {
+        return ResponseEntity.ok(insumoService.getAllInsumos());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Insumo> getInsumoById(@PathVariable Integer id) {
-        return repository.findById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<InsumoResponse> getInsumoById(@PathVariable Integer id) {
+        try {
+            return ResponseEntity.ok(insumoService.getInsumoById(id));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @PostMapping
-    public ResponseEntity<Insumo> createInsumo(@Valid @RequestBody Insumo insumo) {
-        if (insumo.getEstado() == null) {
-            insumo.setEstado(Insumo.Estado.ACTIVO);
-        }
-        return ResponseEntity.ok(repository.save(insumo));
+    public ResponseEntity<InsumoResponse> createInsumo(@Valid @RequestBody InsumoRequest request) {
+        return ResponseEntity.ok(insumoService.createInsumo(request));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Insumo> updateInsumo(@PathVariable Integer id, @Valid @RequestBody Insumo details) {
-        return repository.findById(id).map(insumo -> {
-            insumo.setNombre(details.getNombre());
-            insumo.setUnidad(details.getUnidad());
-            insumo.setStockMinimo(details.getStockMinimo());
-            insumo.setEstado(details.getEstado());
-            // note: stock and cost are updated through purchases and POS sales transactions
-            return ResponseEntity.ok(repository.save(insumo));
-        }).orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<InsumoResponse> updateInsumo(@PathVariable Integer id, @Valid @RequestBody InsumoRequest request) {
+        try {
+            return ResponseEntity.ok(insumoService.updateInsumo(id, request));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteInsumo(@PathVariable Integer id) {
-        return repository.findById(id).map(insumo -> {
-            insumo.setEstado(Insumo.Estado.INACTIVO);
-            repository.save(insumo);
+        try {
+            insumoService.deleteInsumo(id);
             return ResponseEntity.ok().build();
-        }).orElse(ResponseEntity.notFound().build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 }

@@ -7,6 +7,7 @@ public class UserSummaryDto {
     private String username;
     private String rol;
     private String avatarUrl;
+    private java.util.List<String> permisos;
 
     public UserSummaryDto() {}
 
@@ -27,6 +28,16 @@ public class UserSummaryDto {
         this.avatarUrl = avatarUrl;
     }
 
+    public UserSummaryDto(Integer idEmpleado, String nombre, String apellido, String username, String rol, String avatarUrl, java.util.List<String> permisos) {
+        this.idEmpleado = idEmpleado;
+        this.nombre = nombre;
+        this.apellido = apellido;
+        this.username = username;
+        this.rol = rol;
+        this.avatarUrl = avatarUrl;
+        this.permisos = permisos;
+    }
+
     public Integer getIdEmpleado() { return idEmpleado; }
     public void setIdEmpleado(Integer idEmpleado) { this.idEmpleado = idEmpleado; }
 
@@ -44,4 +55,7 @@ public class UserSummaryDto {
 
     public String getAvatarUrl() { return avatarUrl; }
     public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
+
+    public java.util.List<String> getPermisos() { return permisos; }
+    public void setPermisos(java.util.List<String> permisos) { this.permisos = permisos; }
 }

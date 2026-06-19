@@ -9,6 +9,7 @@ import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
+import com.restaurante.config.SecurityProperties;
 
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
@@ -17,23 +18,20 @@ import java.util.Date;
 @Component
 public class JwtTokenProvider {
 
-    @Value("${jwt.secret}")
-    private String jwtSecret;
-
-    @Value("${jwt.expiration}")
-    private long jwtExpirationInMs;
+    @org.springframework.beans.factory.annotation.Autowired
+    private SecurityProperties securityProperties;
 
     private Key key;
 
     @PostConstruct
     protected void init() {
-        this.key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
+        this.key = Keys.hmacShaKeyFor(securityProperties.getSecret().getBytes(StandardCharsets.UTF_8));
     }
 
     public String generateToken(Authentication authentication) {
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
         Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + jwtExpirationInMs);
+        Date expiryDate = new Date(now.getTime() + securityProperties.getExpiration());
 
         return Jwts.builder()
                 .setSubject(userDetails.getUsername())
