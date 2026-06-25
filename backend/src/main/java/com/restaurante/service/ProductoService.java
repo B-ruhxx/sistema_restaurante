@@ -53,7 +53,7 @@ public class ProductoService {
     private RecetaProductoMapper recetaProductoMapper;
 
     public List<ProductoResponse> getAllProductos() {
-        return productoRepository.findAll().stream()
+        return productoRepository.findByEstado(Producto.Estado.ACTIVO).stream()
                 .map(productoMapper::toResponse)
                 .collect(Collectors.toList());
     }
@@ -109,6 +109,8 @@ public class ProductoService {
                     rec.setProducto(savedProducto);
                     rec.setInsumo(ins);
                     rec.setCantidad(itemReq.getCantidad());
+                    rec.setTiempoPreparacionMinutos(
+                            itemReq.getTiempoPreparacionMinutos() != null ? itemReq.getTiempoPreparacionMinutos() : 1);
                     savedReceta.add(recetaProductoRepository.save(rec));
                 }
             }
@@ -171,6 +173,8 @@ public class ProductoService {
                     rec.setProducto(savedProducto);
                     rec.setInsumo(ins);
                     rec.setCantidad(itemReq.getCantidad());
+                    rec.setTiempoPreparacionMinutos(
+                            itemReq.getTiempoPreparacionMinutos() != null ? itemReq.getTiempoPreparacionMinutos() : 1);
                     savedReceta.add(recetaProductoRepository.save(rec));
                 }
             }

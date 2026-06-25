@@ -32,6 +32,14 @@ public class UploadResponse {
         this.url = url;
     }
 
+    public String getFileUrl() {
+        return url;
+    }
+
+    public void setFileUrl(String fileUrl) {
+        this.url = fileUrl;
+    }
+
     public long getSize() {
         return size;
     }

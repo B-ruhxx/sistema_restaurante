@@ -1,13 +1,25 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { pedidosApi, PedidoRequest } from '../api/pedidos';
+import { PrivateQueryOptions, usePrivateQueryEnabled } from './usePrivateQuery';
 
-export const usePedidos = () => {
+const EMPTY_ARRAY: any[] = [];
+
+interface UsePedidosOptions extends PrivateQueryOptions {
+  pollingEnabled?: boolean;
+}
+
+export const usePedidos = ({ enabled = true, pollingEnabled = false }: UsePedidosOptions = {}) => {
   const queryClient = useQueryClient();
+  const queryEnabled = usePrivateQueryEnabled(enabled);
 
   const pedidosQuery = useQuery({
     queryKey: ['pedidos'],
     queryFn: pedidosApi.getAll,
-    refetchInterval: 5000, // Poll every 5 seconds for real-time updates in Kitchen and Orders
+    enabled: queryEnabled,
+    refetchInterval: queryEnabled && pollingEnabled ? 5000 : false,
+    staleTime: 10_000,
+    refetchOnWindowFocus: false,
+    retry: 1,
   });
 
   const createPedidoMutation = useMutation({
@@ -26,12 +38,13 @@ export const usePedidos = () => {
   });
 
   return {
-    pedidos: pedidosQuery.data || [],
+    pedidos: pedidosQuery.data || EMPTY_ARRAY,
     isLoading: pedidosQuery.isLoading,
     isError: pedidosQuery.isError,
     createPedido: createPedidoMutation.mutateAsync,
     updateEstadoPedido: updateEstadoMutation.mutateAsync,
     isCreating: createPedidoMutation.isPending,
     isUpdatingEstado: updateEstadoMutation.isPending,
+    refetch: pedidosQuery.refetch,
   };
 };

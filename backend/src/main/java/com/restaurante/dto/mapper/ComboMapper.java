@@ -20,6 +20,7 @@ public class ComboMapper {
         response.setNombre(entity.getNombre());
         response.setDescripcion(entity.getDescripcion());
         response.setPrecio(entity.getPrecio());
+        response.setImagenUrl(entity.getImagenUrl());
         if (entity.getEstado() != null) {
             response.setEstado(entity.getEstado().name());
         }
@@ -52,6 +53,7 @@ public class ComboMapper {
         entity.setNombre(request.getNombre());
         entity.setDescripcion(request.getDescripcion());
         entity.setPrecio(request.getPrecio());
+        entity.setImagenUrl(request.getImagenUrl());
         if (request.getEstado() != null) {
             entity.setEstado(ComboProducto.Estado.valueOf(request.getEstado().toUpperCase()));
         }

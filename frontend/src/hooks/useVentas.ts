@@ -1,12 +1,16 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ventasApi, VentaRequest, VentaPagoRequest } from '../api/ventas';
+import { PrivateQueryOptions, usePrivateQueryEnabled } from './usePrivateQuery';
 
-export const useVentas = () => {
+export const useVentas = ({ enabled = true }: PrivateQueryOptions = {}) => {
   const queryClient = useQueryClient();
+  const queryEnabled = usePrivateQueryEnabled(enabled);
 
   const ventasQuery = useQuery({
     queryKey: ['ventas'],
     queryFn: ventasApi.getAll,
+    enabled: queryEnabled,
+    staleTime: 30_000,
   });
 
   const createVentaMutation = useMutation({

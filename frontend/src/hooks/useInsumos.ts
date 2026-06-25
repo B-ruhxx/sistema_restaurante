@@ -1,12 +1,16 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { insumosApi, InsumoRequest } from '../api/insumos';
+import { PrivateQueryOptions, usePrivateQueryEnabled } from './usePrivateQuery';
 
-export const useInsumos = () => {
+export const useInsumos = ({ enabled = true }: PrivateQueryOptions = {}) => {
   const queryClient = useQueryClient();
+  const queryEnabled = usePrivateQueryEnabled(enabled);
 
   const insumosQuery = useQuery({
     queryKey: ['insumos'],
     queryFn: insumosApi.getAll,
+    enabled: queryEnabled,
+    staleTime: 30_000,
   });
 
   const createMutation = useMutation({

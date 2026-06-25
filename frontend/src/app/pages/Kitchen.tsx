@@ -1,158 +1,151 @@
-import { useState } from 'react';
-import { useERP, Order } from '../contexts/ERPContext';
-import { Clock, ChefHat, CheckCircle2, AlertTriangle, Package, RefreshCw } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { AlertTriangle, ChefHat, CheckCircle2, Clock, Package, RefreshCw } from 'lucide-react';
+import { cocinaApi, Comanda } from '../../api/cocina';
+import { toast } from '../../lib/notifications';
+import { Button } from '../components/ui/button';
+import { Badge } from '../components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { cn } from '../components/ui/utils';
 
-function elapsed(date: Date) {
-  return Math.round((Date.now() - date.getTime()) / 60000);
+function minutesSince(value?: string) {
+  if (!value) return 0;
+  return Math.max(0, Math.round((Date.now() - new Date(value).getTime()) / 60000));
 }
 
-type Urg = 'ok' | 'warning' | 'urgent';
-
-function urgency(min: number, priority?: string): Urg {
-  if (priority === 'alta' || min > 30) return 'urgent';
+function urgency(min: number, estimated?: number) {
+  if (estimated && min > estimated) return 'urgent';
+  if (min > 30) return 'urgent';
   if (min > 20) return 'warning';
   return 'ok';
 }
 
-const URG_STYLE: Record<Urg, { ring: string; badge: string; text: string }> = {
-  ok:      { ring: 'border-l-emerald-500', badge: 'bg-emerald-50 text-emerald-700',  text: 'text-emerald-600' },
-  warning: { ring: 'border-l-orange-400',  badge: 'bg-orange-50 text-orange-700',   text: 'text-orange-500'  },
-  urgent:  { ring: 'border-l-red-600',     badge: 'bg-red-50 text-red-700',         text: 'text-red-600'     },
+const URG_STYLE = {
+  ok: { ring: 'border-l-emerald-500', badge: 'bg-emerald-50 text-emerald-700' },
+  warning: { ring: 'border-l-orange-400', badge: 'bg-orange-50 text-orange-700' },
+  urgent: { ring: 'border-l-red-600', badge: 'bg-red-50 text-red-700' },
 };
 
 export function Kitchen() {
-  const { orders, updateOrderStatus } = useERP();
-  const [tick, setTick] = useState(0); // force re-render for timer
+  const queryClient = useQueryClient();
+  const comandasQuery = useQuery({
+    queryKey: ['cocina', 'comandas'],
+    queryFn: cocinaApi.getComandas,
+    refetchInterval: 10_000,
+    refetchOnWindowFocus: false,
+  });
 
-  const pending  = orders.filter(o => o.status === 'pendiente');
-  const cooking  = orders.filter(o => o.status === 'en-cocina');
-  const ready    = orders.filter(o => o.status === 'listo');
-  const active   = pending.length + cooking.length;
+  const iniciarMutation = useMutation({
+    mutationFn: cocinaApi.iniciar,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cocina', 'comandas'] });
+      queryClient.invalidateQueries({ queryKey: ['pedidos'] });
+      toast.success('Preparación iniciada');
+    },
+  });
 
-  const avgTime = cooking.length
-    ? Math.round(cooking.reduce((s, o) => s + elapsed(o.createdAt), 0) / cooking.length)
+  const finalizarMutation = useMutation({
+    mutationFn: cocinaApi.finalizar,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cocina', 'comandas'] });
+      queryClient.invalidateQueries({ queryKey: ['pedidos'] });
+      queryClient.invalidateQueries({ queryKey: ['mesas'] });
+      toast.success('Pedido listo para entregar');
+    },
+  });
+
+  const comandas = comandasQuery.data || [];
+  const enviados = comandas.filter(c => c.estado === 'ENVIADO_COCINA');
+  const enPreparacion = comandas.filter(c => c.estado === 'EN_PREPARACION');
+  const listos = comandas.filter(c => c.estado === 'LISTO');
+  const avgTime = enPreparacion.length
+    ? Math.round(enPreparacion.reduce((sum, c) => sum + minutesSince(c.fechaInicioPreparacion || c.fechaEnvioCocina), 0) / enPreparacion.length)
     : 0;
 
-  /* ── Order ticket ───────────────────────────────────────── */
-  const Ticket = ({ order, col }: { order: Order; col: 'pendiente' | 'en-cocina' | 'listo' }) => {
-    const min = elapsed(order.createdAt);
-    const urg = urgency(min, order.priority);
-    const s   = URG_STYLE[urg];
+  const Ticket = ({ comanda }: { comanda: Comanda }) => {
+    const min = minutesSince(comanda.fechaInicioPreparacion || comanda.fechaEnvioCocina);
+    const urg = urgency(min, comanda.tiempoEstimadoMinutos);
+    const style = URG_STYLE[urg];
 
     return (
-      <div className={cn(
-        'bg-white rounded-2xl shadow-sm border border-orange-100 border-l-4 overflow-hidden flex flex-col transition-shadow hover:shadow-md',
-        s.ring
-      )}>
-        {/* Ticket header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-orange-50">
-          <div>
-            <span className="font-extrabold text-gray-900 text-lg tracking-tight">{order.orderNumber}</span>
-            {order.priority === 'alta' && (
-              <span className="ml-2 inline-flex items-center gap-0.5 text-[10px] font-bold bg-red-600 text-white px-1.5 py-0.5 rounded-full">
-                <AlertTriangle className="w-2.5 h-2.5" /> URGENTE
-              </span>
-            )}
-          </div>
-          <div className={cn('flex items-center gap-1 text-sm font-bold px-2.5 py-1 rounded-full', s.badge)}>
-            <Clock className="w-3.5 h-3.5" />
-            {min} min
-          </div>
-        </div>
-
-        {/* Items */}
-        <div className="flex-1 px-4 py-3 space-y-2">
-          {order.items.map(item => (
-            <div key={item.id} className="flex gap-2">
-              <span className="text-red-600 font-extrabold text-sm w-6 shrink-0">{item.quantity}×</span>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-gray-900 text-sm leading-tight">{item.name}</p>
-                {item.variant && (
-                  <p className="text-xs text-gray-400">• {item.variant}</p>
-                )}
-                {item.extras && item.extras.length > 0 && (
-                  <p className="text-xs text-gray-400">• {item.extras.join(', ')}</p>
-                )}
-                {item.notes && (
-                  <div className="mt-1 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1">
-                    <p className="text-xs font-medium text-amber-800">⚠ {item.notes}</p>
-                  </div>
-                )}
-              </div>
+      <Card className={cn('border-l-4 overflow-hidden', style.ring)}>
+        <CardHeader className="pb-3 border-b">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <CardTitle className="text-lg">Pedido #{comanda.idPedido}</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                {comanda.numeroMesa ? `Mesa ${comanda.numeroMesa}` : 'Sin mesa'}
+                {comanda.clienteNombre ? ` · ${comanda.clienteNombre}` : ''}
+              </p>
             </div>
-          ))}
-        </div>
+            <Badge className={style.badge} variant="outline">
+              <Clock className="w-3 h-3 mr-1" />
+              {min} min
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-4 space-y-4">
+          <div className="space-y-3">
+            {comanda.detalles.map((detalle) => (
+              <div key={detalle.idDetallePedido} className="flex gap-3">
+                <span className="font-bold text-red-600 w-8">{detalle.cantidad}x</span>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium">{detalle.itemNombre}</p>
+                  {detalle.varianteNombre && <p className="text-xs text-muted-foreground">{detalle.varianteNombre}</p>}
+                  {detalle.extras && detalle.extras.length > 0 && (
+                    <p className="text-xs text-muted-foreground">+ {detalle.extras.join(', ')}</p>
+                  )}
+                  {detalle.observacion && (
+                    <div className="mt-1 rounded-md bg-amber-50 border border-amber-200 px-2 py-1 text-xs text-amber-800">
+                      <AlertTriangle className="inline w-3 h-3 mr-1" />
+                      {detalle.observacion}
+                    </div>
+                  )}
+                </div>
+                <Badge variant="outline">{detalle.estadoCocina}</Badge>
+              </div>
+            ))}
+          </div>
 
-        {/* Action */}
-        <div className="px-4 pb-4 pt-2">
-          {col === 'pendiente' && (
-            <button
-              className="w-full h-10 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2"
-              onClick={() => updateOrderStatus(order.id, 'en-cocina')}
-            >
-              <ChefHat className="w-4 h-4" />
-              Iniciar Preparación
-            </button>
+          {comanda.tiempoEstimadoMinutos != null && (
+            <p className="text-xs text-muted-foreground">Estimado: {comanda.tiempoEstimadoMinutos} min</p>
           )}
-          {col === 'en-cocina' && (
-            <button
-              className="w-full h-10 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2"
-              onClick={() => updateOrderStatus(order.id, 'listo')}
-            >
-              <CheckCircle2 className="w-4 h-4" />
-              Marcar como Listo
-            </button>
+
+          {comanda.estado === 'ENVIADO_COCINA' && (
+            <Button className="w-full" onClick={() => iniciarMutation.mutate(comanda.idPedido)}>
+              <ChefHat className="w-4 h-4 mr-2" />
+              Iniciar preparación
+            </Button>
           )}
-          {col === 'listo' && (
-            <button
-              className="w-full h-10 rounded-xl border-2 border-gray-200 hover:border-gray-300 text-gray-700 font-semibold text-sm transition-colors flex items-center justify-center gap-2 hover:bg-gray-50"
-              onClick={() => updateOrderStatus(order.id, 'entregado')}
-            >
+          {comanda.estado === 'EN_PREPARACION' && (
+            <Button className="w-full bg-emerald-600 hover:bg-emerald-700" onClick={() => finalizarMutation.mutate(comanda.idPedido)}>
+              <CheckCircle2 className="w-4 h-4 mr-2" />
+              Marcar listo
+            </Button>
+          )}
+          {comanda.estado === 'LISTO' && (
+            <div className="rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground flex items-center gap-2">
               <Package className="w-4 h-4" />
-              Entregar Pedido
-            </button>
+              Listo para entregar
+            </div>
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     );
   };
 
-  /* ── Column wrapper ─────────────────────────────────────── */
-  const Column = ({
-    title, icon: Icon, accent, light, items, col,
-  }: {
-    title: string;
-    icon: typeof Clock;
-    accent: string;
-    light: string;
-    items: Order[];
-    col: 'pendiente' | 'en-cocina' | 'listo';
-  }) => (
-    <div className="flex flex-col gap-3 min-h-[200px]">
-      {/* Header */}
-      <div
-        className="flex items-center justify-between px-4 py-3 rounded-2xl"
-        style={{ background: light }}
-      >
-        <div className="flex items-center gap-2">
-          <Icon className="w-5 h-5" style={{ color: accent }} />
-          <span className="font-bold text-gray-800">{title}</span>
-        </div>
-        <span
-          className="w-7 h-7 rounded-full flex items-center justify-center text-sm font-extrabold text-white"
-          style={{ background: accent }}
-        >
+  const Column = ({ title, items, accent }: { title: string; items: Comanda[]; accent: string }) => (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between rounded-lg border bg-card px-4 py-3">
+        <span className="font-semibold">{title}</span>
+        <span className="w-7 h-7 rounded-full text-white text-sm font-bold flex items-center justify-center" style={{ background: accent }}>
           {items.length}
         </span>
       </div>
-
-      {/* Tickets */}
-      <div className="space-y-3 overflow-y-auto flex-1">
-        {items.map(o => <Ticket key={o.id} order={o} col={col} />)}
+      <div className="space-y-3">
+        {items.map(c => <Ticket key={c.idPedido} comanda={c} />)}
         {items.length === 0 && (
-          <div className="rounded-2xl border-2 border-dashed border-orange-100 p-8 text-center text-sm text-gray-400">
-            Sin pedidos
+          <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+            Sin comandas
           </div>
         )}
       </div>
@@ -160,95 +153,37 @@ export function Kitchen() {
   );
 
   return (
-    <div className="h-[calc(100vh-3.5rem)] flex flex-col overflow-hidden">
-
-      {/* ── Top bar ─────────────────────────────────────────── */}
-      <div className="bg-white border-b border-orange-100 px-4 md:px-6 py-4 shrink-0">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center shrink-0">
-              <ChefHat className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold text-gray-900">Monitor de Cocina</h1>
-              <p className="text-xs text-gray-500">
-                {active > 0 ? `${active} pedidos activos` : 'Sin pedidos activos'}
-              </p>
-            </div>
-          </div>
-
-          {/* KPIs */}
-          <div className="flex items-center gap-3">
-            <div className="bg-orange-50 rounded-xl px-4 py-2 text-center">
-              <p className="text-xs text-gray-400">En preparación</p>
-              <p className="text-xl font-extrabold text-orange-600">{cooking.length}</p>
-            </div>
-            <div className="bg-blue-50 rounded-xl px-4 py-2 text-center">
-              <p className="text-xs text-gray-400">Tiempo prom.</p>
-              <p className="text-xl font-extrabold text-blue-600">{avgTime} min</p>
-            </div>
-            <div className="bg-emerald-50 rounded-xl px-4 py-2 text-center">
-              <p className="text-xs text-gray-400">Listos</p>
-              <p className="text-xl font-extrabold text-emerald-600">{ready.length}</p>
-            </div>
-            <button
-              className="p-2 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-500 transition-colors"
-              onClick={() => setTick(t => t + 1)}
-              title="Actualizar tiempos"
-            >
-              <RefreshCw className="w-4 h-4" />
-            </button>
-          </div>
+    <div className="p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold flex items-center gap-2">
+            <ChefHat className="w-6 h-6" />
+            Cocina
+          </h1>
+          <p className="text-sm text-muted-foreground">Comandas reales sin precios ni pagos</p>
         </div>
+        <Button variant="outline" onClick={() => comandasQuery.refetch()}>
+          <RefreshCw className="w-4 h-4 mr-2" />
+          Actualizar
+        </Button>
       </div>
 
-      {/* ── Kanban board ────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-full">
-          <Column
-            title="Pendiente"
-            icon={Clock}
-            accent="#f59e0b"
-            light="#fffbeb"
-            items={pending}
-            col="pendiente"
-          />
-          <Column
-            title="En Preparación"
-            icon={ChefHat}
-            accent="#3b82f6"
-            light="#eff6ff"
-            items={cooking}
-            col="en-cocina"
-          />
-          <Column
-            title="Listo para Entregar"
-            icon={CheckCircle2}
-            accent="#10b981"
-            light="#ecfdf5"
-            items={ready}
-            col="listo"
-          />
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Activas</CardTitle></CardHeader><CardContent className="text-2xl font-bold">{comandas.length}</CardContent></Card>
+        <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Pendientes</CardTitle></CardHeader><CardContent className="text-2xl font-bold text-amber-600">{enviados.length}</CardContent></Card>
+        <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Preparando</CardTitle></CardHeader><CardContent className="text-2xl font-bold text-blue-600">{enPreparacion.length}</CardContent></Card>
+        <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Promedio</CardTitle></CardHeader><CardContent className="text-2xl font-bold">{avgTime} min</CardContent></Card>
       </div>
 
-      {/* ── Legend ──────────────────────────────────────────── */}
-      <div className="bg-white border-t border-orange-100 px-6 py-3 shrink-0">
-        <div className="flex items-center justify-center gap-6 text-xs text-gray-500">
-          <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" />
-            Normal (&lt; 20 min)
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-orange-400 inline-block" />
-            Atención (20–30 min)
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-red-600 inline-block" />
-            Urgente (&gt; 30 min)
-          </span>
+      {comandasQuery.isLoading ? (
+        <div className="text-sm text-muted-foreground">Cargando comandas...</div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <Column title="Enviados" items={enviados} accent="#f59e0b" />
+          <Column title="En preparación" items={enPreparacion} accent="#3b82f6" />
+          <Column title="Listos" items={listos} accent="#10b981" />
         </div>
-      </div>
+      )}
     </div>
   );
 }

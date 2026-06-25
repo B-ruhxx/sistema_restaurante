@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, ReactNode } from 'react';
 import { useAuthStore } from '../../store/authStore';
 import api from '../../api/auth';
+import { getFullImageUrl } from '../components/ui/utils';
 
 interface AuthContextProps {
   isAuthenticated: boolean;
@@ -19,18 +20,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const fetchMe = async () => {
       if (!isAuthenticated) {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        if (!token) {
+          useAuthStore.setState({ isLoading: false, isAuthenticated: false });
+          return;
+        }
         try {
+          useAuthStore.setState({ isLoading: true });
           const res = await api.get('/auth/me');
           const backendUser = res.data;
           const user = {
             id: String(backendUser.idEmpleado),
             nombre: `${backendUser.nombre} ${backendUser.apellido || ''}`.trim(),
             email: backendUser.username,
-            fotoUrl: backendUser.avatarUrl
-              ? backendUser.avatarUrl.startsWith('http')
-                ? backendUser.avatarUrl
-                : `http://localhost:8080${backendUser.avatarUrl}`
-              : '',
+            fotoUrl: getFullImageUrl(backendUser.avatarUrl),
             rol: backendUser.rol,
             permisos: backendUser.permisos || [],
           };
@@ -41,7 +44,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             error: null,
           });
         } catch (e) {
-          // ignore, user likely not logged in
+          // Clear invalid token
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('token');
+          }
+          useAuthStore.setState({
+            user: null,
+            isAuthenticated: false,
+            isLoading: false,
+            error: null,
+          });
         }
       }
     };

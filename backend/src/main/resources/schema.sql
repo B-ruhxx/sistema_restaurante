@@ -107,6 +107,7 @@ CREATE TABLE categoria (
     nombre VARCHAR(50) NOT NULL UNIQUE,
     descripcion TEXT,
     imagen_url VARCHAR(255) NULL,
+    img VARCHAR(255) NULL,
     estado ENUM('ACTIVO', 'INACTIVO') DEFAULT 'ACTIVO',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -208,9 +209,11 @@ CREATE TABLE receta_producto (
     id_producto INT NOT NULL,
     id_insumo INT NOT NULL,
     cantidad DECIMAL(10,2) NOT NULL,
+    tiempo_preparacion_minutos INT NOT NULL DEFAULT 1,
     FOREIGN KEY (id_producto) REFERENCES producto(id_producto),
     FOREIGN KEY (id_insumo) REFERENCES insumo(id_insumo),
-    CONSTRAINT chk_receta_cantidad CHECK (cantidad > 0)
+    CONSTRAINT chk_receta_cantidad CHECK (cantidad > 0),
+    CONSTRAINT chk_receta_tiempo CHECK (tiempo_preparacion_minutos > 0)
 ) ENGINE=InnoDB;
 
 -- =====================================================
@@ -243,6 +246,7 @@ CREATE TABLE combo_producto (
     id_combo INT AUTO_INCREMENT PRIMARY KEY,
     nombre VARCHAR(100) NOT NULL,
     descripcion TEXT,
+    imagen_url VARCHAR(255) NULL,
     precio DECIMAL(10,2) NOT NULL,
     estado ENUM('ACTIVO', 'INACTIVO') DEFAULT 'ACTIVO',
     CONSTRAINT chk_combo_precio CHECK (precio >= 0)
@@ -262,21 +266,53 @@ CREATE TABLE combo_detalle (
 -- PEDIDOS
 -- =====================================================
 
+CREATE TABLE mesa (
+    id_mesa INT AUTO_INCREMENT PRIMARY KEY,
+    numero VARCHAR(20) NOT NULL UNIQUE,
+    nombre VARCHAR(80),
+    capacidad INT NOT NULL DEFAULT 4,
+    ubicacion VARCHAR(80),
+    estado ENUM('LIBRE','OCUPADA','ESPERANDO_COCINA','SERVIDO','CUENTA_EMITIDA','PAGADA') NOT NULL DEFAULT 'LIBRE',
+    version BIGINT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT chk_mesa_capacidad CHECK (capacidad > 0)
+) ENGINE=InnoDB;
+
 CREATE TABLE pedido (
     id_pedido INT AUTO_INCREMENT PRIMARY KEY,
     id_empleado INT NOT NULL,
     id_cliente INT NULL,
-    estado ENUM('PENDIENTE', 'EN_COCINA', 'LISTO', 'ENTREGADO', 'CANCELADO') DEFAULT 'PENDIENTE',
+    id_mesa INT NULL,
+    estado ENUM('ABIERTO','ENVIADO_COCINA','EN_PREPARACION','LISTO','ENTREGADO','CUENTA_SOLICITADA','CUENTA_EMITIDA','PAGADO','CANCELADO') DEFAULT 'ABIERTO',
     fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
+    subtotal DECIMAL(10,2) DEFAULT 0,
+    igv DECIMAL(10,2) DEFAULT 0,
+    total DECIMAL(10,2) DEFAULT 0,
+    fecha_envio_cocina DATETIME NULL,
+    fecha_inicio_preparacion DATETIME NULL,
+    fecha_fin_preparacion DATETIME NULL,
+    tiempo_estimado_minutos INT NULL,
+    tiempo_real_minutos INT NULL,
+    mesa_pedido_activo TINYINT GENERATED ALWAYS AS (
+        CASE
+            WHEN id_mesa IS NOT NULL
+             AND estado IN ('ABIERTO','ENVIADO_COCINA','EN_PREPARACION','LISTO','ENTREGADO','CUENTA_SOLICITADA','CUENTA_EMITIDA')
+            THEN 1
+            ELSE NULL
+        END
+    ) STORED,
     version BIGINT DEFAULT 0,
     FOREIGN KEY (id_empleado) REFERENCES empleado(id_empleado),
-    FOREIGN KEY (id_cliente) REFERENCES cliente(id_cliente)
+    FOREIGN KEY (id_cliente) REFERENCES cliente(id_cliente),
+    FOREIGN KEY (id_mesa) REFERENCES mesa(id_mesa),
+    UNIQUE KEY uk_pedido_activo_por_mesa (id_mesa, mesa_pedido_activo)
 ) ENGINE=InnoDB;
 
 CREATE TABLE pedido_estado_historial (
     id_historial INT AUTO_INCREMENT PRIMARY KEY,
     id_pedido INT NOT NULL,
-    estado ENUM('PENDIENTE', 'EN_COCINA', 'LISTO', 'ENTREGADO', 'CANCELADO'),
+    estado ENUM('ABIERTO','ENVIADO_COCINA','EN_PREPARACION','LISTO','ENTREGADO','CUENTA_SOLICITADA','CUENTA_EMITIDA','PAGADO','CANCELADO'),
     fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
     id_empleado INT,
     FOREIGN KEY (id_pedido) REFERENCES pedido(id_pedido),
@@ -293,6 +329,11 @@ CREATE TABLE detalle_pedido (
     precio_unitario DECIMAL(10,2),
     subtotal DECIMAL(10,2),
     observacion TEXT,
+    estado_cocina ENUM('PENDIENTE','EN_PREPARACION','LISTO','CANCELADO') DEFAULT 'PENDIENTE',
+    fecha_inicio_preparacion DATETIME NULL,
+    fecha_fin_preparacion DATETIME NULL,
+    tiempo_estimado_minutos INT NULL,
+    tiempo_real_minutos INT NULL,
     FOREIGN KEY (id_pedido) REFERENCES pedido(id_pedido) ON DELETE CASCADE,
     FOREIGN KEY (id_producto) REFERENCES producto(id_producto),
     FOREIGN KEY (id_combo) REFERENCES combo_producto(id_combo),
@@ -311,6 +352,20 @@ CREATE TABLE pedido_extra (
     cantidad INT DEFAULT 1,
     FOREIGN KEY (id_detalle_pedido) REFERENCES detalle_pedido(id_detalle_pedido) ON DELETE CASCADE,
     FOREIGN KEY (id_extra) REFERENCES extra_producto(id_extra)
+) ENGINE=InnoDB;
+
+CREATE TABLE precuenta (
+    id_precuenta INT AUTO_INCREMENT PRIMARY KEY,
+    id_pedido INT NOT NULL,
+    numero VARCHAR(50) NOT NULL UNIQUE,
+    fecha_emision DATETIME DEFAULT CURRENT_TIMESTAMP,
+    emitido_por INT NOT NULL,
+    subtotal DECIMAL(10,2),
+    igv DECIMAL(10,2),
+    total DECIMAL(10,2),
+    estado ENUM('EMITIDA','ANULADA','CONVERTIDA_VENTA') DEFAULT 'EMITIDA',
+    FOREIGN KEY (id_pedido) REFERENCES pedido(id_pedido),
+    FOREIGN KEY (emitido_por) REFERENCES empleado(id_empleado)
 ) ENGINE=InnoDB;
 
 -- =====================================================
@@ -476,6 +531,12 @@ CREATE INDEX idx_empleado_username ON empleado(username);
 CREATE INDEX idx_producto_categoria ON producto(id_categoria);
 CREATE INDEX idx_producto_tipo ON producto(tipo_producto);
 CREATE INDEX idx_pedido_estado ON pedido(estado);
+CREATE INDEX idx_pedido_mesa ON pedido(id_mesa);
+CREATE INDEX idx_pedido_cliente ON pedido(id_cliente);
+CREATE INDEX idx_mesa_estado ON mesa(estado);
+CREATE INDEX idx_detalle_pedido_estado_cocina ON detalle_pedido(estado_cocina);
+CREATE INDEX idx_precuenta_pedido ON precuenta(id_pedido);
+CREATE INDEX idx_precuenta_numero ON precuenta(numero);
 CREATE INDEX idx_venta_fecha ON venta(fecha);
 CREATE INDEX idx_venta_estado ON venta(estado);
 CREATE INDEX idx_movimiento_inventario_fecha ON movimiento_inventario(fecha);

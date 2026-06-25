@@ -29,10 +29,23 @@ public class PedidoMapper {
             dto.setClienteNombre(entity.getCliente().getNombre() + " " + entity.getCliente().getApellido());
             dto.setIdCliente(entity.getCliente().getIdCliente());
         }
+        if (entity.getMesa() != null) {
+            dto.setIdMesa(entity.getMesa().getIdMesa());
+            dto.setNumeroMesa(entity.getMesa().getNumero());
+            dto.setEstadoMesa(entity.getMesa().getEstado() != null ? entity.getMesa().getEstado().name() : null);
+        }
         if (entity.getEstado() != null) {
             dto.setEstado(entity.getEstado().name());
         }
         dto.setFecha(entity.getFecha());
+        dto.setSubtotal(entity.getSubtotal());
+        dto.setIgv(entity.getIgv());
+        dto.setTotal(entity.getTotal());
+        dto.setFechaEnvioCocina(entity.getFechaEnvioCocina());
+        dto.setFechaInicioPreparacion(entity.getFechaInicioPreparacion());
+        dto.setFechaFinPreparacion(entity.getFechaFinPreparacion());
+        dto.setTiempoEstimadoMinutos(entity.getTiempoEstimadoMinutos());
+        dto.setTiempoRealMinutos(entity.getTiempoRealMinutos());
         return dto;
     }
 
@@ -51,6 +64,11 @@ public class PedidoMapper {
         dto.setPrecioUnitario(entity.getPrecioUnitario());
         dto.setSubtotal(entity.getSubtotal());
         dto.setObservacion(entity.getObservacion());
+        dto.setEstadoCocina(entity.getEstadoCocina() != null ? entity.getEstadoCocina().name() : null);
+        dto.setTiempoEstimadoMinutos(entity.getTiempoEstimadoMinutos());
+        dto.setTiempoRealMinutos(entity.getTiempoRealMinutos());
+        dto.setFechaInicioPreparacion(entity.getFechaInicioPreparacion());
+        dto.setFechaFinPreparacion(entity.getFechaFinPreparacion());
         if (entity.getProducto() != null) {
             dto.setIdProducto(entity.getProducto().getIdProducto());
             dto.setNombreProducto(entity.getProducto().getNombre());

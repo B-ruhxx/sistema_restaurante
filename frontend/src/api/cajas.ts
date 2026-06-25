@@ -1,4 +1,6 @@
 import api from './auth';
+import { Pedido } from './pedidos';
+import { Venta, VentaPagoRequest } from './ventas';
 
 export interface CajaResponse {
   idCaja: number;
@@ -29,6 +31,13 @@ export interface MovimientoCajaResponse {
   concepto: string;
   monto: number;
   fecha: string;
+}
+
+export interface CobrarPedidoRequest {
+  tipoComprobante: 'BOLETA' | 'FACTURA';
+  serie?: string;
+  correlativo?: string;
+  pagos: VentaPagoRequest[];
 }
 
 export const cajasApi = {
@@ -65,5 +74,25 @@ export const cajasApi = {
   getHistorial: async (): Promise<CajaResponse[]> => {
     const response = await api.get('/cajas/historial');
     return response.data;
-  }
+  },
+
+  getPedidosPendientes: async (): Promise<Pedido[]> => {
+    const response = await api.get('/cajas/pedidos-pendientes');
+    return response.data;
+  },
+
+  getPedidosPorMesa: async (idMesa: number): Promise<Pedido[]> => {
+    const response = await api.get(`/cajas/pedidos/mesa/${idMesa}`);
+    return response.data;
+  },
+
+  buscarPedidos: async (query: string): Promise<Pedido[]> => {
+    const response = await api.get('/cajas/pedidos/buscar', { params: { query } });
+    return response.data;
+  },
+
+  cobrarPedido: async (idPedido: number, data: CobrarPedidoRequest): Promise<Venta> => {
+    const response = await api.post(`/cajas/pedidos/${idPedido}/cobrar`, data);
+    return response.data;
+  },
 };

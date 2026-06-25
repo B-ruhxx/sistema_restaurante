@@ -8,7 +8,16 @@ public class ComboResponse {
     private String nombre;
     private String descripcion;
     private BigDecimal precio;
+    private String imagenUrl;
     private String estado;
+
+    public String getImagenUrl() {
+        return imagenUrl;
+    }
+
+    public void setImagenUrl(String imagenUrl) {
+        this.imagenUrl = imagenUrl;
+    }
     private List<ComboDetalleResponse> detalles;
 
     public Integer getIdCombo() {

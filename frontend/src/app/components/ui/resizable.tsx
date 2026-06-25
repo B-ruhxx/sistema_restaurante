@@ -39,18 +39,39 @@ function ResizableHandle({
     <ResizablePrimitive.PanelResizeHandle
       data-slot="resizable-handle"
       className={cn(
-        "bg-border focus-visible:ring-ring relative flex w-px items-center justify-center after:absolute after:inset-y-0 after:left-1/2 after:w-1 after:-translate-x-1/2 focus-visible:ring-1 focus-visible:ring-offset-1 focus-visible:outline-hidden data-[panel-group-direction=vertical]:h-px data-[panel-group-direction=vertical]:w-full data-[panel-group-direction=vertical]:after:left-0 data-[panel-group-direction=vertical]:after:h-1 data-[panel-group-direction=vertical]:after:w-full data-[panel-group-direction=vertical]:after:-translate-y-1/2 data-[panel-group-direction=vertical]:after:translate-x-0 [&[data-panel-group-direction=vertical]>div]:rotate-90",
+        "relative flex w-px items-center justify-center bg-border outline-none transition-all duration-200",
+        // Zona de interacción extendida (Hitbox invisible para el mouse)
+        "after:absolute after:inset-y-0 after:left-1/2 after:w-2 after:-translate-x-1/2 after:cursor-col-resize",
+        // Estados de enfoque por teclado
+        "focus-visible:z-50 focus-visible:ring-2 focus-visible:ring-ring/20 focus-visible:ring-offset-0",
+        // Ajustes para orientación Vertical
+        "data-[panel-group-direction=vertical]:h-px data-[panel-group-direction=vertical]:w-full",
+        "data-[panel-group-direction=vertical]:after:left-0 data-[panel-group-direction=vertical]:after:inset-x-0 data-[panel-group-direction=vertical]:after:h-2 data-[panel-group-direction=vertical]:after:w-full data-[panel-group-direction=vertical]:after:-translate-y-1/2 data-[panel-group-direction=vertical]:after:translate-x-0 data-[panel-group-direction=vertical]:after:cursor-row-resize",
+        "data-[panel-group-direction=vertical]:hover:bg-primary/50 data-[panel-group-direction=vertical]:data-[resize-handle-state=drag]:bg-primary",
+        // Estado activo o en arrastre (Hover & Dragging)
+        "hover:bg-primary/50 data-[resize-handle-state=drag]:bg-primary",
+        "&[data-panel-group-direction=vertical]>div]:rotate-90",
         className,
       )}
       {...props}
-    >
-      {withHandle && (
-        <div className="bg-border z-10 flex h-4 w-3 items-center justify-center rounded-xs border">
-          <GripVerticalIcon className="size-2.5" />
-        </div>
-      )}
-    </ResizablePrimitive.PanelResizeHandle>
+    />
   );
 }
 
-export { ResizablePanelGroup, ResizablePanel, ResizableHandle };
+interface ResizableHandleGripProps extends React.ComponentProps<"div"> { }
+
+function ResizableHandleGrip({ className, ...props }: ResizableHandleGripProps) {
+  return (
+    <div
+      className={cn(
+        "z-50 flex h-5 w-3.5 items-center justify-center rounded-sm border border-border bg-background shadow-xs pointer-events-none transition-colors",
+        className
+      )}
+      {...props}
+    >
+      <GripVerticalIcon className="size-2.5 text-muted-foreground/80" />
+    </div>
+  );
+}
+
+export { ResizablePanelGroup, ResizablePanel, ResizableHandle, ResizableHandleGrip };

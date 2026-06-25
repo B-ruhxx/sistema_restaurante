@@ -37,7 +37,7 @@ import {
   DollarSign,
   FileSpreadsheet,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '../../lib/notifications';
 import { useReportes } from '../../hooks/useReportes';
 import { useClientes } from '../../hooks/useClientes';
 import { useVentas } from '../../hooks/useVentas';

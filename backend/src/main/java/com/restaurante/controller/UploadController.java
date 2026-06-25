@@ -15,10 +15,12 @@ public class UploadController {
     private UploadService uploadService;
 
     @PostMapping
-    public ResponseEntity<UploadResponse> uploadFile(@RequestParam("file") MultipartFile file) {
-        String filename = uploadService.storeFile(file);
+    public ResponseEntity<UploadResponse> uploadFile(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "module", defaultValue = "general") String module) {
+        String filename = uploadService.storeFile(file, module);
         
-        // The URL is relative to server root: /api/uploads/{filename}
+        // The URL is relative to server root: /api/uploads/{filename} (where filename is e.g. "categorias/foo.jpg")
         String fileUrl = "/api/uploads/" + filename;
         
         UploadResponse response = new UploadResponse(
@@ -31,7 +33,24 @@ public class UploadController {
         return ResponseEntity.ok(response);
     }
 
-    @DeleteMapping("/{filename}")
+    @PostMapping("/url")
+    public ResponseEntity<UploadResponse> uploadFileFromUrl(
+            @RequestParam("url") String url,
+            @RequestParam(value = "module", defaultValue = "general") String module) {
+        String filename = uploadService.storeFileFromUrl(url, module);
+        String fileUrl = "/api/uploads/" + filename;
+        
+        UploadResponse response = new UploadResponse(
+                filename,
+                fileUrl,
+                0,
+                "image/jpeg"
+        );
+        
+        return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/{*filename}")
     public ResponseEntity<Void> deleteFile(@PathVariable String filename) {
         uploadService.deleteFile(filename);
         return ResponseEntity.ok().build();

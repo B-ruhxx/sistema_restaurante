@@ -1,12 +1,15 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { cajasApi, MovimientoCajaRequest } from '../api/cajas';
+import { PrivateQueryOptions, usePrivateQueryEnabled } from './usePrivateQuery';
 
-export const useCaja = () => {
+export const useCaja = ({ enabled = true }: PrivateQueryOptions = {}) => {
   const queryClient = useQueryClient();
+  const queryEnabled = usePrivateQueryEnabled(enabled);
 
   const activaQuery = useQuery({
     queryKey: ['cajas', 'activa'],
     queryFn: cajasApi.getActiva,
+    enabled: queryEnabled,
     staleTime: 30000, // cache active status for 30s
   });
 
@@ -15,12 +18,14 @@ export const useCaja = () => {
   const movimientosQuery = useQuery({
     queryKey: ['cajas', activaId, 'movimientos'],
     queryFn: () => activaId ? cajasApi.getMovimientos(activaId) : Promise.resolve([]),
-    enabled: !!activaId,
+    enabled: queryEnabled && !!activaId,
   });
 
   const historialQuery = useQuery({
     queryKey: ['cajas', 'historial'],
     queryFn: cajasApi.getHistorial,
+    enabled: queryEnabled,
+    staleTime: 30_000,
   });
 
   const abrirMutation = useMutation({

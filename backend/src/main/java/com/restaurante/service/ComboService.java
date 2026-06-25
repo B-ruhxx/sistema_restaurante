@@ -33,7 +33,7 @@ public class ComboService {
     private ComboMapper comboMapper;
 
     public List<ComboResponse> getAllCombos() {
-        return comboRepository.findAll().stream()
+        return comboRepository.findByEstado(ComboProducto.Estado.ACTIVO).stream()
                 .map(combo -> {
                     List<ComboDetalle> detalles = comboDetalleRepository.findByComboIdCombo(combo.getIdCombo());
                     return comboMapper.toResponse(combo, detalles);
@@ -81,6 +81,7 @@ public class ComboService {
         combo.setNombre(request.getNombre());
         combo.setDescripcion(request.getDescripcion());
         combo.setPrecio(request.getPrecio());
+        combo.setImagenUrl(request.getImagenUrl());
         if (request.getEstado() != null) {
             combo.setEstado(ComboProducto.Estado.valueOf(request.getEstado().toUpperCase()));
         }

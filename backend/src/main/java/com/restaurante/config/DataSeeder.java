@@ -48,9 +48,10 @@ public class DataSeeder implements ApplicationRunner {
         if (rolRepository.count() == 0) {
             List<Permiso> permisos = new ArrayList<>();
             String[] nombresPermisos = {
-                    "VER_PANEL", "GESTION_EMPLEADOS", "GESTION_POS",
-                    "GESTION_COCINA", "GESTION_COMPRAS", "GESTION_REPORTES",
-                    "GESTION_CONFIGURACION"
+                    "ACCESO_TOTAL", "VER_PANEL", "GESTION_EMPLEADOS", "GESTION_POS",
+                    "GESTION_MESAS", "GESTION_PRECUENTA", "GESTION_CAJA",
+                    "GESTION_COCINA", "GESTION_VENTAS", "GESTION_COMPRAS",
+                    "GESTION_REPORTES", "GESTION_CONFIGURACION"
             };
             for (String pNom : nombresPermisos) {
                 Permiso p = new Permiso();
@@ -72,7 +73,9 @@ public class DataSeeder implements ApplicationRunner {
             meseroRol.setEstado(Rol.Estado.ACTIVO);
             meseroRol.setPermisos(new java.util.HashSet<>(List.of(
                     getPermisoByName(permisos, "VER_PANEL"),
-                    getPermisoByName(permisos, "GESTION_POS"))));
+                    getPermisoByName(permisos, "GESTION_POS"),
+                    getPermisoByName(permisos, "GESTION_MESAS"),
+                    getPermisoByName(permisos, "GESTION_PRECUENTA"))));
             rolRepository.save(meseroRol);
 
             Rol cajeroRol = new Rol();
@@ -81,7 +84,9 @@ public class DataSeeder implements ApplicationRunner {
             cajeroRol.setEstado(Rol.Estado.ACTIVO);
             cajeroRol.setPermisos(new java.util.HashSet<>(List.of(
                     getPermisoByName(permisos, "VER_PANEL"),
-                    getPermisoByName(permisos, "GESTION_POS"))));
+                    getPermisoByName(permisos, "GESTION_POS"),
+                    getPermisoByName(permisos, "GESTION_CAJA"),
+                    getPermisoByName(permisos, "GESTION_VENTAS"))));
             rolRepository.save(cajeroRol);
 
             Rol cocineroRol = new Rol();

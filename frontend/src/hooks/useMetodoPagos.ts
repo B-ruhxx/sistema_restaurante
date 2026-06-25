@@ -1,17 +1,23 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { metodoPagosApi, MetodoPagoRequest } from '../api/metodoPagos';
+import { PrivateQueryOptions, usePrivateQueryEnabled } from './usePrivateQuery';
 
-export const useMetodoPagos = () => {
+export const useMetodoPagos = ({ enabled = true }: PrivateQueryOptions = {}) => {
   const queryClient = useQueryClient();
+  const queryEnabled = usePrivateQueryEnabled(enabled);
 
   const metodoPagosQuery = useQuery({
     queryKey: ['metodoPagos'],
     queryFn: metodoPagosApi.getAll,
+    enabled: queryEnabled,
+    staleTime: 30_000,
   });
 
   const activosQuery = useQuery({
     queryKey: ['metodoPagos', 'activos'],
     queryFn: metodoPagosApi.getActivos,
+    enabled: queryEnabled,
+    staleTime: 30_000,
   });
 
   const createMutation = useMutation({

@@ -1,6 +1,7 @@
 package com.restaurante.dto.response;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public class DetallePedidoResponse {
@@ -15,6 +16,11 @@ public class DetallePedidoResponse {
     private BigDecimal precioUnitario;
     private BigDecimal subtotal;
     private String observacion;
+    private String estadoCocina;
+    private Integer tiempoEstimadoMinutos;
+    private Integer tiempoRealMinutos;
+    private LocalDateTime fechaInicioPreparacion;
+    private LocalDateTime fechaFinPreparacion;
     private List<ExtraProductoResponse> extras;
 
     public Integer getIdDetallePedido() {
@@ -103,6 +109,46 @@ public class DetallePedidoResponse {
 
     public void setObservacion(String observacion) {
         this.observacion = observacion;
+    }
+
+    public String getEstadoCocina() {
+        return estadoCocina;
+    }
+
+    public void setEstadoCocina(String estadoCocina) {
+        this.estadoCocina = estadoCocina;
+    }
+
+    public Integer getTiempoEstimadoMinutos() {
+        return tiempoEstimadoMinutos;
+    }
+
+    public void setTiempoEstimadoMinutos(Integer tiempoEstimadoMinutos) {
+        this.tiempoEstimadoMinutos = tiempoEstimadoMinutos;
+    }
+
+    public Integer getTiempoRealMinutos() {
+        return tiempoRealMinutos;
+    }
+
+    public void setTiempoRealMinutos(Integer tiempoRealMinutos) {
+        this.tiempoRealMinutos = tiempoRealMinutos;
+    }
+
+    public LocalDateTime getFechaInicioPreparacion() {
+        return fechaInicioPreparacion;
+    }
+
+    public void setFechaInicioPreparacion(LocalDateTime fechaInicioPreparacion) {
+        this.fechaInicioPreparacion = fechaInicioPreparacion;
+    }
+
+    public LocalDateTime getFechaFinPreparacion() {
+        return fechaFinPreparacion;
+    }
+
+    public void setFechaFinPreparacion(LocalDateTime fechaFinPreparacion) {
+        this.fechaFinPreparacion = fechaFinPreparacion;
     }
 
     public List<ExtraProductoResponse> getExtras() {

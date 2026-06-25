@@ -1,9 +1,12 @@
+import type React from 'react';
 import { createBrowserRouter } from 'react-router';
 import { Layout } from './components/Layout';
 import { Login } from './pages/Login';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { ERPProvider } from './contexts/ERPContext';
 import { Dashboard } from './pages/Dashboard';
 import { POS } from './pages/POS';
+import { Tables } from './pages/Tables';
 import { Checkout } from './pages/Checkout';
 import { Orders } from './pages/Orders';
 import { Kitchen } from './pages/Kitchen';
@@ -28,33 +31,42 @@ import { CompanySettings } from './pages/CompanySettings';
 import { Security } from './pages/Security';
 import { ExecutiveDashboard } from './pages/ExecutiveDashboard';
 
+const protectedPage = (page: React.ReactNode) => (
+  <ProtectedRoute>
+    <ERPProvider>
+      <Layout>{page}</Layout>
+    </ERPProvider>
+  </ProtectedRoute>
+);
+
 export const router = createBrowserRouter([
   { path: '/login', element: <Login /> },
-  { path: '/', element: <ProtectedRoute><Layout><Dashboard /></Layout></ProtectedRoute> },
-  { path: '/pos', element: <ProtectedRoute><Layout><POS /></Layout></ProtectedRoute> },
-  { path: '/checkout', element: <ProtectedRoute><Layout><Checkout /></Layout></ProtectedRoute> },
-  { path: '/pedidos', element: <ProtectedRoute><Layout><Orders /></Layout></ProtectedRoute> },
-  { path: '/cocina', element: <ProtectedRoute><Layout><Kitchen /></Layout></ProtectedRoute> },
-  { path: '/caja', element: <ProtectedRoute><Layout><CashRegister /></Layout></ProtectedRoute> },
+  { path: '/', element: protectedPage(<Dashboard />) },
+  { path: '/mesas', element: protectedPage(<Tables />) },
+  { path: '/pos', element: protectedPage(<POS />) },
+  { path: '/checkout', element: protectedPage(<Checkout />) },
+  { path: '/pedidos', element: protectedPage(<Orders />) },
+  { path: '/cocina', element: protectedPage(<Kitchen />) },
+  { path: '/caja', element: protectedPage(<CashRegister />) },
   // Fase 2
-  { path: '/categorias', element: <ProtectedRoute><Layout><Categories /></Layout></ProtectedRoute> },
-  { path: '/productos', element: <ProtectedRoute><Layout><Products /></Layout></ProtectedRoute> },
-  { path: '/combos', element: <ProtectedRoute><Layout><Combos /></Layout></ProtectedRoute> },
-  { path: '/extras', element: <ProtectedRoute><Layout><ProductExtras /></Layout></ProtectedRoute> },
-  { path: '/recetas', element: <ProtectedRoute><Layout><RecipeBuilder /></Layout></ProtectedRoute> },
-  { path: '/insumos', element: <ProtectedRoute><Layout><Supplies /></Layout></ProtectedRoute> },
-  { path: '/kardex', element: <ProtectedRoute><Layout><Kardex /></Layout></ProtectedRoute> },
-  { path: '/inventario', element: <ProtectedRoute><Layout><DirectInventory /></Layout></ProtectedRoute> },
-  { path: '/proveedores', element: <ProtectedRoute><Layout><Suppliers /></Layout></ProtectedRoute> },
-  { path: '/compras', element: <ProtectedRoute><Layout><Purchases /></Layout></ProtectedRoute> },
+  { path: '/categorias', element: protectedPage(<Categories />) },
+  { path: '/productos', element: protectedPage(<Products />) },
+  { path: '/combos', element: protectedPage(<Combos />) },
+  { path: '/extras', element: protectedPage(<ProductExtras />) },
+  { path: '/recetas', element: protectedPage(<RecipeBuilder />) },
+  { path: '/insumos', element: protectedPage(<Supplies />) },
+  { path: '/kardex', element: protectedPage(<Kardex />) },
+  { path: '/inventario', element: protectedPage(<DirectInventory />) },
+  { path: '/proveedores', element: protectedPage(<Suppliers />) },
+  { path: '/compras', element: protectedPage(<Purchases />) },
   // Fase 3 - Administración
-  { path: '/dashboard-gerencial', element: <ProtectedRoute><Layout><ExecutiveDashboard /></Layout></ProtectedRoute> },
-  { path: '/reportes', element: <ProtectedRoute><Layout><Reports /></Layout></ProtectedRoute> },
-  { path: '/clientes', element: <ProtectedRoute><Layout><Customers /></Layout></ProtectedRoute> },
-  { path: '/empleados', element: <ProtectedRoute><Layout><Employees /></Layout></ProtectedRoute> },
-  { path: '/roles', element: <ProtectedRoute><Layout><Roles /></Layout></ProtectedRoute> },
-  { path: '/metodos-pago', element: <ProtectedRoute><Layout><PaymentMethods /></Layout></ProtectedRoute> },
-  { path: '/configuracion', element: <ProtectedRoute><Layout><CompanySettings /></Layout></ProtectedRoute> },
-  { path: '/auditoria', element: <ProtectedRoute><Layout><Audit /></Layout></ProtectedRoute> },
-  { path: '/seguridad', element: <ProtectedRoute><Layout><Security /></Layout></ProtectedRoute> },
+  { path: '/dashboard-gerencial', element: protectedPage(<ExecutiveDashboard />) },
+  { path: '/reportes', element: protectedPage(<Reports />) },
+  { path: '/clientes', element: protectedPage(<Customers />) },
+  { path: '/empleados', element: protectedPage(<Employees />) },
+  { path: '/roles', element: protectedPage(<Roles />) },
+  { path: '/metodos-pago', element: protectedPage(<PaymentMethods />) },
+  { path: '/configuracion', element: protectedPage(<CompanySettings />) },
+  { path: '/auditoria', element: protectedPage(<Audit />) },
+  { path: '/seguridad', element: protectedPage(<Security />) },
 ]);

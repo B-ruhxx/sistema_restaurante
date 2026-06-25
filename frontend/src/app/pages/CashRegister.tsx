@@ -1,10 +1,15 @@
 import { useState } from 'react';
-import { Wallet, Plus, DollarSign, TrendingUp, TrendingDown, Clock, CheckCircle2 } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Wallet, Plus, DollarSign, TrendingUp, TrendingDown, Clock, CheckCircle2, Search, ReceiptText, CreditCard } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Textarea } from '../components/ui/textarea';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale/es';
 import { useERP } from '../contexts/ERPContext';
+import { cajasApi } from '../../api/cajas';
+import { Pedido } from '../../api/pedidos';
+import { metodoPagosApi } from '../../api/metodoPagos';
+import { toast } from '../../lib/notifications';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
@@ -14,10 +19,17 @@ import { Label } from '../components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 
 export function CashRegister() {
+  const queryClient = useQueryClient();
   const { cashRegister, openCashRegister, closeCashRegister, addCashMovement } = useERP();
   const [showOpenDialog, setShowOpenDialog] = useState(false);
   const [showCloseDialog, setShowCloseDialog] = useState(false);
   const [showMovementDialog, setShowMovementDialog] = useState(false);
+  const [showCobroDialog, setShowCobroDialog] = useState(false);
+  const [selectedPedido, setSelectedPedido] = useState<Pedido | null>(null);
+  const [pedidoSearch, setPedidoSearch] = useState('');
+  const [cobroMetodoId, setCobroMetodoId] = useState('');
+  const [cobroMonto, setCobroMonto] = useState('');
+  const [cobroComprobante, setCobroComprobante] = useState<'BOLETA' | 'FACTURA'>('BOLETA');
   const [openingBalance, setOpeningBalance] = useState('500');
   const [actualBalance, setActualBalance] = useState('');
   const [movementType, setMovementType] = useState<'ingreso' | 'egreso'>('ingreso');
@@ -35,6 +47,46 @@ export function CashRegister() {
 
   const expectedBalance = (cashRegister?.openingBalance || 0) + totalIngresos - totalEgresos;
   const difference = actualBalance ? parseFloat(actualBalance) - expectedBalance : 0;
+
+  const cajaAbierta = !!cashRegister && cashRegister.status === 'abierta';
+
+  const pedidosPendientesQuery = useQuery({
+    queryKey: ['caja', 'pedidos-pendientes'],
+    queryFn: cajasApi.getPedidosPendientes,
+    enabled: cajaAbierta,
+    refetchInterval: 10000,
+    refetchOnWindowFocus: false,
+  });
+
+  const metodosPagoQuery = useQuery({
+    queryKey: ['metodo-pagos', 'activos'],
+    queryFn: metodoPagosApi.getActivos,
+    enabled: cajaAbierta,
+    staleTime: 60000,
+  });
+
+  const cobrarPedidoMutation = useMutation({
+    mutationFn: (pedido: Pedido) => cajasApi.cobrarPedido(pedido.idPedido, {
+      tipoComprobante: cobroComprobante,
+      pagos: [{
+        idMetodoPago: Number(cobroMetodoId),
+        monto: Number(cobroMonto),
+      }],
+    }),
+    onSuccess: (venta) => {
+      queryClient.invalidateQueries({ queryKey: ['caja', 'pedidos-pendientes'] });
+      queryClient.invalidateQueries({ queryKey: ['cajas'] });
+      queryClient.invalidateQueries({ queryKey: ['pedidos'] });
+      queryClient.invalidateQueries({ queryKey: ['mesas'] });
+      queryClient.invalidateQueries({ queryKey: ['precuentas'] });
+      queryClient.invalidateQueries({ queryKey: ['ventas'] });
+      queryClient.invalidateQueries({ queryKey: ['cocina', 'comandas'] });
+      setShowCobroDialog(false);
+      setSelectedPedido(null);
+      setCobroMonto('');
+      toast.success(`Venta ${venta.codigoVenta || `#${venta.idVenta}`} pagada correctamente`);
+    },
+  });
 
   const handleOpenCash = () => {
     openCashRegister(parseFloat(openingBalance), 'Apertura de turno.');
@@ -63,6 +115,39 @@ export function CashRegister() {
     setMovementAmount('');
     setMovementDescription('');
   };
+
+  const openCobro = (pedido: Pedido) => {
+    setSelectedPedido(pedido);
+    setCobroMonto((pedido.total || 0).toFixed(2));
+    const firstMetodo = metodosPagoQuery.data?.[0];
+    setCobroMetodoId(firstMetodo ? String(firstMetodo.idMetodoPago) : '');
+    setCobroComprobante('BOLETA');
+    setShowCobroDialog(true);
+  };
+
+  const handleCobrarPedido = () => {
+    if (!selectedPedido) return;
+    if (!cobroMetodoId) {
+      toast.error('Selecciona un método de pago');
+      return;
+    }
+    if (!cobroMonto || Number(cobroMonto) <= 0) {
+      toast.error('Ingresa un monto válido');
+      return;
+    }
+    cobrarPedidoMutation.mutate(selectedPedido);
+  };
+
+  const pedidosPendientes = (pedidosPendientesQuery.data || []).filter((pedido) => {
+    const query = pedidoSearch.trim().toLowerCase();
+    if (!query) return true;
+    return [
+      pedido.idPedido,
+      pedido.numeroMesa,
+      pedido.clienteNombre,
+      pedido.estado,
+    ].some((value) => String(value || '').toLowerCase().includes(query));
+  });
 
   if (!cashRegister || cashRegister.status === 'cerrada') {
     return (
@@ -201,6 +286,82 @@ export function CashRegister() {
         </Card>
       </div>
 
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <ReceiptText className="w-5 h-5" />
+                Pedidos por cobrar
+              </CardTitle>
+              <CardDescription>
+                Cobra pedidos entregados o con precuenta emitida. La venta se genera solo al confirmar el pago.
+              </CardDescription>
+            </div>
+            <div className="relative w-full md:w-80">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                value={pedidoSearch}
+                onChange={(event) => setPedidoSearch(event.target.value)}
+                placeholder="Buscar mesa, pedido o cliente"
+                className="pl-9"
+              />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Pedido</TableHead>
+                <TableHead>Mesa</TableHead>
+                <TableHead>Cliente</TableHead>
+                <TableHead>Estado</TableHead>
+                <TableHead className="text-right">Total</TableHead>
+                <TableHead className="text-right">Acción</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {pedidosPendientesQuery.isLoading && (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                    Cargando pedidos pendientes...
+                  </TableCell>
+                </TableRow>
+              )}
+
+              {!pedidosPendientesQuery.isLoading && pedidosPendientes.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                    No hay pedidos listos para cobrar.
+                  </TableCell>
+                </TableRow>
+              )}
+
+              {pedidosPendientes.map((pedido) => (
+                <TableRow key={pedido.idPedido}>
+                  <TableCell className="font-medium">#{pedido.idPedido}</TableCell>
+                  <TableCell>{pedido.numeroMesa || (pedido.idMesa ? `Mesa ${pedido.idMesa}` : 'Sin mesa')}</TableCell>
+                  <TableCell>{pedido.clienteNombre || 'Cliente general'}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{pedido.estado.replaceAll('_', ' ')}</Badge>
+                  </TableCell>
+                  <TableCell className="text-right font-semibold">
+                    S/ {(pedido.total || 0).toFixed(2)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button size="sm" onClick={() => openCobro(pedido)}>
+                      <CreditCard className="w-4 h-4 mr-2" />
+                      Cobrar
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
       {/* Tabla de Movimientos */}
       <Card>
         <CardHeader>
@@ -254,6 +415,90 @@ export function CashRegister() {
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={showCobroDialog} onOpenChange={setShowCobroDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cobrar pedido #{selectedPedido?.idPedido}</DialogTitle>
+            <DialogDescription>
+              Confirma el pago para convertir el pedido en venta pagada y liberar la mesa.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedPedido && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <Card>
+                  <CardContent className="pt-4">
+                    <div className="text-sm text-muted-foreground">Mesa</div>
+                    <div className="text-lg font-semibold">
+                      {selectedPedido.numeroMesa || (selectedPedido.idMesa ? `Mesa ${selectedPedido.idMesa}` : 'Sin mesa')}
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-4">
+                    <div className="text-sm text-muted-foreground">Total</div>
+                    <div className="text-lg font-semibold">S/ {(selectedPedido.total || 0).toFixed(2)}</div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Tipo de comprobante</Label>
+                <Tabs value={cobroComprobante} onValueChange={(value) => setCobroComprobante(value as 'BOLETA' | 'FACTURA')}>
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="BOLETA">Boleta</TabsTrigger>
+                    <TabsTrigger value="FACTURA">Factura</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="payment-method">Método de pago</Label>
+                <select
+                  id="payment-method"
+                  className="w-full h-10 px-3 rounded-md border border-input bg-background"
+                  value={cobroMetodoId}
+                  onChange={(event) => setCobroMetodoId(event.target.value)}
+                >
+                  <option value="">Selecciona un método</option>
+                  {(metodosPagoQuery.data || []).map((metodo) => (
+                    <option key={metodo.idMetodoPago} value={metodo.idMetodoPago}>
+                      {metodo.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="payment-amount">Monto pagado</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">S/</span>
+                  <Input
+                    id="payment-amount"
+                    type="number"
+                    step="0.01"
+                    className="pl-10"
+                    value={cobroMonto}
+                    onChange={(event) => setCobroMonto(event.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCobroDialog(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleCobrarPedido} disabled={cobrarPedidoMutation.isPending}>
+              <CheckCircle2 className="w-4 h-4 mr-2" />
+              {cobrarPedidoMutation.isPending ? 'Cobrando...' : 'Confirmar pago'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal de Cierre de Caja */}
       <Dialog open={showCloseDialog} onOpenChange={setShowCloseDialog}>

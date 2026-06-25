@@ -10,6 +10,7 @@ public class RecetaProductoResponse {
     private String nombreInsumo;
     private String unidadMedidaInsumo;
     private BigDecimal cantidad;
+    private Integer tiempoPreparacionMinutos;
 
     public Integer getIdReceta() {
         return idReceta;
@@ -65,5 +66,13 @@ public class RecetaProductoResponse {
 
     public void setCantidad(BigDecimal cantidad) {
         this.cantidad = cantidad;
+    }
+
+    public Integer getTiempoPreparacionMinutos() {
+        return tiempoPreparacionMinutos;
+    }
+
+    public void setTiempoPreparacionMinutos(Integer tiempoPreparacionMinutos) {
+        this.tiempoPreparacionMinutos = tiempoPreparacionMinutos;
     }
 }

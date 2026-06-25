@@ -3,6 +3,7 @@ package com.restaurante.service;
 import com.restaurante.dto.mapper.CajaMapper;
 import com.restaurante.dto.response.CajaResponse;
 import com.restaurante.dto.response.MovimientoCajaResponse;
+import com.restaurante.dto.response.PedidoResponse;
 import com.restaurante.entity.Caja;
 import com.restaurante.entity.Empleado;
 import com.restaurante.entity.MovimientoCaja;
@@ -30,6 +31,9 @@ public class CajaService {
 
     @Autowired
     private CajaMapper cajaMapper;
+
+    @Autowired
+    private PedidoService pedidoService;
 
     public CajaResponse abrirCaja(Empleado empleado, BigDecimal montoApertura, String observacion) {
         // Validar si el empleado ya cuenta con una caja abierta
@@ -120,5 +124,20 @@ public class CajaService {
         return cajaRepository.findAll().stream()
                 .map(cajaMapper::toResponse)
                 .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<PedidoResponse> obtenerPedidosPendientesCobro() {
+        return pedidoService.listarPedidosCobrables();
+    }
+
+    @Transactional(readOnly = true)
+    public List<PedidoResponse> obtenerPedidosCobrablesPorMesa(Integer idMesa) {
+        return pedidoService.obtenerPedidosCobrablesPorMesa(idMesa);
+    }
+
+    @Transactional(readOnly = true)
+    public List<PedidoResponse> buscarPedidosParaCaja(String query) {
+        return pedidoService.buscarPedidosParaCaja(query);
     }
 }

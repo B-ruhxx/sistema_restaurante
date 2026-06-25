@@ -16,7 +16,7 @@ import { Label } from '../components/ui/label';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '../components/ui/table';
-import { toast } from 'sonner';
+import { toast } from '../../lib/notifications';
 import { useProveedores } from '../../hooks/useProveedores';
 import type { Proveedor, ProveedorRequest } from '../../api/proveedores';
 
@@ -47,17 +47,16 @@ export function Suppliers() {
   const [deleting, setDeleting] = useState<Proveedor | null>(null);
   const [form, setForm] = useState<ProveedorRequest>(emptyForm);
 
-  const filtered = proveedores
-    .filter((s: Proveedor) => s.estado !== 'INACTIVO')
-    .filter((s: Proveedor) => {
-      const q = search.toLowerCase();
-      return (
-        s.razonSocial.toLowerCase().includes(q) ||
-        (s.ruc && s.ruc.includes(q)) ||
-        (s.contactoPrincipal && s.contactoPrincipal.toLowerCase().includes(q)) ||
-        (s.email && s.email.toLowerCase().includes(q))
-      );
-    });
+  const filtered = proveedores.filter((s: Proveedor) => {
+    if (s.estado === 'INACTIVO') return false;
+    const q = search.toLowerCase();
+    return (
+      s.razonSocial.toLowerCase().includes(q) ||
+      (s.ruc && s.ruc.includes(q)) ||
+      (s.contactoPrincipal && s.contactoPrincipal.toLowerCase().includes(q)) ||
+      (s.email && s.email.toLowerCase().includes(q))
+    );
+  });
 
   const openCreate = () => {
     setEditing(null);

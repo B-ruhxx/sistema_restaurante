@@ -1,17 +1,23 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { empleadosApi, EmpleadoRequest } from '../api/empleados';
+import { PrivateQueryOptions, usePrivateQueryEnabled } from './usePrivateQuery';
 
-export const useEmpleados = () => {
+export const useEmpleados = ({ enabled = true }: PrivateQueryOptions = {}) => {
   const queryClient = useQueryClient();
+  const queryEnabled = usePrivateQueryEnabled(enabled);
 
   const empleadosQuery = useQuery({
     queryKey: ['empleados'],
     queryFn: empleadosApi.getAll,
+    enabled: queryEnabled,
+    staleTime: 30_000,
   });
 
   const rolesQuery = useQuery({
     queryKey: ['empleados-roles'],
     queryFn: empleadosApi.getRoles,
+    enabled: queryEnabled,
+    staleTime: 30_000,
   });
 
   const createMutation = useMutation({

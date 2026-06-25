@@ -1,12 +1,18 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { categoriasApi, CategoriaRequest } from '../api/categorias';
+import { PrivateQueryOptions, usePrivateQueryEnabled } from './usePrivateQuery';
 
-export const useCategorias = () => {
+const EMPTY_ARRAY: any[] = [];
+
+export const useCategorias = ({ enabled = true }: PrivateQueryOptions = {}) => {
   const queryClient = useQueryClient();
+  const queryEnabled = usePrivateQueryEnabled(enabled);
 
   const categoriasQuery = useQuery({
     queryKey: ['categorias'],
     queryFn: categoriasApi.getAll,
+    enabled: queryEnabled,
+    staleTime: 30_000,
   });
 
   const createMutation = useMutation({
@@ -32,7 +38,7 @@ export const useCategorias = () => {
   });
 
   return {
-    categorias: categoriasQuery.data || [],
+    categorias: categoriasQuery.data || EMPTY_ARRAY,
     isLoading: categoriasQuery.isLoading,
     isError: categoriasQuery.isError,
     createCategoria: createMutation.mutateAsync,

@@ -15,6 +15,7 @@ export interface Producto {
 export interface RecetaItemRequest {
   idInsumo: number;
   cantidad: number;
+  tiempoPreparacionMinutos?: number;
 }
 
 export interface ProductoRequest {
@@ -46,6 +47,7 @@ export interface RecetaProducto {
   nombreInsumo: string;
   unidadMedidaInsumo: string;
   cantidad: number;
+  tiempoPreparacionMinutos?: number;
 }
 
 export interface ProductoDetalle {

@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import {
-  Plus, Search, Pencil, Trash2, MoreHorizontal, ImagePlus,
-  Package, ChevronRight, Star, History, FlaskConical, Layers, BookOpen,
-  LayoutGrid, List,
+  Plus, Search, Pencil, Trash2, MoreHorizontal,
+  Package, ChevronRight, Star, FlaskConical, Layers, BookOpen,
+  LayoutGrid, List, Loader2,
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -29,8 +29,10 @@ import { Separator } from '../components/ui/separator';
 
 import { useProductos } from '../../hooks/useProductos';
 import { useCategorias } from '../../hooks/useCategorias';
-import { useVariantes } from '../../hooks/useVariantes';
 import { ProductoRequest } from '../../api/productos';
+import { variantesApi } from '../../api/variantes';
+import { getFullImageUrl } from '../components/ui/utils';
+import { ImageUploadZone } from '../components/ui/image-upload-zone';
 
 interface Product {
   id: string;
@@ -41,13 +43,16 @@ interface Product {
   type: 'PREPARADO' | 'INVENTARIO_DIRECTO';
   active: boolean;
   image: string;
+  rawImagenUrl?: string;
   description: string;
   variants: Variant[];
   stock: number;
+  stockMinimo?: number;
 }
 
 interface Variant {
   id: string;
+  backendId?: number;
   name: string;
   price: number;
   active: boolean;
@@ -56,13 +61,7 @@ interface Variant {
 const typeLabels: Record<string, { label: string; color: string }> = {
   PREPARADO: { label: 'Elaborado', color: 'bg-blue-100 text-blue-700' },
   INVENTARIO_DIRECTO: { label: 'Directo', color: 'bg-purple-100 text-purple-700' },
-  COMBO: { label: 'Combo', color: 'bg-orange-100 text-orange-700' },
 };
-
-const historyData = [
-  { date: '2024-06-07', action: 'Precio actualizado', user: 'Admin', detail: 'S/ 16.90 → S/ 18.90' },
-  { date: '2024-06-01', action: 'Producto creado', user: 'Admin', detail: '' },
-];
 
 export function Products() {
   const navigate = useNavigate();
@@ -79,25 +78,36 @@ export function Products() {
   const [productTab, setProductTab] = useState('general');
   const [form, setForm] = useState<Partial<Product>>({});
   const [newVariant, setNewVariant] = useState({ name: '', price: '' });
+  const [originalVariantIds, setOriginalVariantIds] = useState<number[]>([]);
+
+  useEffect(() => {
+    if (form.type === 'INVENTARIO_DIRECTO' && productTab === 'receta') {
+      setProductTab('inventario');
+    }
+  }, [form.type, productTab]);
+
+
+
 
   // Map backend products to frontend Product interface
-  const mappedProducts: Product[] = productos
-    .filter(p => p.estado === 'ACTIVO')
-    .map(p => ({
-      id: String(p.idProducto),
-      name: p.nombre,
-      category: p.nombreCategoria || 'Sin Categoría',
-      idCategoria: p.idCategoria,
-      price: p.precio,
-      type: p.tipoProducto,
-      active: p.estado === 'ACTIVO',
-      image: p.imagenUrl || 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=60&h=60&fit=crop&auto=format',
-      description: p.descripcion || '',
-      variants: [], // Handled inside the detail/tabs if needed
-      stock: 0,
-    }));
+  const mappedProducts: Product[] = productos.map(p => ({
+    id: String(p.idProducto),
+    name: p.nombre,
+    category: p.nombreCategoria || 'Sin Categoría',
+    idCategoria: p.idCategoria,
+    price: p.precio,
+    type: p.tipoProducto,
+    active: p.estado === 'ACTIVO',
+    image: p.imagenUrl ? getFullImageUrl(p.imagenUrl) : 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=60&h=60&fit=crop&auto=format',
+    rawImagenUrl: p.imagenUrl || '',
+    description: p.descripcion || '',
+    variants: [], // Handled inside the detail/tabs if needed
+    stock: 0,
+    stockMinimo: 5,
+  }));
 
   const filtered = mappedProducts.filter(p => {
+    if (!p.active) return false;
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase());
     const matchCat = filterCat === 'all' || p.category === filterCat;
     return matchSearch && matchCat;
@@ -105,24 +115,38 @@ export function Products() {
 
   const openCreate = () => {
     setSelected(null);
-    setForm({ name: '', category: 'Hamburguesas', price: 0, type: 'PREPARADO', active: true, description: '', image: '', variants: [], stock: 0 });
+    setOriginalVariantIds([]);
+    setForm({ name: '', category: 'Hamburguesas', price: 0, type: 'PREPARADO', active: true, description: '', image: '', variants: [], stock: 0, stockMinimo: 5 });
     setProductTab('general');
     setDialogOpen(true);
   };
 
   const openEdit = async (p: Product) => {
     setSelected(p);
-    setForm({ ...p, variants: [] });
+    // Use rawImagenUrl so we store the relative path in form, not the full URL
+    setOriginalVariantIds([]);
+    setForm({ ...p, image: p.rawImagenUrl || '', variants: [] });
     
     try {
       // Fetch full detail (including recipe and stock info)
-      const detail = await getProductoDetail(Number(p.id));
+      const [detail, variantes] = await Promise.all([
+        getProductoDetail(Number(p.id)),
+        variantesApi.getByProducto(Number(p.id)),
+      ]);
       if (detail) {
-        setForm({
-          ...p,
+        setForm(prev => ({
+          ...prev,
           stock: detail.inventario?.stock || 0,
-          variants: [], // Fetch variants independently if needed
-        });
+          stockMinimo: detail.inventario?.stockMinimo || 5,
+          variants: variantes.map(v => ({
+            id: String(v.idVariante),
+            backendId: v.idVariante,
+            name: v.nombre,
+            price: v.precioExtra,
+            active: v.estado === 'ACTIVO',
+          })),
+        }));
+        setOriginalVariantIds(variantes.map(v => v.idVariante));
       }
     } catch (error) {
       console.error('Error fetching product detail:', error);
@@ -139,21 +163,48 @@ export function Products() {
     const requestData: ProductoRequest = {
       nombre: form.name || '',
       descripcion: form.description || '',
-      imagenUrl: form.image || '',
+      imagenUrl: form.image && !form.image.startsWith('http') ? form.image : (form.image ? form.image.replace(/^https?:\/\/[^/]+/, '') : ''),
       precio: form.price || 0,
       tipoProducto: form.type || 'PREPARADO',
       estado: form.active ? 'ACTIVO' : 'INACTIVO',
       idCategoria: matchedCat?.idCategoria || (categorias.length > 0 ? categorias[0].idCategoria : undefined),
       stockInicial: form.stock || 0,
-      stockMinimo: 5,
+      stockMinimo: form.stockMinimo || 5,
     };
 
     try {
+      let productId: number;
       if (selected) {
-        await updateProducto({ id: Number(selected.id), data: requestData });
+        const result = await updateProducto({ id: Number(selected.id), data: requestData });
+        productId = result.producto.idProducto;
       } else {
-        await createProducto(requestData);
+        const result = await createProducto(requestData);
+        productId = result.producto.idProducto;
       }
+
+      const currentBackendIds = (form.variants || [])
+        .map(v => v.backendId)
+        .filter((id): id is number => typeof id === 'number');
+
+      await Promise.all(
+        originalVariantIds
+          .filter(id => !currentBackendIds.includes(id))
+          .map(id => variantesApi.delete(id))
+      );
+
+      await Promise.all((form.variants || []).map(v => {
+        const data = {
+          idProducto: productId,
+          nombre: v.name,
+          precioExtra: v.price,
+          estado: v.active ? 'ACTIVO' as const : 'INACTIVO' as const,
+        };
+
+        return v.backendId
+          ? variantesApi.update(v.backendId, data)
+          : variantesApi.create(data);
+      }));
+
       setDialogOpen(false);
     } catch (error) {
       console.error('Error saving product:', error);
@@ -327,29 +378,22 @@ export function Products() {
             <DialogTitle>{selected ? 'Editar Producto' : 'Nuevo Producto'}</DialogTitle>
           </DialogHeader>
           <Tabs value={productTab} onValueChange={setProductTab}>
-            <TabsList className="grid grid-cols-5 w-full">
+            <TabsList className="grid w-full" style={{ gridTemplateColumns: `repeat(${form.type === 'PREPARADO' ? 4 : 3}, minmax(0, 1fr))` }}>
               <TabsTrigger value="general">General</TabsTrigger>
               <TabsTrigger value="variantes">Variantes</TabsTrigger>
-              <TabsTrigger value="receta">Receta</TabsTrigger>
+              {form.type === 'PREPARADO' && <TabsTrigger value="receta">Receta</TabsTrigger>}
               <TabsTrigger value="inventario">Inventario</TabsTrigger>
-              <TabsTrigger value="historial">Historial</TabsTrigger>
             </TabsList>
 
             {/* General */}
             <TabsContent value="general" className="space-y-4 mt-4">
-              <div className="flex items-center gap-4">
-                {form.image ? (
-                  <img src={form.image} alt="" className="w-16 h-16 rounded-lg object-cover bg-muted" />
-                ) : (
-                  <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center">
-                    <ImagePlus className="w-6 h-6 text-muted-foreground" />
-                  </div>
-                )}
-                <div className="flex-1">
-                  <Label>URL de imagen</Label>
-                  <Input placeholder="https://..." value={form.image || ''} onChange={e => setForm(f => ({ ...f, image: e.target.value }))} className="mt-1" />
-                </div>
-              </div>
+              <ImageUploadZone
+                label="Imagen del producto"
+                value={form.image}
+                onChange={(url) => setForm(f => ({ ...f, image: url }))}
+                module="productos"
+                description="Sube una imagen o arrástrala desde tu equipo o internet. Formatos: JPG, PNG, WEBP."
+              />
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
                   <Label>Nombre *</Label>
@@ -369,7 +413,6 @@ export function Products() {
                     <SelectContent>
                       <SelectItem value="PREPARADO">Elaborado</SelectItem>
                       <SelectItem value="INVENTARIO_DIRECTO">Directo</SelectItem>
-                      <SelectItem value="COMBO">Combo</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -393,7 +436,7 @@ export function Products() {
               <p className="text-sm text-muted-foreground">Define tamaños o presentaciones para este producto.</p>
               <div className="flex gap-2">
                 <Input placeholder="Ej: Mediana" value={newVariant.name} onChange={e => setNewVariant(v => ({ ...v, name: e.target.value }))} />
-                <Input placeholder="Precio" type="number" className="w-28" value={newVariant.price} onChange={e => setNewVariant(v => ({ ...v, price: e.target.value }))} />
+                <Input placeholder="Precio extra" type="number" className="w-32" value={newVariant.price} onChange={e => setNewVariant(v => ({ ...v, price: e.target.value }))} />
                 <Button onClick={addVariant} type="button"><Plus className="w-4 h-4" /></Button>
               </div>
               <div className="space-y-2">
@@ -401,7 +444,7 @@ export function Products() {
                   <div key={v.id} className="flex items-center gap-3 p-3 rounded-lg border border-border bg-muted/30">
                     <ChevronRight className="w-4 h-4 text-muted-foreground" />
                     <span className="flex-1 text-sm font-medium">{v.name}</span>
-                    <span className="text-sm text-muted-foreground">S/ {v.price.toFixed(2)}</span>
+                    <span className="text-sm text-muted-foreground">+S/ {v.price.toFixed(2)}</span>
                     <Switch checked={v.active} onCheckedChange={val => setForm(f => ({ ...f, variants: (f.variants || []).map(vv => vv.id === v.id ? { ...vv, active: val } : vv) }))} />
                     <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => removeVariant(v.id)}>
                       <Trash2 className="w-3.5 h-3.5" />
@@ -420,7 +463,7 @@ export function Products() {
                 <FlaskConical className="w-10 h-10 text-muted-foreground" />
                 <p className="text-sm font-medium">Gestión de receta</p>
                 <p className="text-xs text-muted-foreground max-w-xs">Configura los insumos y cantidades desde el módulo de Recetas para mayor detalle.</p>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" onClick={() => navigate('/recetas')}>
                   <ChevronRight className="w-4 h-4 mr-1" /> Ir al constructor de recetas
                 </Button>
               </div>
@@ -437,7 +480,7 @@ export function Products() {
                     </div>
                     <div>
                       <Label>Stock mínimo</Label>
-                      <Input type="number" defaultValue={5} className="mt-1" />
+                      <Input type="number" value={form.stockMinimo || 5} onChange={e => setForm(f => ({ ...f, stockMinimo: parseInt(e.target.value) }))} className="mt-1" />
                     </div>
                   </div>
                   <div className="p-3 rounded-lg bg-muted/50 text-sm text-muted-foreground">
@@ -453,24 +496,6 @@ export function Products() {
               )}
             </TabsContent>
 
-            {/* Historial */}
-            <TabsContent value="historial" className="mt-4">
-              <div className="space-y-3">
-                {historyData.map((h, i) => (
-                  <div key={i} className="flex gap-3 p-3 rounded-lg border border-border">
-                    <History className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                    <div className="flex-1 text-sm">
-                      <p className="font-medium">{h.action}</p>
-                      {h.detail && <p className="text-muted-foreground">{h.detail}</p>}
-                    </div>
-                    <div className="text-xs text-muted-foreground text-right">
-                      <p>{h.date}</p>
-                      <p>{h.user}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </TabsContent>
           </Tabs>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>

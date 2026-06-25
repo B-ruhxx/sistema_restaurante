@@ -2,6 +2,7 @@ package com.restaurante.service;
 
 import com.restaurante.dto.VentaPagoRequest;
 import com.restaurante.dto.VentaRequest;
+import com.restaurante.dto.CobrarPedidoRequest;
 import com.restaurante.dto.response.CajaResponse;
 import com.restaurante.dto.response.VentaResponse;
 import com.restaurante.dto.mapper.VentaMapper;
@@ -51,6 +52,9 @@ public class VentaService {
     private CajaService cajaService;
 
     @Autowired
+    private CajaRepository cajaRepository;
+
+    @Autowired
     private PedidoRepository pedidoRepository;
 
     @Autowired
@@ -64,6 +68,9 @@ public class VentaService {
 
     @Autowired
     private ConfiguracionEmpresaRepository configuracionEmpresaRepository;
+
+    @Autowired
+    private PrecuentaService precuentaService;
 
     @Autowired
     private VentaMapper ventaMapper;
@@ -186,6 +193,114 @@ public class VentaService {
         return mapToDetailedResponse(ventaGuardada);
     }
 
+    public VentaResponse generarVentaPagadaDesdePedido(Integer idPedido, CobrarPedidoRequest request, Empleado empleado) {
+        CajaResponse cajaResponse = cajaService.obtenerCajaAbiertaParaEmpleado(empleado)
+                .orElseThrow(() -> new IllegalStateException(
+                        "El empleado debe tener una caja abierta para cobrar un pedido."));
+        Caja caja = cajaRepository.findById(cajaResponse.getIdCaja())
+                .orElseThrow(() -> new IllegalStateException("Caja activa no encontrada."));
+
+        Pedido pedido = pedidoRepository.findById(idPedido)
+                .orElseThrow(() -> new IllegalArgumentException("Pedido no encontrado."));
+        if (pedido.getEstado() != Pedido.Estado.CUENTA_EMITIDA && pedido.getEstado() != Pedido.Estado.ENTREGADO) {
+            throw new IllegalStateException("Solo se pueden cobrar pedidos con cuenta emitida o entregados.");
+        }
+        if (request.getTipoComprobante() != null
+                && "FACTURA".equalsIgnoreCase(request.getTipoComprobante())
+                && !clienteTieneRucValido(pedido.getCliente())) {
+            throw new IllegalArgumentException("Para emitir factura el cliente debe tener RUC válido.");
+        }
+
+        List<DetallePedido> detallesPedido = detallePedidoRepository.findByPedidoIdPedido(idPedido);
+        if (detallesPedido.isEmpty()) {
+            throw new IllegalArgumentException("No se puede cobrar un pedido sin detalles.");
+        }
+
+        ConfiguracionEmpresa config = configuracionEmpresaRepository.findAll().stream().findFirst().orElse(null);
+        BigDecimal igvPorcentaje = (config != null && config.getIgv() != null)
+                ? config.getIgv() : new BigDecimal("18.00");
+
+        BigDecimal totalCalculado = detallesPedido.stream()
+                .map(DetallePedido::getSubtotal)
+                .filter(subtotal -> subtotal != null)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal totalPagos = BigDecimal.ZERO;
+        for (VentaPagoRequest pagoReq : request.getPagos()) {
+            totalPagos = totalPagos.add(pagoReq.getMonto());
+        }
+        if (totalPagos.compareTo(totalCalculado) < 0) {
+            throw new IllegalArgumentException("El monto pagado es insuficiente.");
+        }
+
+        Venta venta = new Venta();
+        venta.setCodigoVenta("V-" + System.currentTimeMillis());
+        venta.setEmpleado(empleado);
+        venta.setCaja(caja);
+        venta.setPedido(pedido);
+        venta.setTipoComprobante(Venta.TipoComprobante.valueOf(request.getTipoComprobante().toUpperCase()));
+        venta.setSerie(request.getSerie());
+        venta.setCorrelativo(request.getCorrelativo());
+        venta.setIgvPorcentaje(igvPorcentaje);
+        venta.setTotal(totalCalculado);
+
+        BigDecimal cienMasIgv = BigDecimal.valueOf(100).add(igvPorcentaje);
+        BigDecimal subtotalGravado = totalCalculado.multiply(BigDecimal.valueOf(100))
+                .divide(cienMasIgv, 4, RoundingMode.HALF_UP);
+        BigDecimal igv = totalCalculado.subtract(subtotalGravado).setScale(4, RoundingMode.HALF_UP);
+        venta.setSubtotal(subtotalGravado.setScale(2, RoundingMode.HALF_UP));
+        venta.setSubtotalGravado(subtotalGravado.setScale(2, RoundingMode.HALF_UP));
+        venta.setIgv(igv.setScale(2, RoundingMode.HALF_UP));
+        venta.setEstado(Venta.Estado.PAGADA);
+
+        Venta ventaGuardada = ventaRepository.save(venta);
+        List<DetalleVenta> detallesVenta = new ArrayList<>();
+        for (DetallePedido dp : detallesPedido) {
+            DetalleVenta dv = new DetalleVenta();
+            dv.setVenta(ventaGuardada);
+            dv.setProducto(dp.getProducto());
+            dv.setCombo(dp.getCombo());
+            dv.setCantidad(dp.getCantidad());
+            dv.setPrecioUnitario(dp.getPrecioUnitario());
+            dv.setSubtotal(dp.getSubtotal());
+            dv.setCostoUnitario(calcularCostoUnitario(dv));
+            detallesVenta.add(detalleVentaRepository.save(dv));
+        }
+
+        for (DetalleVenta detalleVenta : detallesVenta) {
+            descontarStockInventario(detalleVenta, empleado);
+        }
+
+        for (VentaPagoRequest pagoReq : request.getPagos()) {
+            MetodoPago metodoPago = metodoPagoRepository.findById(pagoReq.getIdMetodoPago())
+                    .orElseThrow(() -> new IllegalArgumentException("Método de pago no encontrado."));
+            VentaPago pago = new VentaPago();
+            pago.setVenta(ventaGuardada);
+            pago.setMetodoPago(metodoPago);
+            pago.setMonto(pagoReq.getMonto());
+            pago.setNumeroOperacion(pagoReq.getNumeroOperacion());
+            pago.setEstado(VentaPago.Estado.APROBADO);
+            ventaPagoRepository.save(pago);
+
+            String nombreMetodo = metodoPago.getNombre() != null ? metodoPago.getNombre() : "Método no especificado";
+            cajaService.registrarMovimiento(
+                    caja.getIdCaja(),
+                    MovimientoCaja.Tipo.INGRESO,
+                    "Cobro pedido #" + pedido.getIdPedido() + " - " + ventaGuardada.getCodigoVenta()
+                            + " [" + nombreMetodo + "]",
+                    pagoReq.getMonto());
+        }
+
+        pedido.setEstado(Pedido.Estado.PAGADO);
+        if (pedido.getMesa() != null) {
+            pedido.getMesa().setEstado(Mesa.Estado.LIBRE);
+        }
+        pedidoRepository.save(pedido);
+        precuentaService.marcarConvertida(pedido);
+
+        return mapToDetailedResponse(ventaRepository.save(ventaGuardada));
+    }
+
     public VentaResponse pagarVenta(Integer idVenta, List<VentaPagoRequest> pagosReq) {
         Venta venta = ventaRepository.findById(idVenta)
                 .orElseThrow(() -> new IllegalArgumentException("Venta no encontrada."));
@@ -247,7 +362,10 @@ public class VentaService {
         // Sincronización del estado del pedido vinculado si existe
         if (venta.getPedido() != null) {
             Pedido pedido = venta.getPedido();
-            pedido.setEstado(Pedido.Estado.ENTREGADO);
+            pedido.setEstado(Pedido.Estado.PAGADO);
+            if (pedido.getMesa() != null) {
+                pedido.getMesa().setEstado(Mesa.Estado.LIBRE);
+            }
             pedidoRepository.save(pedido);
         }
 
@@ -339,6 +457,13 @@ public class VentaService {
             }
         }
         return costo;
+    }
+
+    private boolean clienteTieneRucValido(Cliente cliente) {
+        return cliente != null
+                && cliente.getTipoDocumento() == Cliente.TipoDocumento.RUC
+                && cliente.getDocumentoIdentidad() != null
+                && cliente.getDocumentoIdentidad().matches("\\d{11}");
     }
 
     private void descontarStockInventario(DetalleVenta det, Empleado empleado) {

@@ -21,6 +21,9 @@ public class ComboProducto {
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal precio;
 
+    @Column(name = "imagen_url", length = 255)
+    private String imagenUrl;
+
     @Enumerated(EnumType.STRING)
     @Column(columnDefinition = "ENUM('ACTIVO', 'INACTIVO') DEFAULT 'ACTIVO'")
     private Estado estado = Estado.ACTIVO;
@@ -54,6 +57,14 @@ public class ComboProducto {
 
     public void setDescripcion(String descripcion) {
         this.descripcion = descripcion;
+    }
+
+    public String getImagenUrl() {
+        return imagenUrl;
+    }
+
+    public void setImagenUrl(String imagenUrl) {
+        this.imagenUrl = imagenUrl;
     }
 
     public BigDecimal getPrecio() {

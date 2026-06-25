@@ -16,8 +16,9 @@ import {
   DollarSign,
   Loader2,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '../../lib/notifications';
 import { useConfiguracion } from '../../hooks/useConfiguracion';
+import { ImageUploadZone } from '../components/ui/image-upload-zone';
 
 export function CompanySettings() {
   const { configuracion, isLoading, updateConfiguracion, isUpdating } = useConfiguracion();
@@ -143,35 +144,18 @@ export function CompanySettings() {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSaveGeneral} className="space-y-6">
-                <div className="flex items-start gap-6">
-                  <div className="flex-shrink-0">
-                    <div className="w-32 h-32 border-2 border-dashed border-border rounded-lg flex items-center justify-center bg-muted">
-                      {generalData.logoUrl ? (
-                        <img
-                          src={generalData.logoUrl}
-                          alt="Logo"
-                          className="w-full h-full object-contain"
-                        />
-                      ) : (
-                        <div className="text-center">
-                          <Upload className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
-                          <p className="text-xs text-muted-foreground">Logo de Empresa</p>
-                        </div>
-                      )}
-                    </div>
-                    <div className="mt-2 space-y-1">
-                      <Input
-                        placeholder="URL del logo"
-                        value={generalData.logoUrl}
-                        onChange={(e) =>
-                          setGeneralData({ ...generalData, logoUrl: e.target.value })
-                        }
-                        className="text-xs"
-                      />
-                    </div>
+                <div className="flex flex-col md:flex-row items-start gap-6">
+                  <div className="w-full md:w-1/3 flex-shrink-0">
+                    <ImageUploadZone
+                      label="Logo de la Empresa"
+                      value={generalData.logoUrl}
+                      onChange={(url) => setGeneralData(g => ({ ...g, logoUrl: url }))}
+                      module="empresa"
+                      description="Sube un logo o arrástralo desde tu equipo o internet."
+                    />
                   </div>
 
-                  <div className="flex-1 space-y-4">
+                  <div className="flex-1 space-y-4 w-full">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="nombreEmpresa">Nombre Comercial *</Label>

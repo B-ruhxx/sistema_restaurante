@@ -26,7 +26,7 @@ import {
   Loader2,
   RefreshCw,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '../../lib/notifications';
 import { useAuditoria } from '../../hooks/useAuditoria';
 import type { AuditoriaLog } from '../../api/auditoria';
 

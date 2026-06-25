@@ -1,12 +1,16 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { extrasApi, ExtraProductoRequest } from '../api/extras';
+import { PrivateQueryOptions, usePrivateQueryEnabled } from './usePrivateQuery';
 
-export const useExtras = () => {
+export const useExtras = ({ enabled = true }: PrivateQueryOptions = {}) => {
   const queryClient = useQueryClient();
+  const queryEnabled = usePrivateQueryEnabled(enabled);
 
   const extrasQuery = useQuery({
     queryKey: ['extras'],
     queryFn: extrasApi.getAll,
+    enabled: queryEnabled,
+    staleTime: 30_000,
   });
 
   const createMutation = useMutation({

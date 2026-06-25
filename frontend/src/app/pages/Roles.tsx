@@ -22,7 +22,7 @@ import {
   DialogTitle,
 } from '../components/ui/dialog';
 import { Shield, Plus, Edit, Trash2, Check, X, Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '../../lib/notifications';
 import { useRoles } from '../../hooks/useRoles';
 import { usePermisos } from '../../hooks/usePermisos';
 

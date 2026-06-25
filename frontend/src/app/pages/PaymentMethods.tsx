@@ -22,7 +22,7 @@ import {
   DialogTitle,
 } from '../components/ui/dialog';
 import { CreditCard, Plus, Edit, Trash2, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '../../lib/notifications';
 import { useMetodoPagos } from '../../hooks/useMetodoPagos';
 import type { MetodoPago, MetodoPagoRequest } from '../../api/metodoPagos';
 

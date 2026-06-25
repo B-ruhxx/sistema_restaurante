@@ -1,12 +1,18 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { productosApi, ProductoRequest } from '../api/productos';
+import { PrivateQueryOptions, usePrivateQueryEnabled } from './usePrivateQuery';
 
-export const useProductos = () => {
+const EMPTY_ARRAY: any[] = [];
+
+export const useProductos = ({ enabled = true }: PrivateQueryOptions = {}) => {
   const queryClient = useQueryClient();
+  const queryEnabled = usePrivateQueryEnabled(enabled);
 
   const productosQuery = useQuery({
     queryKey: ['productos'],
     queryFn: productosApi.getAll,
+    enabled: queryEnabled,
+    staleTime: 30_000,
   });
 
   const getProductoDetail = (id: number) => {
@@ -39,7 +45,7 @@ export const useProductos = () => {
   });
 
   return {
-    productos: productosQuery.data || [],
+    productos: productosQuery.data || EMPTY_ARRAY,
     isLoading: productosQuery.isLoading,
     isError: productosQuery.isError,
     getProductoDetail,

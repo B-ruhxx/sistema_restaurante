@@ -1,12 +1,18 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { clientesApi, ClienteRequest } from '../api/clientes';
+import { PrivateQueryOptions, usePrivateQueryEnabled } from './usePrivateQuery';
 
-export const useClientes = () => {
+const EMPTY_ARRAY: any[] = [];
+
+export const useClientes = ({ enabled = true }: PrivateQueryOptions = {}) => {
   const queryClient = useQueryClient();
+  const queryEnabled = usePrivateQueryEnabled(enabled);
 
   const clientesQuery = useQuery({
     queryKey: ['clientes'],
     queryFn: clientesApi.getAll,
+    enabled: queryEnabled,
+    staleTime: 30_000,
   });
 
   const createMutation = useMutation({
@@ -32,7 +38,7 @@ export const useClientes = () => {
   });
 
   return {
-    clientes: clientesQuery.data || [],
+    clientes: clientesQuery.data || EMPTY_ARRAY,
     isLoading: clientesQuery.isLoading,
     isError: clientesQuery.isError,
     createCliente: createMutation.mutateAsync,

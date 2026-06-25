@@ -23,6 +23,9 @@ public class RecetaProducto {
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal cantidad;
 
+    @Column(name = "tiempo_preparacion_minutos", nullable = false)
+    private Integer tiempoPreparacionMinutos = 1;
+
     public RecetaProducto() {
     }
 
@@ -56,6 +59,14 @@ public class RecetaProducto {
 
     public void setCantidad(BigDecimal cantidad) {
         this.cantidad = cantidad;
+    }
+
+    public Integer getTiempoPreparacionMinutos() {
+        return tiempoPreparacionMinutos;
+    }
+
+    public void setTiempoPreparacionMinutos(Integer tiempoPreparacionMinutos) {
+        this.tiempoPreparacionMinutos = tiempoPreparacionMinutos;
     }
 
     @Override

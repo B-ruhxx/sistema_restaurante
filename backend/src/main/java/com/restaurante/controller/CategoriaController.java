@@ -24,12 +24,7 @@ public class CategoriaController {
 
     @GetMapping("/{id}")
     public ResponseEntity<CategoriaResponse> getCategoriaById(@PathVariable Integer id) {
-        try {
-            CategoriaResponse response = categoriaService.getCategoriaById(id);
-            return ResponseEntity.ok(response);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.notFound().build();
-        }
+        return ResponseEntity.ok(categoriaService.getCategoriaById(id));
     }
 
     @PostMapping
@@ -39,20 +34,12 @@ public class CategoriaController {
 
     @PutMapping("/{id}")
     public ResponseEntity<CategoriaResponse> updateCategoria(@PathVariable Integer id, @Valid @RequestBody CategoriaRequest request) {
-        try {
-            return ResponseEntity.ok(categoriaService.updateCategoria(id, request));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.notFound().build();
-        }
+        return ResponseEntity.ok(categoriaService.updateCategoria(id, request));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteCategoria(@PathVariable Integer id) {
-        try {
-            categoriaService.deleteCategoria(id);
-            return ResponseEntity.ok().build();
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.notFound().build();
-        }
+        categoriaService.deleteCategoria(id);
+        return ResponseEntity.ok().build();
     }
 }

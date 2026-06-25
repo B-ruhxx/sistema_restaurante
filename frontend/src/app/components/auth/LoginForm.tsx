@@ -29,7 +29,7 @@ export function LoginForm() {
 
         try {
             await login({ username, password });
-            navigate('/');
+            navigate('/', { replace: true });
         } catch {
             setError('Usuario o contraseña incorrectos');
         } finally {

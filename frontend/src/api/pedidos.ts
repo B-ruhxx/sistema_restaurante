@@ -11,7 +11,12 @@ export interface DetallePedidoRequest {
 
 export interface PedidoRequest {
   idCliente?: number;
+  idMesa?: number;
   detalles: DetallePedidoRequest[];
+}
+
+export interface AbrirPedidoMesaRequest {
+  idCliente?: number | null;
 }
 
 export interface ExtraResponse {
@@ -32,16 +37,47 @@ export interface DetallePedido {
   precioUnitario: number;
   subtotal: number;
   observacion?: string;
+  estadoCocina?: 'PENDIENTE' | 'EN_PREPARACION' | 'LISTO' | 'CANCELADO';
+  tiempoEstimadoMinutos?: number;
+  tiempoRealMinutos?: number;
+  fechaInicioPreparacion?: string;
+  fechaFinPreparacion?: string;
   extras?: ExtraResponse[];
 }
+
+export type PedidoEstado =
+  | 'ABIERTO'
+  | 'ENVIADO_COCINA'
+  | 'EN_PREPARACION'
+  | 'LISTO'
+  | 'ENTREGADO'
+  | 'CUENTA_SOLICITADA'
+  | 'CUENTA_EMITIDA'
+  | 'PAGADO'
+  | 'CANCELADO'
+  // Compatibilidad temporal con estados antiguos.
+  | 'PENDIENTE'
+  | 'EN_COCINA'
+  | 'EN_PROCESO';
 
 export interface Pedido {
   idPedido: number;
   empleadoNombre: string;
   clienteNombre?: string;
   idCliente?: number;
-  estado: 'PENDIENTE' | 'EN_PROCESO' | 'LISTO' | 'ENTREGADO' | 'CANCELADO';
+  idMesa?: number;
+  numeroMesa?: string;
+  estadoMesa?: string;
+  estado: PedidoEstado;
   fecha: string;
+  subtotal?: number;
+  igv?: number;
+  total?: number;
+  fechaEnvioCocina?: string;
+  fechaInicioPreparacion?: string;
+  fechaFinPreparacion?: string;
+  tiempoEstimadoMinutos?: number;
+  tiempoRealMinutos?: number;
   detalles?: DetallePedido[];
 }
 
@@ -58,6 +94,37 @@ export const pedidosApi = {
 
   create: async (data: PedidoRequest): Promise<Pedido> => {
     const response = await api.post('/pedidos', data);
+    return response.data;
+  },
+
+  createForMesa: async (idMesa: number, data: AbrirPedidoMesaRequest = {}): Promise<Pedido> => {
+    const response = await api.post(`/pedidos/mesa/${idMesa}`, data);
+    return response.data;
+  },
+
+  getActivoPorMesa: async (idMesa: number): Promise<Pedido | null> => {
+    const response = await api.get(`/pedidos/mesa/${idMesa}/activo`);
+    if (response.status === 204 || !response.data) return null;
+    return response.data;
+  },
+
+  assignCliente: async (idPedido: number, idCliente: number): Promise<Pedido> => {
+    const response = await api.put(`/pedidos/${idPedido}/cliente/${idCliente}`);
+    return response.data;
+  },
+
+  addDetalle: async (idPedido: number, data: DetallePedidoRequest): Promise<DetallePedido> => {
+    const response = await api.post(`/pedidos/${idPedido}/detalles`, data);
+    return response.data;
+  },
+
+  enviarCocina: async (idPedido: number): Promise<Pedido> => {
+    const response = await api.post(`/pedidos/${idPedido}/enviar-cocina`);
+    return response.data;
+  },
+
+  solicitarCuenta: async (idPedido: number): Promise<Pedido> => {
+    const response = await api.post(`/pedidos/${idPedido}/solicitar-cuenta`);
     return response.data;
   },
 

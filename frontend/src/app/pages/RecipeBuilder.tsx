@@ -23,6 +23,7 @@ interface RecipeItem {
   supplyName: string;
   unit: string;
   quantity: number;
+  timeMinutes: number;
   costPerUnit: number;
   totalCost: number;
 }
@@ -88,6 +89,7 @@ export function RecipeBuilder() {
         supplyName: r.nombreInsumo,
         unit: r.unidadMedidaInsumo,
         quantity: r.cantidad,
+        timeMinutes: r.tiempoPreparacionMinutos || 1,
         costPerUnit: insumos.find(i => i.idInsumo === r.idInsumo)?.costoPromedio ?? 0,
         totalCost: r.cantidad * (insumos.find(i => i.idInsumo === r.idInsumo)?.costoPromedio ?? 0),
       }));
@@ -110,6 +112,7 @@ export function RecipeBuilder() {
       supplyName: supply.nombre,
       unit: supply.unidad,
       quantity: qty,
+      timeMinutes: 5,
       costPerUnit: supply.costoPromedio,
       totalCost: qty * supply.costoPromedio,
     };
@@ -133,12 +136,21 @@ export function RecipeBuilder() {
     setSaved(false);
   };
 
+  const updateTime = (supplyId: number, timeMinutes: number) => {
+    setLocalItems(prev => prev.map(i => i.supplyId === supplyId
+      ? { ...i, timeMinutes }
+      : i
+    ));
+    setSaved(false);
+  };
+
   const handleSaveRecipe = async () => {
     if (!activeProduct) return;
     setSaveError('');
     const receta: RecetaItemRequest[] = localItems.map(i => ({
       idInsumo: i.supplyId,
       cantidad: i.quantity,
+      tiempoPreparacionMinutos: i.timeMinutes,
     }));
     try {
       await updateProducto({
@@ -280,6 +292,7 @@ export function RecipeBuilder() {
                       <TableRow>
                         <TableHead>Insumo</TableHead>
                         <TableHead className="w-24">Cantidad</TableHead>
+                        <TableHead className="w-28">Tiempo min</TableHead>
                         <TableHead className="hidden sm:table-cell">Unidad</TableHead>
                         <TableHead>Costo</TableHead>
                         <TableHead className="w-10"></TableHead>
@@ -297,6 +310,15 @@ export function RecipeBuilder() {
                               className="h-7 w-20 text-sm"
                             />
                           </TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              min={1}
+                              value={item.timeMinutes}
+                              onChange={e => updateTime(item.supplyId, Math.max(1, parseInt(e.target.value, 10) || 1))}
+                              className="h-7 w-20 text-sm"
+                            />
+                          </TableCell>
                           <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">{item.unit}</TableCell>
                           <TableCell className="text-sm">S/ {item.totalCost.toFixed(2)}</TableCell>
                           <TableCell>
@@ -308,7 +330,7 @@ export function RecipeBuilder() {
                       ))}
                       {localItems.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                          <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                             <FlaskConical className="w-8 h-8 mx-auto mb-2 opacity-40" />
                             <p className="text-sm">Sin insumos. Agrega desde el panel de búsqueda.</p>
                           </TableCell>

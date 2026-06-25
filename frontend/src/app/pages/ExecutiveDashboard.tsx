@@ -3,8 +3,6 @@ import { Badge } from '../components/ui/badge';
 import {
   BarChart,
   Bar,
-  LineChart,
-  Line,
   AreaChart,
   Area,
   PieChart,
@@ -19,74 +17,75 @@ import {
 } from 'recharts';
 import {
   TrendingUp,
-  TrendingDown,
   DollarSign,
   ShoppingCart,
   Package,
-  Users,
   Percent,
   Target,
   Award,
+  Loader2,
 } from 'lucide-react';
+import { useReportes } from '../../hooks/useReportes';
 
-const utilidadMensual = [
-  { mes: 'Ene', utilidad: 80000, margen: 64 },
-  { mes: 'Feb', utilidad: 90000, margen: 63 },
-  { mes: 'Mar', utilidad: 90000, margen: 65 },
-  { mes: 'Abr', utilidad: 98000, margen: 63 },
-  { mes: 'May', utilidad: 106000, margen: 63 },
-  { mes: 'Jun', utilidad: 112000, margen: 62 },
-];
-
-const ventasVsCompras = [
-  { mes: 'Ene', ventas: 125000, compras: 45000, margenBruto: 80000 },
-  { mes: 'Feb', ventas: 142000, compras: 52000, margenBruto: 90000 },
-  { mes: 'Mar', ventas: 138000, compras: 48000, margenBruto: 90000 },
-  { mes: 'Abr', ventas: 156000, compras: 58000, margenBruto: 98000 },
-  { mes: 'May', ventas: 168000, compras: 62000, margenBruto: 106000 },
-  { mes: 'Jun', ventas: 180000, compras: 68000, margenBruto: 112000 },
-];
-
-const distribucionIngresos = [
-  { categoria: 'Hamburguesas', value: 32, color: '#ef4444' },
-  { categoria: 'Pizzas', value: 28, color: '#f97316' },
-  { categoria: 'Pastas', value: 18, color: '#3b82f6' },
-  { categoria: 'Ensaladas', value: 12, color: '#10b981' },
-  { categoria: 'Bebidas', value: 10, color: '#8b5cf6' },
-];
-
-const productosRentables = [
-  { producto: 'Hamburguesa Premium', ventas: 145, margen: 68, ingresos: 11250 },
-  { producto: 'Pizza Margarita', ventas: 98, margen: 72, ingresos: 13300 },
-  { producto: 'Lomo Saltado', ventas: 76, margen: 65, ingresos: 8880 },
-  { producto: 'Pasta Carbonara', ventas: 68, margen: 70, ingresos: 8680 },
-  { producto: 'Ensalada Caesar', ventas: 54, margen: 75, ingresos: 3850 },
-];
-
-const clientesFrecuentes = [
-  { nombre: 'Carlos Rodríguez', gastado: 5680, visitas: 45, promedio: 126 },
-  { nombre: 'Juan Pérez', gastado: 4890, visitas: 38, promedio: 129 },
-  { nombre: 'María Fernández', gastado: 3250, visitas: 28, promedio: 116 },
-  { nombre: 'Patricia Morales', gastado: 2890, visitas: 24, promedio: 120 },
-  { nombre: 'Luis García', gastado: 280, visitas: 2, promedio: 140 },
-];
-
-const inventarioValorado = [
-  { categoria: 'Carnes', cantidad: 180, valorizado: 12800 },
-  { categoria: 'Lácteos', cantidad: 145, valorizado: 8500 },
-  { categoria: 'Vegetales', cantidad: 220, valorizado: 4200 },
-  { categoria: 'Abarrotes', cantidad: 320, valorizado: 6800 },
-  { categoria: 'Bebidas', cantidad: 280, valorizado: 5600 },
-];
-
-const metricasOperativas = [
-  { indicador: 'Satisfacción Cliente', actual: 92, meta: 90, color: '#10b981' },
-  { indicador: 'Tiempo Prep. Promedio', actual: 12, meta: 15, color: '#10b981' },
-  { indicador: 'Rotación Inventario', actual: 8, meta: 10, color: '#f59e0b' },
-  { indicador: 'Productividad Staff', actual: 85, meta: 80, color: '#10b981' },
-];
+const COLORS = ['#ef4444', '#f97316', '#3b82f6', '#10b981', '#8b5cf6', '#ec4899', '#f59e0b', '#14b8a6'];
 
 export function ExecutiveDashboard() {
+  const { 
+    ventasDiarias, 
+    productosPopulares, 
+    resumenFinanciero, 
+    alertaStock, 
+    isLoading 
+  } = useReportes();
+
+  if (isLoading) {
+    return (
+      <div className="h-[80vh] flex flex-col items-center justify-center gap-2">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">Cargando métricas ejecutivas...</p>
+      </div>
+    );
+  }
+
+  // Calculate financial KPIs
+  const totalVentas = resumenFinanciero?.totalVentas || 0;
+  const gananciaNeta = resumenFinanciero?.gananciaNeta || 0;
+  const costoTotal = resumenFinanciero?.costoTotal || 0;
+  const margenBruto = totalVentas > 0 ? (gananciaNeta / totalVentas) * 100 : 0;
+
+  // Process data for charts
+  const monthlyData = ventasDiarias.map(v => ({
+    mes: v.fecha.slice(5), // YYYY-MM-DD -> MM-DD
+    utilidad: v.total * (margenBruto / 100),
+    margen: margenBruto,
+  })).reverse();
+
+  const salesVsPurchasesData = ventasDiarias.map(v => ({
+    mes: v.fecha.slice(5),
+    ventas: v.total,
+    // Since compras isn't tracked in daily sales, show cost total ratio as mock purchases comparison
+    compras: v.total * (costoTotal / (totalVentas || 1)),
+    margenBruto: v.total * (margenBruto / 100),
+  })).reverse();
+
+  // Categories distribution chart data
+  const categorySalesMap = productosPopulares.reduce((acc, curr) => {
+    // Just mock categories since popular products doesn't include category directly
+    const cat = curr.producto.toLowerCase().includes('pizza') ? 'Pizzas' 
+              : curr.producto.toLowerCase().includes('hamburguesa') ? 'Hamburguesas'
+              : curr.producto.toLowerCase().includes('combo') ? 'Combos'
+              : curr.producto.toLowerCase().includes('gaseosa') || curr.producto.toLowerCase().includes('bebida') ? 'Bebidas'
+              : 'Otros';
+    acc[cat] = (acc[cat] || 0) + Number(curr.total);
+    return acc;
+  }, {} as Record<string, number>);
+
+  const categoryDistribution = Object.entries(categorySalesMap).map(([name, total]) => ({
+    categoria: name,
+    value: totalVentas > 0 ? Math.round((total / totalVentas) * 100) : 0,
+    monto: total
+  })).filter(c => c.value > 0);
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -96,7 +95,7 @@ export function ExecutiveDashboard() {
           <h1 className="text-2xl font-semibold">Dashboard Gerencial</h1>
         </div>
         <p className="text-sm text-muted-foreground">
-          Métricas ejecutivas y KPIs estratégicos para la toma de decisiones
+          Métricas ejecutivas calculadas desde transacciones reales, con costos distribuidos como estimación cuando no hay desglose diario.
         </p>
       </div>
 
@@ -106,19 +105,19 @@ export function ExecutiveDashboard() {
           <CardHeader className="pb-3">
             <CardDescription className="flex items-center gap-2">
               <Target className="w-4 h-4" />
-              Utilidad Mensual
+              Utilidad (Ganancia Neta)
             </CardDescription>
-            <CardTitle className="text-3xl">S/ 112,000</CardTitle>
+            <CardTitle className="text-3xl">S/ {gananciaNeta.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-1 text-sm text-green-600">
               <TrendingUp className="w-4 h-4" />
-              +5.7% vs mes anterior
+              Acumulado histórico
             </div>
             <div className="mt-2 w-full bg-muted rounded-full h-2">
-              <div className="bg-green-600 h-2 rounded-full" style={{ width: '75%' }} />
+              <div className="bg-green-600 h-2 rounded-full" style={{ width: `${Math.min(margenBruto, 100)}%` }} />
             </div>
-            <div className="text-xs text-muted-foreground mt-1">75% de la meta anual</div>
+            <div className="text-xs text-muted-foreground mt-1">Margen de rendimiento general</div>
           </CardContent>
         </Card>
 
@@ -126,17 +125,17 @@ export function ExecutiveDashboard() {
           <CardHeader className="pb-3">
             <CardDescription className="flex items-center gap-2">
               <Percent className="w-4 h-4" />
-              Margen Bruto
+              Margen de Utilidad
             </CardDescription>
-            <CardTitle className="text-3xl">62.2%</CardTitle>
+            <CardTitle className="text-3xl">{margenBruto.toFixed(1)}%</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-1 text-sm text-green-600">
               <TrendingUp className="w-4 h-4" />
-              +2.5% vs mes anterior
+              Retorno sobre ventas
             </div>
             <div className="mt-2 text-xs text-muted-foreground">
-              Objetivo: 60% · Superado por 2.2%
+              Costo de mercadería: {totalVentas > 0 ? ((costoTotal / totalVentas) * 100).toFixed(1) : 0}%
             </div>
           </CardContent>
         </Card>
@@ -145,17 +144,17 @@ export function ExecutiveDashboard() {
           <CardHeader className="pb-3">
             <CardDescription className="flex items-center gap-2">
               <DollarSign className="w-4 h-4" />
-              Ventas Mensuales
+              Ingresos por Ventas
             </CardDescription>
-            <CardTitle className="text-3xl">S/ 180,000</CardTitle>
+            <CardTitle className="text-3xl">S/ {totalVentas.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-1 text-sm text-green-600">
               <TrendingUp className="w-4 h-4" />
-              +15% vs mes anterior
+              Ventas brutas pagadas
             </div>
             <div className="mt-2 text-xs text-muted-foreground">
-              1,842 órdenes · Ticket prom: S/ 97.72
+              IGV recaudado: S/ {(resumenFinanciero?.igv || 0).toFixed(2)}
             </div>
           </CardContent>
         </Card>
@@ -164,17 +163,16 @@ export function ExecutiveDashboard() {
           <CardHeader className="pb-3">
             <CardDescription className="flex items-center gap-2">
               <ShoppingCart className="w-4 h-4" />
-              Compras Mensuales
+              Costo Total (Insumos)
             </CardDescription>
-            <CardTitle className="text-3xl">S/ 68,000</CardTitle>
+            <CardTitle className="text-3xl">S/ {costoTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-1 text-sm text-red-600">
-              <TrendingUp className="w-4 h-4" />
-              +9.7% vs mes anterior
+              Costo de recetas consumidas
             </div>
             <div className="mt-2 text-xs text-muted-foreground">
-              238 órdenes de compra procesadas
+              Calculado según recetas asociadas
             </div>
           </CardContent>
         </Card>
@@ -184,60 +182,71 @@ export function ExecutiveDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Evolución de Utilidad y Margen</CardTitle>
-            <CardDescription>Tendencia mensual de rentabilidad</CardDescription>
+            <CardTitle>Evolución de Utilidad y Rendimiento</CardTitle>
+            <CardDescription>Ganancia neta estimada por período de ventas</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={utilidadMensual}>
-                <CartesianGrid key="e1-grid" strokeDasharray="3 3" />
-                <XAxis key="e1-xaxis" dataKey="mes" />
-                <YAxis key="e1-yaxis-left" yAxisId="left" />
-                <YAxis key="e1-yaxis-right" yAxisId="right" orientation="right" />
-                <Tooltip key="e1-tooltip" />
-                <Legend key="e1-legend" />
-                <Area
-                  key="e1-area-utilidad"
-                  yAxisId="left"
-                  type="monotone"
-                  dataKey="utilidad"
-                  stroke="#10b981"
-                  fill="#10b981"
-                  fillOpacity={0.3}
-                  name="Utilidad (S/)"
-                />
-                <Line
-                  key="e1-line-margen"
-                  yAxisId="right"
-                  type="monotone"
-                  dataKey="margen"
-                  stroke="#3b82f6"
-                  strokeWidth={2}
-                  name="Margen (%)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            {monthlyData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <AreaChart data={monthlyData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="mes" />
+                  <YAxis yAxisId="left" />
+                  <YAxis yAxisId="right" orientation="right" />
+                  <Tooltip />
+                  <Legend />
+                  <Area
+                    yAxisId="left"
+                    type="monotone"
+                    dataKey="utilidad"
+                    stroke="#10b981"
+                    fill="#10b981"
+                    fillOpacity={0.3}
+                    name="Utilidad (S/)"
+                  />
+                  <Area
+                    yAxisId="right"
+                    type="monotone"
+                    dataKey="margen"
+                    stroke="#3b82f6"
+                    fill="#3b82f6"
+                    fillOpacity={0.1}
+                    name="Margen (%)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-[300px] flex items-center justify-center text-sm text-muted-foreground">
+                Sin ventas registradas para graficar utilidad.
+              </div>
+            )}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Ventas vs Compras vs Margen Bruto</CardTitle>
-            <CardDescription>Análisis comparativo mensual</CardDescription>
+            <CardTitle>Ventas vs Costo vs Utilidad</CardTitle>
+            <CardDescription>Análisis de ventas, costo estimado y ganancia</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={ventasVsCompras}>
-                <CartesianGrid key="e2-grid" strokeDasharray="3 3" />
-                <XAxis key="e2-xaxis" dataKey="mes" />
-                <YAxis key="e2-yaxis" />
-                <Tooltip key="e2-tooltip" />
-                <Legend key="e2-legend" />
-                <Bar key="e2-bar-ventas" dataKey="ventas" fill="#3b82f6" name="Ventas" />
-                <Bar key="e2-bar-compras" dataKey="compras" fill="#ef4444" name="Compras" />
-                <Bar key="e2-bar-margen" dataKey="margenBruto" fill="#10b981" name="Margen Bruto" />
-              </BarChart>
-            </ResponsiveContainer>
+            {salesVsPurchasesData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={salesVsPurchasesData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="mes" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="ventas" fill="#3b82f6" name="Ventas brutas" />
+                  <Bar dataKey="compras" fill="#ef4444" name="Costo insumos estimado" />
+                  <Bar dataKey="margenBruto" fill="#10b981" name="Ganancia neta" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-[300px] flex items-center justify-center text-sm text-muted-foreground">
+                Sin ventas registradas para comparar ventas y costos.
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -248,175 +257,101 @@ export function ExecutiveDashboard() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Award className="w-5 h-5 text-primary" />
-              Top 5 Productos Más Rentables
+              Top Productos Vendidos
             </CardTitle>
-            <CardDescription>Por margen de utilidad e ingresos</CardDescription>
+            <CardDescription>Ranking de recaudación en el sistema</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {productosRentables.map((prod, idx) => (
+              {productosPopulares.slice(0, 5).map((prod, idx) => (
                 <div key={prod.producto} className="flex items-center gap-4">
                   <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center font-semibold text-primary">
                     {idx + 1}
                   </div>
-                  <div className="flex-1">
-                    <div className="font-medium">{prod.producto}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium truncate">{prod.producto}</div>
                     <div className="text-sm text-muted-foreground">
-                      {prod.ventas} ventas · Margen: {prod.margen}%
+                      {prod.cantidad} unidades vendidas
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="font-semibold">S/ {prod.ingresos.toLocaleString()}</div>
+                  <div className="text-right flex-shrink-0">
+                    <div className="font-semibold">S/ {Number(prod.total).toLocaleString()}</div>
                     <Badge variant="secondary" className="mt-1">
-                      {prod.margen}% margen
+                      Populares
                     </Badge>
                   </div>
                 </div>
               ))}
+              {productosPopulares.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-8">No hay productos vendidos registrados.</p>
+              )}
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Distribución de Ingresos por Categoría</CardTitle>
-            <CardDescription>Participación en ventas totales</CardDescription>
+            <CardTitle>Participación por Categoría en Ventas</CardTitle>
+            <CardDescription>Estimación basada en nombres de productos populares</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={280}>
-              <PieChart>
-                <Pie
-                  key="e3-pie"
-                  data={distribucionIngresos}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ categoria, value }) => `${categoria} ${value}%`}
-                  outerRadius={90}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {distribucionIngresos.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip key="e3-tooltip" />
-              </PieChart>
-            </ResponsiveContainer>
+            {categoryDistribution.length > 0 ? (
+              <ResponsiveContainer width="100%" height={280}>
+                <PieChart>
+                  <Pie
+                    data={categoryDistribution}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ categoria, value }) => `${categoria} ${value}%`}
+                    outerRadius={90}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {categoryDistribution.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-[280px] flex items-center justify-center text-sm text-muted-foreground">
+                Sin productos vendidos para calcular participación.
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
 
-      {/* Customer & Inventory */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="w-5 h-5 text-primary" />
-              Top 5 Clientes Frecuentes
-            </CardTitle>
-            <CardDescription>Mayor valor de vida del cliente</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {clientesFrecuentes.map((cliente, idx) => (
-                <div key={cliente.nombre} className="flex items-center gap-4">
-                  <div className="w-8 h-8 rounded-full bg-purple-500/10 flex items-center justify-center font-semibold text-purple-600">
-                    {idx + 1}
-                  </div>
-                  <div className="flex-1">
-                    <div className="font-medium">{cliente.nombre}</div>
-                    <div className="text-sm text-muted-foreground">
-                      {cliente.visitas} visitas · Promedio: S/ {cliente.promedio}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-semibold">S/ {cliente.gastado.toLocaleString()}</div>
-                    <Badge variant="outline" className="bg-purple-500/10 text-purple-600 mt-1">
-                      VIP
-                    </Badge>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Package className="w-5 h-5 text-primary" />
-              Stock Valorizado por Categoría
-            </CardTitle>
-            <CardDescription>Inversión total en inventario: S/ 37,900</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={inventarioValorado} layout="vertical">
-                <CartesianGrid key="e4-grid" strokeDasharray="3 3" />
-                <XAxis key="e4-xaxis" type="number" />
-                <YAxis key="e4-yaxis" dataKey="categoria" type="category" width={80} />
-                <Tooltip key="e4-tooltip" />
-                <Bar key="e4-bar" dataKey="valorizado" fill="#8b5cf6" name="Valorizado (S/)" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Operational Metrics */}
+      {/* Stock warning widget */}
       <Card>
         <CardHeader>
-          <CardTitle>Métricas Operativas Clave</CardTitle>
-          <CardDescription>Indicadores de desempeño vs objetivos</CardDescription>
+          <CardTitle>Insumos Críticos Detectados</CardTitle>
+          <CardDescription>Alertas de reabastecimiento urgente de inventario</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {metricasOperativas.map(metric => {
-              const porcentaje = (metric.actual / metric.meta) * 100;
-              const cumpleMeta = metric.actual >= metric.meta;
-
-              return (
-                <div key={metric.indicador} className="space-y-3">
-                  <div>
-                    <div className="text-sm font-medium mb-1">{metric.indicador}</div>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-3xl font-bold">{metric.actual}</span>
-                      <span className="text-sm text-muted-foreground">
-                        {metric.indicador.includes('Tiempo') ? 'min' : metric.indicador.includes('Rotación') ? 'días' : '%'}
-                      </span>
-                    </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {alertaStock.slice(0, 3).map((item) => (
+              <Card key={item.nombre} className="border-orange-200 dark:border-orange-950 bg-orange-50/20 dark:bg-orange-950/10">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
+                    <Package className="w-5 h-5 text-orange-600 dark:text-orange-400" />
                   </div>
-                  <div>
-                    <div className="flex items-center justify-between text-xs mb-1">
-                      <span className="text-muted-foreground">Meta: {metric.meta}</span>
-                      <span className={cumpleMeta ? 'text-green-600' : 'text-red-600'}>
-                        {cumpleMeta ? (
-                          <span className="flex items-center gap-1">
-                            <TrendingUp className="w-3 h-3" />
-                            {((metric.actual - metric.meta) / metric.meta * 100).toFixed(1)}%
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1">
-                            <TrendingDown className="w-3 h-3" />
-                            {((metric.meta - metric.actual) / metric.meta * 100).toFixed(1)}%
-                          </span>
-                        )}
-                      </span>
-                    </div>
-                    <div className="w-full bg-muted rounded-full h-2">
-                      <div
-                        className="h-2 rounded-full"
-                        style={{
-                          width: `${Math.min(porcentaje, 100)}%`,
-                          backgroundColor: metric.color,
-                        }}
-                      />
-                    </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-sm truncate">{item.nombre}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Stock: {item.stock} (Min: {item.stockMinimo})
+                    </p>
                   </div>
-                </div>
-              );
-            })}
+                </CardContent>
+              </Card>
+            ))}
+            {alertaStock.length === 0 && (
+              <div className="col-span-3 text-center py-6 text-sm text-green-600 dark:text-green-400 font-semibold bg-green-50/20 dark:bg-green-950/10 border border-green-200 dark:border-green-950 rounded-lg">
+                ✓ Todo el stock de insumos está en niveles óptimos.
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

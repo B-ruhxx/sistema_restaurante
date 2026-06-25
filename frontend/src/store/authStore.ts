@@ -28,7 +28,7 @@ export const useAuthStore = create<AuthState>()(
   devtools((set, get) => ({
     user: null,
     isAuthenticated: false,
-    isLoading: false,
+    isLoading: typeof window !== 'undefined' ? !!localStorage.getItem('token') : false,
     error: null,
     setUser: (user) => set({ user, isAuthenticated: true, isLoading: false, error: null }),
     setAuth: (isAuth) => set({ isAuthenticated: isAuth }),

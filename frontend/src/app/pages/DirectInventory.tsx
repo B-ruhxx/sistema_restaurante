@@ -19,8 +19,10 @@ import { Progress } from '../components/ui/progress';
 
 import { useProductos } from '../../hooks/useProductos';
 import { useMovimientos } from '../../hooks/useMovimientos';
+import { usePrivateQueryEnabled } from '../../hooks/usePrivateQuery';
 import { Producto, ProductoRequest } from '../../api/productos';
 import { productosApi } from '../../api/productos';
+import { getFullImageUrl } from '../components/ui/utils';
 
 const statusConf = {
   normal: { label: 'Normal', icon: CheckCircle2, color: 'text-green-600', badge: 'bg-green-100 text-green-700' },
@@ -185,10 +187,14 @@ interface CardProps {
 }
 
 function DirectProductCard({ product, onAdjust, onHistory }: CardProps) {
+  const queryEnabled = usePrivateQueryEnabled();
+
   // Fetch full detail with React Query for this specific product
   const { data: detail, isLoading } = useQuery({
     queryKey: ['productos', product.idProducto],
     queryFn: () => productosApi.getById(product.idProducto),
+    enabled: queryEnabled,
+    staleTime: 30_000,
   });
 
   const stock = detail?.inventario?.stock ?? 0;
@@ -212,7 +218,7 @@ function DirectProductCard({ product, onAdjust, onHistory }: CardProps) {
       <CardContent className="p-4">
         <div className="flex items-start gap-3 mb-3">
           <img
-            src={product.imagenUrl || 'https://images.unsplash.com/photo-1561758033-d89a9ad46330?w=60&h=60&fit=crop&auto=format'}
+            src={product.imagenUrl ? getFullImageUrl(product.imagenUrl) : 'https://images.unsplash.com/photo-1561758033-d89a9ad46330?w=60&h=60&fit=crop&auto=format'}
             alt={product.nombre}
             className="w-12 h-12 rounded-lg object-cover bg-muted flex-shrink-0"
           />

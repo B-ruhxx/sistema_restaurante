@@ -2,6 +2,7 @@
 import { useCallback } from 'react';
 import api from '../api/auth';
 import { useAuthStore } from '../store/authStore';
+import { getFullImageUrl } from '../app/components/ui/utils';
 
 interface LoginCredentials {
   username: string;
@@ -24,11 +25,7 @@ export const useAuth = () => {
         id: String(backendUser.idEmpleado),
         nombre: `${backendUser.nombre} ${backendUser.apellido || ''}`.trim(),
         email: backendUser.username,
-        fotoUrl: backendUser.avatarUrl
-          ? backendUser.avatarUrl.startsWith('http')
-            ? backendUser.avatarUrl
-            : `http://localhost:8080${backendUser.avatarUrl}`
-          : '',
+        fotoUrl: getFullImageUrl(backendUser.avatarUrl),
         rol: backendUser.rol,
         permisos: backendUser.permisos || [],
       };

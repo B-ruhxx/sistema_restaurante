@@ -7,7 +7,6 @@ import com.restaurante.entity.SesionUsuario;
 import com.restaurante.repository.SesionUsuarioRepository;
 import com.restaurante.security.CustomUserDetails;
 import com.restaurante.security.JwtTokenProvider;
-import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;

@@ -4,6 +4,7 @@ import com.restaurante.dto.mapper.CategoriaMapper;
 import com.restaurante.dto.request.CategoriaRequest;
 import com.restaurante.dto.response.CategoriaResponse;
 import com.restaurante.entity.Categoria;
+import com.restaurante.exception.ResourceNotFoundException;
 import com.restaurante.repository.CategoriaRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -22,14 +23,14 @@ public class CategoriaService {
     private CategoriaMapper categoriaMapper;
 
     public List<CategoriaResponse> getAllCategorias() {
-        return categoriaRepository.findAll().stream()
+        return categoriaRepository.findByEstado(Categoria.Estado.ACTIVO).stream()
                 .map(categoriaMapper::toResponse)
                 .collect(Collectors.toList());
     }
 
     public CategoriaResponse getCategoriaById(Integer id) {
         Categoria categoria = categoriaRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Categoría no encontrada con ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Categoría no encontrada con ID: " + id));
         return categoriaMapper.toResponse(categoria);
     }
 
@@ -46,11 +47,12 @@ public class CategoriaService {
     @Transactional
     public CategoriaResponse updateCategoria(Integer id, CategoriaRequest request) {
         Categoria categoria = categoriaRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Categoría no encontrada con ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Categoría no encontrada con ID: " + id));
 
         categoria.setNombre(request.getNombre());
         categoria.setDescripcion(request.getDescripcion());
         categoria.setImagenUrl(request.getImagenUrl());
+        categoria.setImg(request.getImg());
         if (request.getEstado() != null) {
             categoria.setEstado(Categoria.Estado.valueOf(request.getEstado().toUpperCase()));
         }
@@ -62,7 +64,7 @@ public class CategoriaService {
     @Transactional
     public void deleteCategoria(Integer id) {
         Categoria categoria = categoriaRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Categoría no encontrada con ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Categoría no encontrada con ID: " + id));
         categoria.setEstado(Categoria.Estado.INACTIVO);
         categoriaRepository.save(categoria);
     }

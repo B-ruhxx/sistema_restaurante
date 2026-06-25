@@ -6,14 +6,12 @@ import {
   Search,
   Pencil,
   Trash2,
-  ImagePlus,
   MoreHorizontal,
   Tag,
   Loader2,
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { Badge } from '../components/ui/badge';
 import { Card, CardContent } from '../components/ui/card';
 import {
   Dialog,
@@ -39,13 +37,16 @@ import {
   TableHeader,
   TableRow,
 } from '../components/ui/table';
-import { cn } from '../components/ui/utils';
+import { cn, getFullImageUrl } from '../components/ui/utils';
 
 import { useCategorias } from '../../hooks/useCategorias';
 import { Categoria } from '../../api/categorias';
 import { useProductos } from '../../hooks/useProductos';
+import authApi from '../../api/auth';
+import { toast } from '../../lib/notifications';
+import { ImageUploadZone } from '../components/ui/image-upload-zone';
 
-const emptyForm = { nombre: '', descripcion: '' };
+const emptyForm = { nombre: '', descripcion: '', img: '' };
 
 export function Categories() {
   const [view, setView] = useState<'table' | 'cards'>('cards');
@@ -75,7 +76,12 @@ export function Categories() {
   };
 
   // Local helper for category images based on name or default
-  const getCategoryImage = (name: string) => {
+  const getCategoryImage = (cat: Categoria) => {
+    const imageUrl = cat.img || cat.imagenUrl;
+    if (imageUrl) {
+      return getFullImageUrl(imageUrl);
+    }
+    const name = cat.nombre;
     const images: Record<string, string> = {
       hamburguesas: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=160&h=160&fit=crop&auto=format',
       pizzas: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=160&h=160&fit=crop&auto=format',
@@ -89,12 +95,13 @@ export function Categories() {
     return images[name.toLowerCase()] || 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=160&h=160&fit=crop&auto=format';
   };
 
-  const filtered = categorias.filter(c =>
-    c.estado !== 'INACTIVO' && (
-      c.nombre.toLowerCase().includes(search.toLowerCase()) ||
-      (c.descripcion && c.descripcion.toLowerCase().includes(search.toLowerCase()))
-    )
-  );
+
+
+  const filtered = categorias.filter(c => {
+    if (c.estado === 'INACTIVO') return false;
+    return c.nombre.toLowerCase().includes(search.toLowerCase()) ||
+      (c.descripcion && c.descripcion.toLowerCase().includes(search.toLowerCase()));
+  });
 
   const openCreate = () => {
     setEditing(null);
@@ -104,7 +111,7 @@ export function Categories() {
 
   const openEdit = (cat: Categoria) => {
     setEditing(cat);
-    setForm({ nombre: cat.nombre, descripcion: cat.descripcion || '' });
+    setForm({ nombre: cat.nombre, descripcion: cat.descripcion || '', img: cat.img || '' });
     setDialogOpen(true);
   };
 
@@ -116,12 +123,14 @@ export function Categories() {
           data: {
             nombre: form.nombre,
             descripcion: form.descripcion || undefined,
+            img: form.img || undefined,
           },
         });
       } else {
         await createCategoria({
           nombre: form.nombre,
           descripcion: form.descripcion || undefined,
+          img: form.img || undefined,
         });
       }
       setDialogOpen(false);
@@ -148,7 +157,7 @@ export function Categories() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">Categorías</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{categorias.filter(c => c.estado !== 'INACTIVO').length} categorías registradas</p>
+          <p className="text-sm text-muted-foreground mt-0.5">{categorias.length} categorías registradas</p>
         </div>
         <Button onClick={openCreate}>
           <Plus className="w-4 h-4 mr-2" />
@@ -196,7 +205,7 @@ export function Categories() {
               <CardContent className="p-0">
                 <div className="relative">
                   <img
-                    src={getCategoryImage(cat.nombre)}
+                    src={getCategoryImage(cat)}
                     alt={cat.nombre}
                     className="w-full h-36 object-cover rounded-t-lg bg-muted"
                   />
@@ -219,11 +228,6 @@ export function Categories() {
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
-                  </div>
-                  <div className="absolute top-2 left-2">
-                    <Badge variant="default" className="text-xs">
-                      Activo
-                    </Badge>
                   </div>
                 </div>
                 <div className="p-4">
@@ -258,7 +262,7 @@ export function Categories() {
                 <TableRow key={cat.idCategoria}>
                   <TableCell>
                     <img
-                      src={getCategoryImage(cat.nombre)}
+                      src={getCategoryImage(cat)}
                       alt={cat.nombre}
                       className="w-10 h-10 rounded-lg object-cover bg-muted"
                     />
@@ -319,6 +323,13 @@ export function Categories() {
                 rows={3}
               />
             </div>
+            <ImageUploadZone
+              label="Imagen"
+              value={form.img}
+              onChange={(url) => setForm(f => ({ ...f, img: url }))}
+              module="categorias"
+              description="Sube una imagen o arrástrala desde tu equipo o internet. Formatos: JPG, PNG, WEBP."
+            />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>

@@ -1,6 +1,13 @@
-import { useState, useRef } from 'react';
-import { useNavigate } from 'react-router';
+import { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useERP, Product, Customer } from '../contexts/ERPContext';
+import { mesasApi } from '../../api/mesas';
+import { pedidosApi, Pedido } from '../../api/pedidos';
+import { precuentasApi } from '../../api/precuentas';
+import { variantesApi } from '../../api/variantes';
+import { extrasApi, ExtraProducto } from '../../api/extras';
+import { toast } from '../../lib/notifications';
 import { Input } from '../components/ui/input';
 import { ScrollArea } from '../components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger } from '../components/ui/tabs';
@@ -49,9 +56,67 @@ type CustomerMode = 'generic' | 'search' | 'create';
 
 export function POS() {
   const navigate = useNavigate();
-  const { products, customers, cart, addToCart, updateCartItem, removeFromCart, clearCart, cashRegister } = useERP();
+  const [searchParams] = useSearchParams();
+  const queryClient = useQueryClient();
+  const {
+    products,
+    customers,
+    cart,
+    addToCart,
+    updateCartItem,
+    removeFromCart,
+    clearCart,
+    cashRegister,
+    createCustomer,
+  } = useERP();
 
   const isCajaAbierta = cashRegister && cashRegister.status === 'abierta';
+  const [selectedMesaId, setSelectedMesaId] = useState('');
+  const [activePedido, setActivePedido] = useState<Pedido | null>(null);
+  const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
+
+  const mesasDisponiblesQuery = useQuery({
+    queryKey: ['mesas', 'disponibles'],
+    queryFn: mesasApi.getDisponibles,
+    refetchOnWindowFocus: false,
+  });
+
+  const { data: allExtras = [] } = useQuery<ExtraProducto[]>({
+    queryKey: ['extras'],
+    queryFn: extrasApi.getAll,
+    staleTime: 30_000,
+  });
+
+  useEffect(() => {
+    const mesaFromUrl = searchParams.get('mesa');
+    if (mesaFromUrl) {
+      setSelectedMesaId(mesaFromUrl);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    const loadActivePedido = async () => {
+      if (!selectedMesaId) {
+        setActivePedido(null);
+        return;
+      }
+      const pedido = await pedidosApi.getActivoPorMesa(Number(selectedMesaId));
+      setActivePedido(pedido);
+      if (!pedido) {
+        setPosStatus('draft');
+        return;
+      }
+      if (pedido.estado === 'LISTO') setPosStatus('listo');
+      else if (pedido.estado === 'ENTREGADO' || pedido.estado === 'CUENTA_SOLICITADA' || pedido.estado === 'CUENTA_EMITIDA') setPosStatus('entregado');
+      else if (pedido.estado === 'ENVIADO_COCINA' || pedido.estado === 'EN_PREPARACION') setPosStatus('en-cocina');
+      else setPosStatus('draft');
+    };
+
+    loadActivePedido().catch(() => {
+      setActivePedido(null);
+      setPosStatus('draft');
+    });
+  }, [selectedMesaId]);
 
   // Dynamic categories computed from product categories present in the database
   const categories = [
@@ -79,6 +144,7 @@ export function POS() {
   const [customerSearch, setCustomerSearch]   = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [newCustomer, setNewCustomer]         = useState({ name: '', doc: '', phone: '' });
+  const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);
 
   /* estado del pedido POS */
   const [posStatus, setPosStatus] = useState<PosStatus>('draft');
@@ -113,23 +179,151 @@ export function POS() {
   /* transiciones de estado */
   const canEdit    = posStatus === 'draft' || posStatus === 'pendiente';
   const statusFlow: Partial<Record<PosStatus, PosStatus>> = {
-    draft:      'pendiente',
-    pendiente:  'en-cocina',
+    draft:      'en-cocina',
     'en-cocina':'listo',
     listo:      'entregado',
-    entregado:  'cobrado',
   };
   const nextStatus = statusFlow[posStatus];
   const actionLabel: Partial<Record<PosStatus, string>> = {
-    draft:      'Enviar Pedido',
-    pendiente:  'Iniciar Preparación',
-    'en-cocina':'Marcar como Listo',
+    draft:      'Enviar a Cocina',
+    'en-cocina':'Esperando cocina',
     listo:      'Marcar Entregado',
-    entregado:  'Cobrar Pedido',
+    entregado:  'Emitir Precuenta',
   };
 
-  const handleAction = () => {
-    if (posStatus === 'entregado') { navigate('/checkout'); return; }
+  const mapCartItemToDetalle = async (item: typeof cart[number]) => {
+    let idVariante: number | undefined;
+    if (item.variant) {
+      const variantes = await queryClient.fetchQuery({
+        queryKey: ['variantes', Number(item.productId)],
+        queryFn: () => variantesApi.getByProducto(Number(item.productId)),
+      });
+      idVariante = variantes.find(v => v.nombre === item.variant)?.idVariante;
+    }
+
+    const extrasIds = (item.extras || [])
+      .map(extraName => allExtras.find(extra => extra.nombre === extraName)?.idExtra)
+      .filter((id): id is number => typeof id === 'number');
+
+    return {
+      idProducto: Number(item.productId),
+      idVariante,
+      cantidad: item.quantity,
+      observacion: item.notes,
+      extrasIds,
+    };
+  };
+
+  const submitOrderToKitchen = async () => {
+    if (!selectedMesaId) {
+      toast.error('Selecciona una mesa libre');
+      return;
+    }
+    if (cart.length === 0) {
+      toast.error('Agrega productos al pedido');
+      return;
+    }
+
+    try {
+      setIsSubmittingOrder(true);
+      if (activePedido?.estado === 'CUENTA_EMITIDA' || activePedido?.estado === 'PAGADO' || activePedido?.estado === 'CANCELADO') {
+        toast.error('Este pedido ya no admite nuevos productos');
+        return;
+      }
+
+      const pedido = activePedido || await pedidosApi.createForMesa(Number(selectedMesaId), {
+        idCliente: selectedCustomer ? Number(selectedCustomer.id) : null,
+      });
+
+      for (const item of cart) {
+        await pedidosApi.addDetalle(pedido.idPedido, await mapCartItemToDetalle(item));
+      }
+
+      const enviado = await pedidosApi.enviarCocina(pedido.idPedido);
+      setActivePedido(enviado);
+      setPosStatus('en-cocina');
+      queryClient.invalidateQueries({ queryKey: ['pedidos'] });
+      queryClient.invalidateQueries({ queryKey: ['mesas'] });
+      queryClient.invalidateQueries({ queryKey: ['mesas', 'disponibles'] });
+      queryClient.invalidateQueries({ queryKey: ['cocina', 'comandas'] });
+      toast.success(`Pedido #${enviado.idPedido} enviado a cocina`);
+      clearCart();
+    } finally {
+      setIsSubmittingOrder(false);
+    }
+  };
+
+  const markDelivered = async () => {
+    if (!activePedido) {
+      setPosStatus('entregado');
+      return;
+    }
+    const updated = await pedidosApi.updateEstado(activePedido.idPedido, 'ENTREGADO');
+    setActivePedido(updated);
+    setPosStatus('entregado');
+    queryClient.invalidateQueries({ queryKey: ['pedidos'] });
+    queryClient.invalidateQueries({ queryKey: ['mesas'] });
+    toast.success('Pedido marcado como entregado');
+  };
+
+  const emitPrecuenta = async () => {
+    if (!activePedido) {
+      toast.error('No hay pedido activo para emitir precuenta');
+      return;
+    }
+
+    if (activePedido.estado === 'CUENTA_EMITIDA') {
+      toast.success('La precuenta ya fue emitida');
+      navigate('/caja');
+      return;
+    }
+
+    if (activePedido.estado === 'ENTREGADO') {
+      await pedidosApi.solicitarCuenta(activePedido.idPedido);
+    }
+
+    const precuenta = await precuentasApi.emitir(activePedido.idPedido);
+    const refreshed = await pedidosApi.getById(activePedido.idPedido);
+    setActivePedido(refreshed);
+    setPosStatus('entregado');
+    queryClient.invalidateQueries({ queryKey: ['pedidos'] });
+    queryClient.invalidateQueries({ queryKey: ['mesas'] });
+    queryClient.invalidateQueries({ queryKey: ['precuentas'] });
+    queryClient.invalidateQueries({ queryKey: ['caja', 'pedidos-pendientes'] });
+    toast.success(`Precuenta ${precuenta.numero} emitida`);
+    navigate('/caja');
+  };
+
+  const refreshActivePedido = async () => {
+    if (!activePedido) return;
+    const refreshed = await pedidosApi.getById(activePedido.idPedido);
+    setActivePedido(refreshed);
+    if (refreshed.estado === 'LISTO') setPosStatus('listo');
+    if (refreshed.estado === 'ENTREGADO' || refreshed.estado === 'CUENTA_EMITIDA') setPosStatus('entregado');
+    toast.info(`Estado actual: ${refreshed.estado.replaceAll('_', ' ')}`);
+  };
+
+  const handleAction = async () => {
+    if (activePedido && cart.length > 0) {
+      await submitOrderToKitchen();
+      return;
+    }
+    if (posStatus === 'draft') {
+      await submitOrderToKitchen();
+      return;
+    }
+    if (posStatus === 'en-cocina') {
+      toast.info('Cocina debe marcar el pedido como listo');
+      return;
+    }
+    if (posStatus === 'listo') {
+      await markDelivered();
+      return;
+    }
+    if (posStatus === 'entregado') {
+      await emitPrecuenta();
+      return;
+    }
     if (nextStatus) setPosStatus(nextStatus);
   };
 
@@ -138,6 +332,47 @@ export function POS() {
     setPosStatus('draft');
     setSelectedCustomer(null);
     setCustomerMode('generic');
+    setSelectedMesaId('');
+    setActivePedido(null);
+    queryClient.invalidateQueries({ queryKey: ['mesas', 'disponibles'] });
+  };
+
+  const handleCreateCustomer = async () => {
+    const name = newCustomer.name.trim();
+    const documentNumber = newCustomer.doc.trim();
+    const phone = newCustomer.phone.trim();
+
+    if (!name) {
+      toast.error('Ingresa el nombre del cliente');
+      return;
+    }
+
+    if (!documentNumber) {
+      toast.error('Ingresa DNI o RUC del cliente');
+      return;
+    }
+
+    const documentType: Customer['documentType'] = documentNumber.length === 11 ? 'RUC' : 'DNI';
+
+    try {
+      setIsCreatingCustomer(true);
+      const customer = await createCustomer({
+        name,
+        documentType,
+        documentNumber,
+        phone: phone || undefined,
+      });
+      setSelectedCustomer(customer);
+      setCustomerMode('search');
+      setCustomerSearch('');
+      setNewCustomer({ name: '', doc: '', phone: '' });
+      toast.success('Cliente guardado correctamente');
+    } catch (error) {
+      console.error(error);
+      toast.error('No se pudo guardar el cliente');
+    } finally {
+      setIsCreatingCustomer(false);
+    }
   };
 
   /* clientes filtrados */
@@ -145,6 +380,11 @@ export function POS() {
     c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
     c.documentNumber.includes(customerSearch)
   );
+
+  const requiresCartForAction = posStatus === 'draft' || (posStatus === 'en-cocina' && cart.length > 0);
+  const actionDisabled = isSubmittingOrder
+    || (requiresCartForAction && cart.length === 0)
+    || (posStatus === 'draft' && !selectedMesaId);
 
   return (
     <div className="h-[calc(100vh-3.5rem)] flex flex-col overflow-hidden bg-[#f8f7f5] dark:bg-background">
@@ -222,11 +462,6 @@ export function POS() {
                 <>
                   <Icon className={cn('w-4 h-4', meta.color)} />
                   <span className={cn('text-xs font-semibold', meta.color)}>{meta.label}</span>
-                  {posStatus !== 'draft' && posStatus !== 'cobrado' && (
-                    <span className="ml-auto text-[10px] bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded-full font-medium">
-                      #{Math.floor(Math.random() * 900 + 100)}
-                    </span>
-                  )}
                 </>
               );
             })()}
@@ -253,7 +488,45 @@ export function POS() {
             setSelectedCustomer={setSelectedCustomer}
             newCustomer={newCustomer}
             setNewCustomer={setNewCustomer}
+            onCreateCustomer={handleCreateCustomer}
+            isCreatingCustomer={isCreatingCustomer}
           />
+
+          <div className="border-b border-border px-3 py-2.5 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Mesa</span>
+              {activePedido && (
+                <button
+                  type="button"
+                  className="text-[11px] font-medium text-red-600 hover:text-red-700"
+                  onClick={refreshActivePedido}
+                >
+                  Actualizar estado
+                </button>
+              )}
+            </div>
+            {activePedido ? (
+              <div className="flex items-center justify-between rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 px-2.5 py-1.5">
+                <span className="text-sm font-medium">
+                  Pedido #{activePedido.idPedido} · {activePedido.numeroMesa ? `Mesa ${activePedido.numeroMesa}` : 'Mesa asignada'}
+                </span>
+                <span className="text-[10px] text-muted-foreground">{activePedido.estado.replaceAll('_', ' ')}</span>
+              </div>
+            ) : (
+              <select
+                value={selectedMesaId}
+                onChange={(event) => setSelectedMesaId(event.target.value)}
+                className="w-full h-9 px-2.5 rounded-lg border border-border bg-background text-sm"
+              >
+                <option value="">Selecciona una mesa libre</option>
+                {(mesasDisponiblesQuery.data || []).map(mesa => (
+                  <option key={mesa.idMesa} value={mesa.idMesa}>
+                    Mesa {mesa.numero}{mesa.nombre ? ` · ${mesa.nombre}` : ''}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
 
           {/* Items */}
           <ScrollArea className="flex-1 px-3 py-2">
@@ -359,21 +632,25 @@ export function POS() {
             {/* Botón principal de acción */}
             {posStatus !== 'cobrado' ? (
               <button
-                disabled={cart.length === 0}
+                disabled={actionDisabled}
                 onClick={handleAction}
                 className={cn(
                   'w-full h-11 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all',
-                  cart.length === 0
+                  actionDisabled
                     ? 'bg-gray-100 dark:bg-muted text-gray-300 cursor-not-allowed'
-                    : posStatus === 'entregado'
+                  : posStatus === 'entregado'
                     ? 'bg-purple-600 hover:bg-purple-700 text-white shadow-sm'
                     : 'bg-red-600 hover:bg-red-700 text-white shadow-sm'
                 )}
               >
                 {posStatus === 'entregado'
-                  ? <><CreditCard className="w-4 h-4" /> Cobrar Pedido</>
+                  ? cart.length > 0
+                    ? <><ChefHat className="w-4 h-4" /> Enviar nuevos productos</>
+                    : <><CreditCard className="w-4 h-4" /> Emitir Precuenta</>
                   : posStatus === 'draft'
-                  ? <><ChefHat className="w-4 h-4" /> Enviar Pedido</>
+                  ? <><ChefHat className="w-4 h-4" /> {isSubmittingOrder ? 'Enviando...' : 'Enviar a Cocina'}</>
+                  : activePedido && cart.length > 0
+                  ? <><ChefHat className="w-4 h-4" /> Enviar nuevos productos</>
                   : <><ChevronRight className="w-4 h-4" /> {actionLabel[posStatus]}</>
                 }
               </button>
@@ -492,6 +769,7 @@ function CustomerSelector({
   customerSearch, setCustomerSearch,
   filteredCustomers, selectedCustomer, setSelectedCustomer,
   newCustomer, setNewCustomer,
+  onCreateCustomer, isCreatingCustomer,
 }: {
   mode: CustomerMode; setMode: (m: CustomerMode) => void;
   customerSearch: string; setCustomerSearch: (s: string) => void;
@@ -499,6 +777,8 @@ function CustomerSelector({
   setSelectedCustomer: (c: Customer | null) => void;
   newCustomer: { name: string; doc: string; phone: string };
   setNewCustomer: (v: { name: string; doc: string; phone: string }) => void;
+  onCreateCustomer: () => void;
+  isCreatingCustomer: boolean;
 }) {
   return (
     <div className="border-b border-border px-3 py-2.5 space-y-2">
@@ -619,14 +899,11 @@ function CustomerSelector({
             />
           </div>
           <button
-            className="w-full py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-semibold transition-colors"
-            onClick={() => {
-              /* en producción se guardaría el cliente; aquí simulamos */
-              setMode('generic');
-              setNewCustomer({ name: '', doc: '', phone: '' });
-            }}
+            className="w-full py-1.5 rounded-lg bg-red-600 hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-xs font-semibold transition-colors"
+            disabled={isCreatingCustomer}
+            onClick={onCreateCustomer}
           >
-            Guardar cliente
+            {isCreatingCustomer ? 'Guardando...' : 'Guardar cliente'}
           </button>
         </div>
       )}
@@ -649,7 +926,10 @@ function ProductCard({
     ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400'
     : 'bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400';
 
-  const hasReceta = !!(product.variants || product.extras);
+  const hasOptions = !!(product.variants?.length || product.extras?.length);
+  const productKindLabel = product.type === 'INVENTARIO_DIRECTO'
+    ? hasOptions ? 'Variantes' : 'Directo'
+    : hasOptions ? 'Personalizable' : 'Sin opciones';
 
   return (
     <div
@@ -691,13 +971,13 @@ function ProductCard({
         {/* Precio */}
         <div className="flex items-center justify-between mt-auto">
           <span className="text-sm font-extrabold text-red-600">S/ {product.price.toFixed(2)}</span>
-          {hasReceta ? (
+          {hasOptions ? (
             <span className="flex items-center gap-0.5 text-[10px] text-red-500 font-medium">
               <BookOpen className="w-3 h-3" />
-              Receta
+              {productKindLabel}
             </span>
           ) : (
-            <span className="text-[10px] text-muted-foreground">Sin receta</span>
+            <span className="text-[10px] text-muted-foreground">{productKindLabel}</span>
           )}
         </div>
 

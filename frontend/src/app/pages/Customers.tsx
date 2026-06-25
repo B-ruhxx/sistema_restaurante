@@ -44,7 +44,7 @@ import {
   Filter,
   Loader2,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '../../lib/notifications';
 import { useClientes } from '../../hooks/useClientes';
 import type { Cliente, ClienteRequest } from '../../api/clientes';
 
@@ -76,20 +76,19 @@ export function Customers() {
     estado: 'ACTIVO' as 'ACTIVO' | 'INACTIVO',
   });
 
-  const filteredClientes = clientes
-    .filter((c: Cliente) => c.estado !== 'INACTIVO')
-    .filter((c: Cliente) => {
-      const fullName = `${c.nombre} ${c.apellido}`.toLowerCase();
-      const matchesSearch =
-        fullName.includes(searchTerm.toLowerCase()) ||
-        c.documentoIdentidad.includes(searchTerm) ||
-        (c.email && c.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (c.telefono && c.telefono.includes(searchTerm));
+  const filteredClientes = clientes.filter((c: Cliente) => {
+    if (c.estado === 'INACTIVO') return false;
+    const fullName = `${c.nombre} ${c.apellido}`.toLowerCase();
+    const matchesSearch =
+      fullName.includes(searchTerm.toLowerCase()) ||
+      c.documentoIdentidad.includes(searchTerm) ||
+      (c.email && c.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (c.telefono && c.telefono.includes(searchTerm));
 
-      const matchesTipo = tipoFilter === 'all' || c.tipoDocumento === tipoFilter;
+    const matchesTipo = tipoFilter === 'all' || c.tipoDocumento === tipoFilter;
 
-      return matchesSearch && matchesTipo;
-    });
+    return matchesSearch && matchesTipo;
+  });
 
   const handleOpenCreate = () => {
     setEditingCustomer(null);
@@ -166,10 +165,10 @@ export function Customers() {
     }
   };
 
-  const totalClientes = clientes.filter((c: Cliente) => c.estado !== 'INACTIVO').length;
+  const totalClientes = clientes.length;
   const activos = clientes.filter((c: Cliente) => c.estado === 'ACTIVO').length;
-  const dniCount = clientes.filter((c: Cliente) => c.estado !== 'INACTIVO' && c.tipoDocumento === 'DNI').length;
-  const rucCount = clientes.filter((c: Cliente) => c.estado !== 'INACTIVO' && c.tipoDocumento === 'RUC').length;
+  const dniCount = clientes.filter((c: Cliente) => c.tipoDocumento === 'DNI').length;
+  const rucCount = clientes.filter((c: Cliente) => c.tipoDocumento === 'RUC').length;
 
   if (isLoading) {
     return (

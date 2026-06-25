@@ -12,6 +12,10 @@ public class RecetaProductoRequest {
     @Positive(message = "La cantidad debe ser mayor a 0")
     private BigDecimal cantidad;
 
+    @NotNull(message = "El tiempo de preparación es obligatorio")
+    @Positive(message = "El tiempo de preparación debe ser mayor a 0")
+    private Integer tiempoPreparacionMinutos = 1;
+
     public Integer getIdInsumo() {
         return idInsumo;
     }
@@ -26,5 +30,13 @@ public class RecetaProductoRequest {
 
     public void setCantidad(BigDecimal cantidad) {
         this.cantidad = cantidad;
+    }
+
+    public Integer getTiempoPreparacionMinutos() {
+        return tiempoPreparacionMinutos;
+    }
+
+    public void setTiempoPreparacionMinutos(Integer tiempoPreparacionMinutos) {
+        this.tiempoPreparacionMinutos = tiempoPreparacionMinutos;
     }
 }

@@ -2,7 +2,6 @@ import { useERP } from '../contexts/ERPContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { 
   TrendingUp, 
-  TrendingDown, 
   DollarSign, 
   ShoppingBag, 
   Wallet, 
@@ -11,17 +10,10 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import {
-  ComposedChart,
-  Line,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
   Area,
   AreaChart
@@ -53,20 +45,11 @@ export function Dashboard() {
     o.status === 'pendiente' || o.status === 'en-cocina'
   ).length;
 
-  const todaySales = resumenFinanciero?.totalVentas || 0;
-  // TODO: Implement month sales from backend or calculate
-  const monthSales = todaySales * 30; // mock logic for now
+  const totalSales = resumenFinanciero?.totalVentas || 0;
+  const netProfit = resumenFinanciero?.gananciaNeta || 0;
 
   // Process data for charts
   const salesDataChart = ventasDiarias.map(v => ({ day: v.fecha, ventas: v.total }));
-  // Category sales mock because we don't have an endpoint for category sales yet
-  const categorySales = [
-    { name: 'Hamburguesas', value: 3500, color: '#ef4444' },
-    { name: 'Pizzas', value: 2800, color: '#f97316' },
-  ];
-  const cashFlowData = [
-    { hora: '09:00', ingresos: 450, egresos: 200 }
-  ];
 
   if (isLoading) {
     return <div className="p-6">Cargando dashboard...</div>;
@@ -79,15 +62,12 @@ export function Dashboard() {
         {canViewVentas && (
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Ventas del Día</CardTitle>
+              <CardTitle className="text-sm font-medium">Ventas Pagadas</CardTitle>
               <DollarSign className="w-4 h-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">S/ {todaySales.toFixed(2)}</div>
-              <div className="flex items-center gap-1 text-sm text-green-600 mt-1">
-                <TrendingUp className="w-4 h-4" />
-                <span>+12.5% vs ayer</span>
-              </div>
+              <div className="text-2xl font-bold">S/ {totalSales.toFixed(2)}</div>
+              <p className="text-sm text-muted-foreground mt-1">Total acumulado del backend</p>
             </CardContent>
           </Card>
         )}
@@ -95,15 +75,12 @@ export function Dashboard() {
         {canViewVentas && (
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Ventas del Mes</CardTitle>
-              <DollarSign className="w-4 h-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Ganancia Neta</CardTitle>
+              <TrendingUp className="w-4 h-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">S/ {monthSales.toFixed(2)}</div>
-              <div className="flex items-center gap-1 text-sm text-green-600 mt-1">
-                <TrendingUp className="w-4 h-4" />
-                <span>+8.3% vs mes anterior</span>
-              </div>
+              <div className="text-2xl font-bold">S/ {netProfit.toFixed(2)}</div>
+              <p className="text-sm text-muted-foreground mt-1">Ventas menos costos registrados</p>
             </CardContent>
           </Card>
         )}
@@ -149,97 +126,38 @@ export function Dashboard() {
               <CardDescription>Tendencia de ventas por día</CardDescription>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <AreaChart data={salesDataChart}>
-                  <CartesianGrid key="ac-grid" strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis key="ac-xaxis" dataKey="day" className="text-xs" />
-                  <YAxis key="ac-yaxis" className="text-xs" />
-                  <Tooltip
-                    key="ac-tooltip"
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--card))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px'
-                    }}
-                  />
-                  <Area
-                    key="ac-area"
-                    type="monotone"
-                    dataKey="ventas"
-                    stroke="#3b82f6"
-                    fill="#3b82f6"
-                    fillOpacity={0.15}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+              {salesDataChart.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <AreaChart data={salesDataChart}>
+                    <CartesianGrid key="ac-grid" strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis key="ac-xaxis" dataKey="day" className="text-xs" />
+                    <YAxis key="ac-yaxis" className="text-xs" />
+                    <Tooltip
+                      key="ac-tooltip"
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px'
+                      }}
+                    />
+                    <Area
+                      key="ac-area"
+                      type="monotone"
+                      dataKey="ventas"
+                      stroke="#3b82f6"
+                      fill="#3b82f6"
+                      fillOpacity={0.15}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-[300px] flex items-center justify-center text-sm text-muted-foreground">
+                  Sin ventas registradas para graficar.
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
-
-        {/* Ventas por Categoría */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Ventas por Categoría</CardTitle>
-            <CardDescription>Distribución de ingresos</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  key="pc-pie"
-                  data={categorySales}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={100}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {categorySales.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  key="pc-tooltip"
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px'
-                  }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Flujo de Caja */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Flujo de Caja del Día</CardTitle>
-            <CardDescription>Ingresos vs Egresos</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <ComposedChart data={cashFlowData}>
-                <CartesianGrid key="cc-grid" strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis key="cc-xaxis" dataKey="hora" className="text-xs" />
-                <YAxis key="cc-yaxis" className="text-xs" />
-                <Tooltip
-                  key="cc-tooltip"
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px'
-                  }}
-                />
-                <Legend key="cc-legend" />
-                <Bar key="cc-bar" dataKey="ingresos" name="Ingresos" fill="#10b981" radius={[4, 4, 0, 0]} />
-                <Line key="cc-line" dataKey="egresos" name="Egresos" stroke="#ef4444" strokeWidth={2} dot={false} />
-              </ComposedChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
 
         {/* Top Productos */}
         {canViewVentas && (

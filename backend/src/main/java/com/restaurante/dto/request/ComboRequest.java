@@ -14,12 +14,21 @@ public class ComboRequest {
     private String nombre;
 
     private String descripcion;
+    private String imagenUrl;
 
     @NotNull(message = "El precio es obligatorio")
     @PositiveOrZero(message = "El precio no puede ser negativo")
     private BigDecimal precio;
 
     private String estado;
+
+    public String getImagenUrl() {
+        return imagenUrl;
+    }
+
+    public void setImagenUrl(String imagenUrl) {
+        this.imagenUrl = imagenUrl;
+    }
 
     private List<ComboDetalleRequest> detalles;
 

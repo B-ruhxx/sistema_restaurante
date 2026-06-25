@@ -1,6 +1,7 @@
-import React from 'react';
+import { getFullImageUrl } from '../components/ui/utils';
 import { useConfigStore } from '../../store/configStore';
 import { ChefHat } from 'lucide-react';
+
 
 export const LoginBrand = () => {
   const { name, logoUrl } = useConfigStore();
@@ -8,7 +9,7 @@ export const LoginBrand = () => {
     <div className="flex flex-col items-center gap-4 mb-6">
       {logoUrl ? (
         <img
-          src={logoUrl}
+          src={getFullImageUrl(logoUrl)}
           alt="logo"
           className="w-16 h-16 rounded-xl object-cover shadow-sm border border-[#c5d8fc] dark:border-blue-900"
         />

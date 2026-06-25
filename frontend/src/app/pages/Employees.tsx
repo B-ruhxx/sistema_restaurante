@@ -46,7 +46,7 @@ import {
   Upload,
   Loader2,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '../../lib/notifications';
 import { useEmpleados } from '../../hooks/useEmpleados';
 import authApi from '../../api/auth';
 
@@ -126,7 +126,7 @@ export function Employees() {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
-  const [statusFilter, setStatusFilter] = useState<string>('ACTIVO');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<any | null>(null);
@@ -209,8 +209,8 @@ export function Employees() {
           'Content-Type': 'multipart/form-data',
         },
       });
-      // The API returns fileUrl relative, e.g. /api/uploads/filename
-      setFormData((prev) => ({ ...prev, avatarUrl: response.data.fileUrl }));
+      // The API returns a relative public URL, e.g. /api/uploads/empleados/filename
+      setFormData((prev) => ({ ...prev, avatarUrl: response.data.fileUrl || response.data.url || '' }));
       toast.success('Imagen subida con éxito');
     } catch (err) {
       console.error(err);

@@ -1,13 +1,16 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { variantesApi, VarianteProductoRequest } from '../api/variantes';
+import { PrivateQueryOptions, usePrivateQueryEnabled } from './usePrivateQuery';
 
-export const useVariantes = (idProducto?: number) => {
+export const useVariantes = (idProducto?: number, { enabled = true }: PrivateQueryOptions = {}) => {
   const queryClient = useQueryClient();
+  const queryEnabled = usePrivateQueryEnabled(enabled);
 
   const variantesQuery = useQuery({
     queryKey: ['variantes', idProducto],
     queryFn: () => (idProducto ? variantesApi.getByProducto(idProducto) : Promise.resolve([])),
-    enabled: !!idProducto,
+    enabled: queryEnabled && !!idProducto,
+    staleTime: 30_000,
   });
 
   const createMutation = useMutation({

@@ -122,6 +122,9 @@ public class ProductoRequest {
         @DecimalMin(value = "0.0", inclusive = false, message = "La cantidad debe ser mayor a 0")
         private BigDecimal cantidad;
 
+        @Min(value = 1, message = "El tiempo de preparación debe ser mayor a 0")
+        private Integer tiempoPreparacionMinutos = 1;
+
         public Integer getIdInsumo() {
             return idInsumo;
         }
@@ -136,6 +139,14 @@ public class ProductoRequest {
 
         public void setCantidad(BigDecimal cantidad) {
             this.cantidad = cantidad;
+        }
+
+        public Integer getTiempoPreparacionMinutos() {
+            return tiempoPreparacionMinutos;
+        }
+
+        public void setTiempoPreparacionMinutos(Integer tiempoPreparacionMinutos) {
+            this.tiempoPreparacionMinutos = tiempoPreparacionMinutos;
         }
     }
 }

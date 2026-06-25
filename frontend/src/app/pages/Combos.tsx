@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   Plus, Search, Pencil, Trash2, MoreHorizontal, LayoutGrid, List,
-  Tag, Percent, X, Package
+  Tag, Percent, X, Package, Loader2
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -20,7 +20,14 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '../components/ui/table';
 import { Separator } from '../components/ui/separator';
-import { cn } from '../components/ui/utils';
+import { cn, getFullImageUrl } from '../components/ui/utils';
+import { ImageUploadZone } from '../components/ui/image-upload-zone';
+import { useCombos } from '../../hooks/useCombos';
+import { useProductos } from '../../hooks/useProductos';
+import { ComboRequest } from '../../api/combos';
+import authApi from '../../api/auth';
+import { toast } from '../../lib/notifications';
+
 
 interface ComboItem {
   productId: string;
@@ -34,6 +41,7 @@ interface Combo {
   name: string;
   description: string;
   image: string;
+  rawImagenUrl?: string;
   items: ComboItem[];
   promoPrice: number;
   regularTotal: number;
@@ -42,54 +50,13 @@ interface Combo {
   tag: string;
 }
 
-const products = [
-  { id: 'p1', name: 'Hamburguesa Clásica', price: 18.90 },
-  { id: 'p2', name: 'Pizza Margherita (Med.)', price: 32.00 },
-  { id: 'p3', name: 'Coca-Cola 500ml', price: 5.00 },
-  { id: 'p4', name: 'Inca Kola 500ml', price: 5.00 },
-  { id: 'p5', name: 'Ensalada César', price: 14.50 },
-  { id: 'p6', name: 'Tiramisu', price: 9.00 },
-  { id: 'p7', name: 'Brownie de chocolate', price: 7.50 },
-  { id: 'p8', name: 'Pollo a la parrilla', price: 22.00 },
-];
-
-const initialCombos: Combo[] = [
-  {
-    id: 'c1', name: 'Combo Familiar', description: '2 hamburguesas + 2 bebidas + 1 postre',
-    image: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=300&h=180&fit=crop&auto=format',
-    items: [
-      { productId: 'p1', productName: 'Hamburguesa Clásica', qty: 2, regularPrice: 18.90 },
-      { productId: 'p3', productName: 'Coca-Cola 500ml', qty: 2, regularPrice: 5.00 },
-      { productId: 'p7', productName: 'Brownie de chocolate', qty: 1, regularPrice: 7.50 },
-    ],
-    promoPrice: 42.00, regularTotal: 55.30, active: true, validUntil: '2024-06-30', tag: '🔥 Más vendido',
-  },
-  {
-    id: 'c2', name: 'Combo Pareja', description: '2 platos + 2 bebidas con 20% off',
-    image: 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=300&h=180&fit=crop&auto=format',
-    items: [
-      { productId: 'p1', productName: 'Hamburguesa Clásica', qty: 1, regularPrice: 18.90 },
-      { productId: 'p5', productName: 'Ensalada César', qty: 1, regularPrice: 14.50 },
-      { productId: 'p3', productName: 'Coca-Cola 500ml', qty: 2, regularPrice: 5.00 },
-    ],
-    promoPrice: 35.00, regularTotal: 43.40, active: true, validUntil: '2024-07-15', tag: '💑 Pareja',
-  },
-  {
-    id: 'c3', name: 'Combo Pizza + Postre', description: 'Pizza mediana + tiramisú',
-    image: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=300&h=180&fit=crop&auto=format',
-    items: [
-      { productId: 'p2', productName: 'Pizza Margherita (Med.)', qty: 1, regularPrice: 32.00 },
-      { productId: 'p6', productName: 'Tiramisu', qty: 1, regularPrice: 9.00 },
-    ],
-    promoPrice: 36.00, regularTotal: 41.00, active: false, validUntil: '2024-06-10', tag: '',
-  },
-];
-
 const emptyForm = { name: '', description: '', image: '', promoPrice: '', validUntil: '', tag: '', active: true };
 
 export function Combos() {
+  const { combos: apiCombos, isLoading, createCombo, updateCombo, deleteCombo } = useCombos();
+  const { productos } = useProductos();
+
   const [view, setView] = useState<'cards' | 'table'>('cards');
-  const [combos, setCombos] = useState<Combo[]>(initialCombos);
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -99,10 +66,52 @@ export function Combos() {
   const [items, setItems] = useState<ComboItem[]>([]);
   const [addProd, setAddProd] = useState({ productId: '', qty: '1' });
 
-  const filtered = combos.filter(c =>
-    c.name.toLowerCase().includes(search.toLowerCase()) ||
-    c.description.toLowerCase().includes(search.toLowerCase())
-  );
+  if (isLoading) {
+    return (
+      <div className="h-[80vh] flex flex-col items-center justify-center gap-2">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">Cargando combos...</p>
+      </div>
+    );
+  }
+
+  // Map API combos to UI Combo interface
+  const combos: Combo[] = apiCombos.map((c: any) => {
+    const comboItems: ComboItem[] = (c.detalles || []).map((det: any) => ({
+      productId: String(det.idProducto),
+      productName: det.nombreProducto || 'Producto',
+      qty: det.cantidad,
+      regularPrice: det.precioProducto || 0,
+    }));
+    const total = comboItems.reduce((s, i) => s + i.regularPrice * i.qty, 0);
+
+    return {
+      id: String(c.idCombo),
+      name: c.nombre,
+      description: c.descripcion || '',
+      image: c.imagenUrl ? getFullImageUrl(c.imagenUrl) : 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=300&h=180&fit=crop&auto=format',
+      rawImagenUrl: c.imagenUrl || '',
+      items: comboItems,
+      promoPrice: c.precio,
+      regularTotal: total,
+      active: c.estado === 'ACTIVO',
+      validUntil: '',
+      tag: '',
+    };
+  });
+
+  // Map products to select options
+  const mappedProducts = productos.map(p => ({
+    id: String(p.idProducto),
+    name: p.nombre,
+    price: p.precio,
+  }));
+
+  const filtered = combos.filter(c => {
+    if (!c.active) return false; // filter out inactive/deleted combos
+    return c.name.toLowerCase().includes(search.toLowerCase()) ||
+      c.description.toLowerCase().includes(search.toLowerCase());
+  });
 
   const regularTotal = items.reduce((s, i) => s + i.regularPrice * i.qty, 0);
   const promoPrice = parseFloat(form.promoPrice) || 0;
@@ -118,13 +127,14 @@ export function Combos() {
 
   const openEdit = (c: Combo) => {
     setEditing(c);
-    setForm({ name: c.name, description: c.description, image: c.image, promoPrice: String(c.promoPrice), validUntil: c.validUntil, tag: c.tag, active: c.active });
+    // Store the raw imagenUrl from API (relative path) not the full URL
+    setForm({ name: c.name, description: c.description, image: c.rawImagenUrl || '', promoPrice: String(c.promoPrice), validUntil: c.validUntil, tag: c.tag, active: c.active });
     setItems([...c.items]);
     setDialogOpen(true);
   };
 
   const handleAddProduct = () => {
-    const prod = products.find(p => p.id === addProd.productId);
+    const prod = mappedProducts.find(p => p.id === addProd.productId);
     if (!prod) return;
     const qty = parseInt(addProd.qty) || 1;
     const existing = items.find(i => i.productId === prod.id);
@@ -136,26 +146,45 @@ export function Combos() {
     setAddProd({ productId: '', qty: '1' });
   };
 
-  const handleSave = () => {
-    const data: Combo = {
-      id: editing?.id || Date.now().toString(),
-      name: form.name,
-      description: form.description,
-      image: form.image || 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=300&h=180&fit=crop&auto=format',
-      items,
-      promoPrice,
-      regularTotal,
-      active: form.active,
-      validUntil: form.validUntil,
-      tag: form.tag,
-    };
-    if (editing) {
-      setCombos(prev => prev.map(c => c.id === editing.id ? data : c));
-    } else {
-      setCombos(prev => [...prev, data]);
+  const handleSave = async () => {
+    if (!form.name.trim() || !form.promoPrice) {
+      toast.error('El nombre y precio son obligatorios');
+      return;
     }
-    setDialogOpen(false);
+    if (items.length === 0) {
+      toast.error('Debe agregar al menos un producto al combo');
+      return;
+    }
+
+    const payload: ComboRequest = {
+      nombre: form.name,
+      descripcion: form.description,
+      precio: promoPrice,
+      // Store only relative path (e.g. /api/uploads/combos/xxx.jpg or empty)
+      imagenUrl: form.image && !form.image.startsWith('http') ? form.image : (form.image ? form.image.replace(/^https?:\/\/[^/]+/, '') : undefined),
+      estado: form.active ? 'ACTIVO' : 'INACTIVO',
+      detalles: items.map(item => ({
+        idProducto: Number(item.productId),
+        cantidad: item.qty,
+      })),
+    };
+
+    try {
+      if (editing) {
+        await updateCombo({ id: Number(editing.id), data: payload });
+        toast.success('Combo actualizado correctamente');
+      } else {
+        await createCombo(payload);
+        toast.success('Combo creado correctamente');
+      }
+      setDialogOpen(false);
+    } catch (err) {
+      console.error(err);
+      toast.error('Error al guardar el combo');
+    }
   };
+
+
 
   return (
     <div className="p-6 space-y-6">
@@ -336,8 +365,13 @@ export function Combos() {
               <Input type="date" value={form.validUntil} onChange={e => setForm(f => ({ ...f, validUntil: e.target.value }))} className="mt-1" />
             </div>
             <div className="col-span-2">
-              <Label>URL de imagen</Label>
-              <Input placeholder="https://..." value={form.image} onChange={e => setForm(f => ({ ...f, image: e.target.value }))} className="mt-1" />
+              <ImageUploadZone
+                label="Imagen del combo"
+                value={form.image}
+                onChange={(url) => setForm(f => ({ ...f, image: url }))}
+                module="combos"
+                description="Sube una imagen o arrástrala desde tu equipo o internet. Formatos: JPG, PNG, WEBP."
+              />
             </div>
 
             <div className="col-span-2">
@@ -350,7 +384,7 @@ export function Combos() {
                   onChange={e => setAddProd(a => ({ ...a, productId: e.target.value }))}
                 >
                   <option value="">Seleccionar producto...</option>
-                  {products.map(p => <option key={p.id} value={p.id}>{p.name} — S/ {p.price}</option>)}
+                  {mappedProducts.map(p => <option key={p.id} value={p.id}>{p.name} — S/ {p.price}</option>)}
                 </select>
                 <Input type="number" className="w-20" placeholder="Cant." value={addProd.qty} onChange={e => setAddProd(a => ({ ...a, qty: e.target.value }))} />
                 <Button size="sm" onClick={handleAddProduct} disabled={!addProd.productId}>
@@ -411,7 +445,7 @@ export function Combos() {
           <p className="text-sm text-muted-foreground">¿Eliminar <strong>{deleting?.name}</strong>?</p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteOpen(false)}>Cancelar</Button>
-            <Button variant="destructive" onClick={() => { setCombos(c => c.filter(x => x.id !== deleting?.id)); setDeleteOpen(false); }}>Eliminar</Button>
+            <Button variant="destructive" onClick={async () => { if (deleting) { await deleteCombo(Number(deleting.id)); setDeleteOpen(false); setDeleting(null); } }}>Eliminar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

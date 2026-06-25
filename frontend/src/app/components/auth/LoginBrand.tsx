@@ -1,5 +1,6 @@
 import { Store } from 'lucide-react';
 import { useConfigStore } from '../../../store/configStore';
+import { getFullImageUrl } from '../ui/utils';
 
 export function LoginBrand() {
     const { name, logoUrl } = useConfigStore();
@@ -8,7 +9,7 @@ export function LoginBrand() {
         <div className="flex flex-col items-center text-center mb-6">
             {logoUrl ? (
                 <img
-                    src={logoUrl}
+                    src={getFullImageUrl(logoUrl)}
                     alt="Logo"
                     className="h-16 w-16 rounded-2xl object-cover shadow-sm"
                 />

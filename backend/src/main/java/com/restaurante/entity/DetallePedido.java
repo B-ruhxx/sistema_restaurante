@@ -2,6 +2,7 @@ package com.restaurante.entity;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.Objects;
 
 @Entity
@@ -40,6 +41,26 @@ public class DetallePedido {
     @Column(columnDefinition = "TEXT")
     private String observacion;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "estado_cocina", columnDefinition = "ENUM('PENDIENTE','EN_PREPARACION','LISTO','CANCELADO') DEFAULT 'PENDIENTE'")
+    private EstadoCocina estadoCocina = EstadoCocina.PENDIENTE;
+
+    @Column(name = "fecha_inicio_preparacion")
+    private LocalDateTime fechaInicioPreparacion;
+
+    @Column(name = "fecha_fin_preparacion")
+    private LocalDateTime fechaFinPreparacion;
+
+    @Column(name = "tiempo_estimado_minutos")
+    private Integer tiempoEstimadoMinutos;
+
+    @Column(name = "tiempo_real_minutos")
+    private Integer tiempoRealMinutos;
+
+    public enum EstadoCocina {
+        PENDIENTE, EN_PREPARACION, LISTO, CANCELADO
+    }
+
     public DetallePedido() {}
 
     public Integer getIdDetallePedido() { return idDetallePedido; }
@@ -68,6 +89,21 @@ public class DetallePedido {
 
     public String getObservacion() { return observacion; }
     public void setObservacion(String observacion) { this.observacion = observacion; }
+
+    public EstadoCocina getEstadoCocina() { return estadoCocina; }
+    public void setEstadoCocina(EstadoCocina estadoCocina) { this.estadoCocina = estadoCocina; }
+
+    public LocalDateTime getFechaInicioPreparacion() { return fechaInicioPreparacion; }
+    public void setFechaInicioPreparacion(LocalDateTime fechaInicioPreparacion) { this.fechaInicioPreparacion = fechaInicioPreparacion; }
+
+    public LocalDateTime getFechaFinPreparacion() { return fechaFinPreparacion; }
+    public void setFechaFinPreparacion(LocalDateTime fechaFinPreparacion) { this.fechaFinPreparacion = fechaFinPreparacion; }
+
+    public Integer getTiempoEstimadoMinutos() { return tiempoEstimadoMinutos; }
+    public void setTiempoEstimadoMinutos(Integer tiempoEstimadoMinutos) { this.tiempoEstimadoMinutos = tiempoEstimadoMinutos; }
+
+    public Integer getTiempoRealMinutos() { return tiempoRealMinutos; }
+    public void setTiempoRealMinutos(Integer tiempoRealMinutos) { this.tiempoRealMinutos = tiempoRealMinutos; }
 
     @Override
     public boolean equals(Object o) {

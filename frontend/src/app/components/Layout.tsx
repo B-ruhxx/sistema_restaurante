@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router';
 import { useTheme } from 'next-themes';
 import { useConfigStore } from '../../store/configStore';
 import { useAuthStore } from '../../store/authStore';
+import { useNotificationStore, AppNotificationType } from '../../store/notificationStore';
 import { useAuth } from '../../hooks/useAuth';
 import {
   LayoutDashboard,
@@ -39,9 +40,13 @@ import {
   Building2,
   Lock,
   TrendingUp,
+  CheckCircle2,
+  AlertTriangle,
+  Info,
+  Armchair,
 } from 'lucide-react';
 import { Button } from './ui/button';
-import { cn } from './ui/utils';
+import { cn, getFullImageUrl } from './ui/utils';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -71,10 +76,11 @@ const navGroups: NavGroup[] = [
     label: 'Operaciones',
     items: [
       { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
-      { path: '/pos', icon: ShoppingCart, label: 'Punto de Venta', permiso: 'GESTIONAR_VENTAS' },
-      { path: '/pedidos', icon: ClipboardList, label: 'Pedidos', permiso: 'GESTIONAR_PEDIDOS' },
-      { path: '/cocina', icon: ChefHat, label: 'Cocina', permiso: 'VER_COCINA' },
-      { path: '/caja', icon: Wallet, label: 'Caja', permiso: 'CONTROL_CAJA' },
+      { path: '/mesas', icon: Armchair, label: 'Mesas', permiso: 'GESTION_MESAS' },
+      { path: '/pos', icon: ShoppingCart, label: 'Punto de Venta', permiso: 'GESTION_POS' },
+      { path: '/pedidos', icon: ClipboardList, label: 'Pedidos', permiso: 'GESTION_POS' },
+      { path: '/cocina', icon: ChefHat, label: 'Cocina', permiso: 'GESTION_COCINA' },
+      { path: '/caja', icon: Wallet, label: 'Caja', permiso: 'GESTION_CAJA' },
     ],
   },
   {
@@ -129,6 +135,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { orders, cashRegister } = useERP();
   const { name, logoUrl } = useConfigStore();
   const { user, isAuthenticated } = useAuthStore();
+  const {
+    notifications,
+    markAllAsRead,
+    removeNotification,
+    clearNotifications,
+  } = useNotificationStore();
   const { logout } = useAuth();
   if (!isAuthenticated) {
     navigate('/login');
@@ -138,6 +150,22 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const activeOrders = orders.filter(o =>
     o.status === 'pendiente' || o.status === 'en-cocina'
   ).length;
+  const unreadNotifications = notifications.filter(notification => !notification.read).length;
+
+  const notificationIcon = (type: AppNotificationType) => {
+    const className = 'w-3.5 h-3.5';
+    if (type === 'success') return <CheckCircle2 className={`${className} text-emerald-600`} />;
+    if (type === 'error') return <X className={`${className} text-red-600`} />;
+    if (type === 'warning') return <AlertTriangle className={`${className} text-amber-600`} />;
+    return <Info className={`${className} text-blue-600`} />;
+  };
+
+  const formatNotificationTime = (createdAt: string) => {
+    return new Intl.DateTimeFormat('es-PE', {
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(new Date(createdAt));
+  };
 
   const toggleGroup = (label: string) => {
     setExpandedGroups(prev => ({ ...prev, [label]: !prev[label] }));
@@ -157,7 +185,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           {!collapsed ? (
             <div className="flex items-center gap-2.5 w-full">
               {logoUrl ? (
-                <img src={logoUrl} alt="logo" className="w-8 h-8 rounded-xl object-cover shadow-sm border border-[#c5d8fc] dark:border-blue-900" />
+                <img src={getFullImageUrl(logoUrl)} alt="logo" className="w-8 h-8 rounded-xl object-cover shadow-sm border border-[#c5d8fc] dark:border-blue-900" />
               ) : (
                 <div className="w-8 h-8 bg-[#e8f0fe] dark:bg-blue-950 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm border border-[#c5d8fc] dark:border-blue-900">
                   <ChefHat className="w-4 h-4 text-[#4f7bf7] dark:text-blue-400" />
@@ -286,12 +314,74 @@ export function Layout({ children }: { children: React.ReactNode }) {
               {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </Button>
 
-            <Button variant="ghost" size="icon" className="h-8 w-8 relative text-muted-foreground hover:text-foreground">
-              <Bell className="w-4 h-4" />
-              {activeOrders > 0 && (
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-card" />
-              )}
-            </Button>
+            <DropdownMenu onOpenChange={(open) => open && markAllAsRead()}>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 relative text-muted-foreground hover:text-foreground">
+                  <Bell className="w-4 h-4" />
+                  {(unreadNotifications > 0 || activeOrders > 0) && (
+                    <span className="absolute top-1 right-1 min-w-4 h-4 px-1 bg-red-500 text-white text-[10px] font-bold rounded-full border-2 border-card flex items-center justify-center">
+                      {unreadNotifications || activeOrders}
+                    </span>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-80 p-0">
+                <div className="flex items-center justify-between px-3 py-2 border-b">
+                  <div>
+                    <p className="font-semibold text-sm">Notificaciones</p>
+                    <p className="text-xs text-muted-foreground">
+                      {notifications.length > 0 ? `${notifications.length} eventos recientes` : 'Sin eventos recientes'}
+                    </p>
+                  </div>
+                  {notifications.length > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs"
+                      onClick={clearNotifications}
+                    >
+                      Limpiar
+                    </Button>
+                  )}
+                </div>
+
+                <div className="max-h-80 overflow-y-auto">
+                  {notifications.length === 0 ? (
+                    <div className="px-4 py-8 text-center text-sm text-muted-foreground">
+                      No hay notificaciones todavía.
+                    </div>
+                  ) : (
+                    notifications.map(notification => (
+                      <div
+                        key={notification.id}
+                        className={`group flex gap-2 px-3 py-2 border-b last:border-b-0 ${notification.read ? 'bg-card' : 'bg-accent/40'}`}
+                      >
+                        <div className="mt-0.5 shrink-0">{notificationIcon(notification.type)}</div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="text-sm font-medium leading-snug break-words">{notification.title}</p>
+                            <span className="text-[10px] text-muted-foreground shrink-0">
+                              {formatNotificationTime(notification.createdAt)}
+                            </span>
+                          </div>
+                          {notification.description && (
+                            <p className="text-xs text-muted-foreground mt-0.5 break-words">{notification.description}</p>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground transition-opacity"
+                          onClick={() => removeNotification(notification.id)}
+                          title="Quitar notificación"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             <div className="w-px h-5 bg-border mx-1" />
 

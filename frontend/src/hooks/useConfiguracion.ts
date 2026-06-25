@@ -2,14 +2,17 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { configuracionApi, ConfiguracionEmpresa } from '../api/configuracion';
 import { useConfigStore } from '../store/configStore';
 import { useEffect } from 'react';
+import { PrivateQueryOptions, usePrivateQueryEnabled } from './usePrivateQuery';
 
-export const useConfiguracion = () => {
+export const useConfiguracion = ({ enabled = true }: PrivateQueryOptions = {}) => {
   const queryClient = useQueryClient();
   const setConfig = useConfigStore((s) => s.setConfig);
+  const queryEnabled = usePrivateQueryEnabled(enabled);
 
   const configQuery = useQuery({
     queryKey: ['configuracion'],
     queryFn: configuracionApi.get,
+    enabled: queryEnabled,
     staleTime: 5 * 60_000,
   });
 

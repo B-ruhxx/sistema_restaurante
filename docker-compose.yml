@@ -23,6 +23,7 @@ services:
       context: ./backend
     container_name: restaurante_backend
     restart: always
+    user: "${UID:-1000}:${GID:-1000}"
     ports:
       - "8080:8080"
     environment:

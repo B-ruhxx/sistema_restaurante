@@ -51,6 +51,7 @@ com/restaurante/dto/CajaCierreRequest.class
 com/restaurante/dto/response/PermisoResponse.class
 com/restaurante/entity/Cliente$Estado.class
 com/restaurante/config/SwaggerConfig.class
+com/restaurante/exception/GlobalExceptionHandler.class
 com/restaurante/repository/ConfiguracionEmpresaRepository.class
 com/restaurante/dto/request/ClienteRequest.class
 com/restaurante/repository/ComboProductoRepository.class
@@ -67,6 +68,7 @@ com/restaurante/dto/mapper/ProveedorMapper.class
 com/restaurante/dto/response/EmpleadoResponse.class
 com/restaurante/dto/request/VarianteProductoRequest.class
 com/restaurante/controller/ExtraProductoController.class
+com/restaurante/dto/error/ApiErrorResponse.class
 com/restaurante/dto/response/ProductoDetalleResponse.class
 com/restaurante/dto/response/ExtraProductoResponse.class
 com/restaurante/repository/CompraInsumoRepository.class
@@ -109,6 +111,7 @@ com/restaurante/dto/request/ProveedorRequest.class
 com/restaurante/dto/mapper/MovimientoInventarioMapper.class
 com/restaurante/entity/DetalleVenta.class
 com/restaurante/entity/ConfiguracionEmpresa.class
+com/restaurante/exception/ResourceNotFoundException.class
 com/restaurante/controller/PedidoController.class
 com/restaurante/service/ConfiguracionEmpresaService.class
 com/restaurante/security/JwtAuthenticationFilter.class
