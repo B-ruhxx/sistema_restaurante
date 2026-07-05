@@ -12,6 +12,10 @@ public class CajaResponse {
     private BigDecimal montoCierre;
     private BigDecimal montoSistema;
     private BigDecimal diferencia;
+    private BigDecimal montoVentas;
+    private BigDecimal montoIngresos;
+    private BigDecimal montoEgresos;
+    private BigDecimal saldoEsperado;
     private String observacion;
     private LocalDateTime fechaApertura;
     private LocalDateTime fechaCierre;
@@ -38,6 +42,10 @@ public class CajaResponse {
 
     public void setNombreEmpleado(String nombreEmpleado) {
         this.nombreEmpleado = nombreEmpleado;
+    }
+
+    public String getEmpleadoNombre() {
+        return nombreEmpleado;
     }
 
     public String getEstado() {
@@ -80,12 +88,52 @@ public class CajaResponse {
         this.diferencia = diferencia;
     }
 
+    public BigDecimal getMontoVentas() {
+        return montoVentas;
+    }
+
+    public void setMontoVentas(BigDecimal montoVentas) {
+        this.montoVentas = montoVentas;
+    }
+
+    public BigDecimal getMontoIngresos() {
+        return montoIngresos;
+    }
+
+    public void setMontoIngresos(BigDecimal montoIngresos) {
+        this.montoIngresos = montoIngresos;
+    }
+
+    public BigDecimal getMontoEgresos() {
+        return montoEgresos;
+    }
+
+    public void setMontoEgresos(BigDecimal montoEgresos) {
+        this.montoEgresos = montoEgresos;
+    }
+
+    public BigDecimal getSaldoEsperado() {
+        return saldoEsperado;
+    }
+
+    public void setSaldoEsperado(BigDecimal saldoEsperado) {
+        this.saldoEsperado = saldoEsperado;
+    }
+
     public String getObservacion() {
         return observacion;
     }
 
     public void setObservacion(String observacion) {
         this.observacion = observacion;
+    }
+
+    public String getObservacionApertura() {
+        return observacion;
+    }
+
+    public String getObservacionCierre() {
+        return observacion;
     }
 
     public LocalDateTime getFechaApertura() {

@@ -1,14 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import {
   Plus, Search, Pencil, Trash2, MoreHorizontal,
-  Package, ChevronRight, Star, FlaskConical, Layers, BookOpen,
-  LayoutGrid, List, Loader2,
+  Package, ChevronRight, Star, FlaskConical, Layers,
+  LayoutGrid, List, RotateCcw, X, Loader2
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Badge } from '../components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Card, CardContent } from '../components/ui/card';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '../components/ui/dialog';
@@ -25,14 +25,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '../components/ui/select';
-import { Separator } from '../components/ui/separator';
 
 import { useProductos } from '../../hooks/useProductos';
 import { useCategorias } from '../../hooks/useCategorias';
-import { ProductoRequest } from '../../api/productos';
-import { variantesApi } from '../../api/variantes';
+import { ProductoEstadoFiltro, ProductoRequest } from '../../api/productos';
 import { getFullImageUrl } from '../components/ui/utils';
 import { ImageUploadZone } from '../components/ui/image-upload-zone';
+import { PageWrapper, ModuleHeader, KpiCard, FilterToolbar, EmptyState, SectionCard } from '../components/ui/erp-layout';
 
 interface Product {
   id: string;
@@ -45,27 +44,28 @@ interface Product {
   image: string;
   rawImagenUrl?: string;
   description: string;
-  variants: Variant[];
   stock: number;
   stockMinimo?: number;
+  sku?: string;
+  esSku: boolean;
+  idProductoPadre?: number;
+  nombreProductoPadre?: string;
+  tieneSkus?: boolean;
+  lotesDisponibles?: number;
+  proximoVencimiento?: string;
+  skuCount: number;
+  activeSkuCount: number;
+  priceLabel: string;
+  stockLabel: string;
 }
 
-interface Variant {
-  id: string;
-  backendId?: number;
-  name: string;
-  price: number;
-  active: boolean;
-}
-
-const typeLabels: Record<string, { label: string; color: string }> = {
-  PREPARADO: { label: 'Elaborado', color: 'bg-blue-100 text-blue-700' },
-  INVENTARIO_DIRECTO: { label: 'Directo', color: 'bg-purple-100 text-purple-700' },
-};
+const DEFAULT_PRODUCT_IMAGE = 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=320&h=240&fit=crop&auto=format';
 
 export function Products() {
   const navigate = useNavigate();
-  const { productos, isLoading, createProducto, updateProducto, deleteProducto, getProductoDetail } = useProductos();
+  const [estadoFilter, setEstadoFilter] = useState<ProductoEstadoFiltro>('ACTIVO');
+  const { productos, createProducto, updateProducto, deleteProducto, updateProductoEstado, getProductoDetail } = useProductos({ estado: estadoFilter });
+  const { productos: allProductos } = useProductos({ estado: 'TODOS' });
   const { categorias } = useCategorias();
   
   const [search, setSearch] = useState('');
@@ -77,76 +77,99 @@ export function Products() {
   const [deleting, setDeleting] = useState<Product | null>(null);
   const [productTab, setProductTab] = useState('general');
   const [form, setForm] = useState<Partial<Product>>({});
-  const [newVariant, setNewVariant] = useState({ name: '', price: '' });
-  const [originalVariantIds, setOriginalVariantIds] = useState<number[]>([]);
+  const [formError, setFormError] = useState('');
+  const estadoLabel = estadoFilter === 'TODOS' ? 'en el catálogo' : estadoFilter === 'ACTIVO' ? 'activos' : 'inactivos';
 
-  useEffect(() => {
-    if (form.type === 'INVENTARIO_DIRECTO' && productTab === 'receta') {
-      setProductTab('inventario');
-    }
-  }, [form.type, productTab]);
+  const skusByParent = useMemo(() => {
+    const map = new Map<number, typeof allProductos>();
+    allProductos.forEach(producto => {
+      if (producto.esSku !== false && producto.idProductoPadre) {
+        const current = map.get(producto.idProductoPadre) || [];
+        current.push(producto);
+        map.set(producto.idProductoPadre, current);
+      }
+    });
+    return map;
+  }, [allProductos]);
 
+  const mappedProducts: Product[] = useMemo(() => productos.map(p => {
+    const childSkus = skusByParent.get(p.idProducto) || [];
+    const activeChildSkus = childSkus.filter(sku => sku.estado === 'ACTIVO');
+    const prices = activeChildSkus.map(sku => sku.precio).filter(price => price > 0);
+    const isParent = p.esSku === false;
+    const minPrice = prices.length ? Math.min(...prices) : 0;
+    const maxPrice = prices.length ? Math.max(...prices) : 0;
+    const stockTotal = isParent
+      ? childSkus.reduce((sum, sku) => sum + (sku.stockActual ?? sku.stockTotal ?? 0), 0)
+      : (p.stockActual ?? p.stockTotal ?? 0);
+    const priceLabel = isParent
+      ? prices.length === 0
+        ? 'Sin SKUs'
+        : minPrice === maxPrice
+          ? `S/ ${minPrice.toFixed(2)}`
+          : `S/ ${minPrice.toFixed(2)} - S/ ${maxPrice.toFixed(2)}`
+      : `S/ ${p.precio.toFixed(2)}`;
 
-
-
-  // Map backend products to frontend Product interface
-  const mappedProducts: Product[] = productos.map(p => ({
-    id: String(p.idProducto),
-    name: p.nombre,
-    category: p.nombreCategoria || 'Sin Categoría',
-    idCategoria: p.idCategoria,
-    price: p.precio,
-    type: p.tipoProducto,
-    active: p.estado === 'ACTIVO',
-    image: p.imagenUrl ? getFullImageUrl(p.imagenUrl) : 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=60&h=60&fit=crop&auto=format',
-    rawImagenUrl: p.imagenUrl || '',
-    description: p.descripcion || '',
-    variants: [], // Handled inside the detail/tabs if needed
-    stock: 0,
-    stockMinimo: 5,
-  }));
+    return {
+      id: String(p.idProducto),
+      name: p.nombre,
+      category: p.nombreCategoria || 'Sin Categoría',
+      idCategoria: p.idCategoria,
+      price: isParent ? minPrice : p.precio,
+      type: p.tipoProducto,
+      active: p.estado === 'ACTIVO',
+      image: p.imagenUrl ? getFullImageUrl(p.imagenUrl) : DEFAULT_PRODUCT_IMAGE,
+      rawImagenUrl: p.imagenUrl || '',
+      description: p.descripcion || '',
+      stock: stockTotal,
+      stockMinimo: p.stockMinimo ?? 5,
+      sku: p.sku || '',
+      esSku: p.esSku !== false,
+      idProductoPadre: p.idProductoPadre,
+      nombreProductoPadre: p.nombreProductoPadre,
+      tieneSkus: p.tieneSkus,
+      lotesDisponibles: p.lotesDisponibles,
+      proximoVencimiento: p.proximoVencimiento,
+      skuCount: childSkus.length,
+      activeSkuCount: activeChildSkus.length,
+      priceLabel,
+      stockLabel: isParent ? `${stockTotal} uds en ${childSkus.length} SKU` : `${stockTotal} uds`,
+    };
+  }), [productos, skusByParent]);
 
   const filtered = mappedProducts.filter(p => {
-    if (!p.active) return false;
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase());
     const matchCat = filterCat === 'all' || p.category === filterCat;
-    return matchSearch && matchCat;
+    return !p.esSku && matchSearch && matchCat;
   });
+  const parentOptions = allProductos.filter(p => p.esSku === false);
+  const selectedProductId = selected ? Number(selected.id) : undefined;
+  const childSkuRows = allProductos.filter(p =>
+    p.esSku !== false
+    && p.idProductoPadre === (selectedProductId ?? form.idProductoPadre)
+  );
 
   const openCreate = () => {
     setSelected(null);
-    setOriginalVariantIds([]);
-    setForm({ name: '', category: 'Hamburguesas', price: 0, type: 'PREPARADO', active: true, description: '', image: '', variants: [], stock: 0, stockMinimo: 5 });
+    setForm({ name: '', category: categorias[0]?.nombre || '', price: 0, type: 'PREPARADO', active: true, description: '', image: '', stock: 0, stockMinimo: 5, sku: '', esSku: false });
+    setFormError('');
     setProductTab('general');
     setDialogOpen(true);
   };
 
   const openEdit = async (p: Product) => {
     setSelected(p);
-    // Use rawImagenUrl so we store the relative path in form, not the full URL
-    setOriginalVariantIds([]);
-    setForm({ ...p, image: p.rawImagenUrl || '', variants: [] });
+    setFormError('');
+    setForm({ ...p, image: p.rawImagenUrl || '' });
     
     try {
-      // Fetch full detail (including recipe and stock info)
-      const [detail, variantes] = await Promise.all([
-        getProductoDetail(Number(p.id)),
-        variantesApi.getByProducto(Number(p.id)),
-      ]);
+      const detail = await getProductoDetail(Number(p.id));
       if (detail) {
         setForm(prev => ({
           ...prev,
           stock: detail.inventario?.stock || 0,
           stockMinimo: detail.inventario?.stockMinimo || 5,
-          variants: variantes.map(v => ({
-            id: String(v.idVariante),
-            backendId: v.idVariante,
-            name: v.nombre,
-            price: v.precioExtra,
-            active: v.estado === 'ACTIVO',
-          })),
         }));
-        setOriginalVariantIds(variantes.map(v => v.idVariante));
       }
     } catch (error) {
       console.error('Error fetching product detail:', error);
@@ -157,53 +180,46 @@ export function Products() {
   };
 
   const handleSave = async () => {
-    // Find category ID matching name or default
     const matchedCat = categorias.find(c => c.nombre === form.category);
+    const isParent = form.esSku === false;
+
+    setFormError('');
+
+    if (!form.name?.trim()) {
+      setFormError('El nombre es obligatorio.');
+      return;
+    }
+
+    if (!isParent && !form.idProductoPadre) {
+      setFormError('El SKU debe estar vinculado a un producto padre.');
+      return;
+    }
+
+    if (!isParent && (!form.price || form.price <= 0)) {
+      setFormError('El precio del SKU debe ser mayor a cero.');
+      return;
+    }
     
     const requestData: ProductoRequest = {
       nombre: form.name || '',
       descripcion: form.description || '',
       imagenUrl: form.image && !form.image.startsWith('http') ? form.image : (form.image ? form.image.replace(/^https?:\/\/[^/]+/, '') : ''),
-      precio: form.price || 0,
+      precio: isParent ? 0 : form.price || 0,
       tipoProducto: form.type || 'PREPARADO',
       estado: form.active ? 'ACTIVO' : 'INACTIVO',
-      idCategoria: matchedCat?.idCategoria || (categorias.length > 0 ? categorias[0].idCategoria : undefined),
-      stockInicial: form.stock || 0,
-      stockMinimo: form.stockMinimo || 5,
+      idCategoria: form.idCategoria || matchedCat?.idCategoria || (categorias.length > 0 ? categorias[0].idCategoria : undefined),
+      esSku: !isParent,
+      idProductoPadre: isParent ? undefined : form.idProductoPadre,
+      sku: isParent ? undefined : form.sku,
+      stockMinimo: isParent ? undefined : form.stockMinimo || 5,
     };
 
     try {
-      let productId: number;
       if (selected) {
-        const result = await updateProducto({ id: Number(selected.id), data: requestData });
-        productId = result.producto.idProducto;
+        await updateProducto({ id: Number(selected.id), data: requestData });
       } else {
-        const result = await createProducto(requestData);
-        productId = result.producto.idProducto;
+        await createProducto(requestData);
       }
-
-      const currentBackendIds = (form.variants || [])
-        .map(v => v.backendId)
-        .filter((id): id is number => typeof id === 'number');
-
-      await Promise.all(
-        originalVariantIds
-          .filter(id => !currentBackendIds.includes(id))
-          .map(id => variantesApi.delete(id))
-      );
-
-      await Promise.all((form.variants || []).map(v => {
-        const data = {
-          idProducto: productId,
-          nombre: v.name,
-          precioExtra: v.price,
-          estado: v.active ? 'ACTIVO' as const : 'INACTIVO' as const,
-        };
-
-        return v.backendId
-          ? variantesApi.update(v.backendId, data)
-          : variantesApi.create(data);
-      }));
 
       setDialogOpen(false);
     } catch (error) {
@@ -211,84 +227,149 @@ export function Products() {
     }
   };
 
-  const addVariant = () => {
-    if (!newVariant.name || !newVariant.price) return;
-    const v: Variant = { id: Date.now().toString(), name: newVariant.name, price: parseFloat(newVariant.price), active: true };
-    setForm(f => ({ ...f, variants: [...(f.variants || []), v] }));
-    setNewVariant({ name: '', price: '' });
+  const openCreateSkuChild = () => {
+    if (!selected) return;
+    const parent = selected;
+    setSelected(null);
+    setFormError('');
+    setForm({
+      name: '',
+      category: parent.category,
+      idCategoria: parent.idCategoria,
+      price: 0,
+      type: parent.type,
+      active: true,
+      description: '',
+      image: parent.rawImagenUrl || '',
+      stock: 0,
+      stockMinimo: 5,
+      sku: '',
+      esSku: true,
+      idProductoPadre: Number(parent.id),
+    });
+    setProductTab('general');
   };
 
-  const removeVariant = (id: string) => {
-    setForm(f => ({ ...f, variants: (f.variants || []).filter(v => v.id !== id) }));
-  };
+  const dialogMode = selected ? (selected.esSku ? 'Editar SKU hijo' : 'Editar producto padre') : form.esSku === false ? 'Nuevo producto padre' : 'Nuevo SKU hijo';
+  const isFormParent = form.esSku === false;
+  const showRecipeTab = !isFormParent && form.type === 'PREPARADO';
+  const tabCount = isFormParent ? 3 : showRecipeTab ? 3 : 2;
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Productos</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{productos.length} productos en el catálogo</p>
-        </div>
-        <Button onClick={openCreate}>
-          <Plus className="w-4 h-4 mr-2" /> Nuevo Producto
-        </Button>
-      </div>
+    <PageWrapper>
+      <ModuleHeader
+        breadcrumbs={[
+          { label: 'Catálogo' },
+          { label: 'Productos' },
+        ]}
+        icon={Package}
+        iconColor="blue"
+        title="Productos"
+        subtitle={`Administración de productos de catálogo, SKUs vendibles, inventario y recetas asociadas.`}
+        action={
+          <Button onClick={openCreate} className="h-11 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95 gap-2 font-semibold">
+            <Plus className="w-4 h-4" /> Nuevo Producto
+          </Button>
+        }
+      />
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { label: 'Total', value: mappedProducts.length, icon: Package },
-          { label: 'Activos', value: mappedProducts.filter(p => p.active).length, icon: Star },
-          { label: 'Elaborados', value: mappedProducts.filter(p => p.type === 'PREPARADO').length, icon: FlaskConical },
-          { label: 'Directos', value: mappedProducts.filter(p => p.type === 'INVENTARIO_DIRECTO').length, icon: Layers },
-        ].map(s => (
-          <Card key={s.label}>
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <s.icon className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-2xl font-semibold">{s.value}</p>
-                <p className="text-xs text-muted-foreground">{s.label}</p>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+        <KpiCard
+          icon={Package}
+          label="Productos Padres"
+          value={allProductos.filter(p => p.esSku === false).length}
+          color="slate"
+        />
+        <KpiCard
+          icon={Star}
+          label="Padres activos"
+          value={allProductos.filter(p => p.esSku === false && p.estado === 'ACTIVO').length}
+          color="green"
+        />
+        <KpiCard
+          icon={RotateCcw}
+          label="Padres inactivos"
+          value={allProductos.filter(p => p.esSku === false && p.estado === 'INACTIVO').length}
+          color="red"
+        />
+        <KpiCard
+          icon={FlaskConical}
+          label="SKUs Hijos"
+          value={allProductos.filter(p => p.esSku !== false).length}
+          color="blue"
+        />
       </div>
 
-      {/* Filters + view toggle */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="relative flex-1 min-w-52 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder="Buscar producto..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
-        </div>
-        <Select value={filterCat} onValueChange={setFilterCat}>
-          <SelectTrigger className="w-44">
-            <SelectValue placeholder="Categoría" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas las categorías</SelectItem>
-            {categorias.map(c => <SelectItem key={c.idCategoria} value={c.nombre}>{c.nombre}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <div className="flex items-center rounded-lg border border-border overflow-hidden ml-auto">
-          <button
-            onClick={() => setViewMode('grid')}
-            className={`h-9 w-9 flex items-center justify-center transition-colors ${viewMode === 'grid' ? 'bg-red-600 text-white' : 'text-muted-foreground hover:bg-accent'}`}
-          >
-            <LayoutGrid className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setViewMode('table')}
-            className={`h-9 w-9 flex items-center justify-center transition-colors ${viewMode === 'table' ? 'bg-red-600 text-white' : 'text-muted-foreground hover:bg-accent'}`}
-          >
-            <List className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
+      {/* Toolbar filters + view toggle */}
+      <FilterToolbar
+        search={{
+          value: search,
+          onChange: setSearch,
+          placeholder: 'Buscar producto...',
+        }}
+        filters={
+          <>
+            <Tabs
+              value={estadoFilter}
+              onValueChange={(value) => setEstadoFilter(value as ProductoEstadoFiltro)}
+              className="w-full sm:w-auto"
+            >
+              <TabsList className="grid w-full grid-cols-3 sm:w-[260px] rounded-xl h-11 p-1 bg-muted/30">
+                <TabsTrigger value="ACTIVO" className="rounded-lg h-9">Activos</TabsTrigger>
+                <TabsTrigger value="INACTIVO" className="rounded-lg h-9">Inactivos</TabsTrigger>
+                <TabsTrigger value="TODOS" className="rounded-lg h-9">Todos</TabsTrigger>
+              </TabsList>
+            </Tabs>
+            <Select value={filterCat} onValueChange={setFilterCat}>
+              <SelectTrigger className="w-48 h-11 rounded-xl">
+                <SelectValue placeholder="Categoría" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas las categorías</SelectItem>
+                {categorias.map(c => <SelectItem key={c.idCategoria} value={c.nombre}>{c.nombre}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </>
+        }
+        actions={
+          <div className="flex items-center rounded-xl border border-border overflow-hidden bg-muted/20 p-1">
+            <Button
+              size="icon"
+              onClick={() => setViewMode('grid')}
+              variant={viewMode === 'grid' ? 'default' : 'ghost'}
+              className="h-9 w-9 rounded-lg"
+              aria-label="Vista de tarjetas"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </Button>
+            <Button
+              size="icon"
+              onClick={() => setViewMode('table')}
+              variant={viewMode === 'table' ? 'default' : 'ghost'}
+              className="h-9 w-9 rounded-lg"
+              aria-label="Vista de tabla"
+            >
+              <List className="w-4 h-4" />
+            </Button>
+          </div>
+        }
+      />
 
-      {/* Grid View */}
-      {viewMode === 'grid' && (
+      {/* Main Content Area */}
+      {filtered.length === 0 ? (
+        <EmptyState
+          icon={Package}
+          title="Sin productos en el catálogo"
+          description="Crea tu primer producto para comenzar a configurar tu carta y menú."
+          action={
+            <Button onClick={openCreate} className="h-10 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95">
+              <Plus className="w-4 h-4 mr-2" />
+              Nuevo Producto
+            </Button>
+          }
+        />
+      ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {filtered.map(p => (
             <ProductGridCard
@@ -296,93 +377,101 @@ export function Products() {
               product={p}
               onEdit={openEdit}
               onDelete={() => { setDeleting(p); setDeleteOpen(true); }}
-              onNavigateReceta={() => navigate('/recetas')}
+              onReactivate={() => updateProductoEstado({ id: Number(p.id), estado: 'ACTIVO' })}
             />
           ))}
         </div>
-      )}
-
-      {/* Table View */}
-      {viewMode === 'table' && (
-      <Card>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-14">Img</TableHead>
-              <TableHead>Nombre</TableHead>
-              <TableHead className="hidden md:table-cell">Categoría</TableHead>
-              <TableHead>Precio</TableHead>
-              <TableHead className="hidden sm:table-cell">Tipo</TableHead>
-              <TableHead className="hidden lg:table-cell">Stock</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead className="w-12"></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.map(p => (
-              <TableRow key={p.id} className="cursor-pointer hover:bg-accent/50" onClick={() => openEdit(p)}>
-                <TableCell>
-                  <img src={p.image} alt={p.name} className="w-10 h-10 rounded-lg object-cover bg-muted" />
-                </TableCell>
-                <TableCell>
-                  <p className="font-medium">{p.name}</p>
-                  <p className="text-xs text-muted-foreground hidden sm:block truncate max-w-[180px]">{p.description}</p>
-                </TableCell>
-                <TableCell className="hidden md:table-cell text-sm text-muted-foreground">{p.category}</TableCell>
-                <TableCell className="font-medium">S/ {p.price.toFixed(2)}</TableCell>
-                <TableCell className="hidden sm:table-cell">
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${typeLabels[p.type].color}`}>
-                    {typeLabels[p.type].label}
-                  </span>
-                </TableCell>
-                <TableCell className="hidden lg:table-cell text-sm">
-                  {p.type === 'INVENTARIO_DIRECTO' ? p.stock : '—'}
-                </TableCell>
-                <TableCell>
-                  <Badge variant={p.active ? 'default' : 'secondary'}>{p.active ? 'Activo' : 'Inactivo'}</Badge>
-                </TableCell>
-                <TableCell onClick={e => e.stopPropagation()}>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button size="icon" variant="ghost" className="h-8 w-8">
-                        <MoreHorizontal className="w-4 h-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => openEdit(p)}>
-                        <Pencil className="w-4 h-4 mr-2" /> Editar
-                      </DropdownMenuItem>
-                      {(p.variants?.length > 0 || p.type === 'PREPARADO') && (
-                        <DropdownMenuItem onClick={() => navigate('/recetas')}>
-                          <BookOpen className="w-4 h-4 mr-2 text-red-500" />
-                          <span className="text-red-600 font-medium">Ver Receta</span>
-                        </DropdownMenuItem>
-                      )}
-                      <DropdownMenuItem className="text-destructive" onClick={() => { setDeleting(p); setDeleteOpen(true); }}>
-                        <Trash2 className="w-4 h-4 mr-2" /> Eliminar
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </Card>
+      ) : (
+        <SectionCard
+          title="Listado de productos"
+          description={`Visualizando ${filtered.length} productos registrados ${estadoLabel}.`}
+          icon={Package}
+          iconColor="blue"
+        >
+          <div className="rounded-xl border border-border overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-14">Img</TableHead>
+                  <TableHead>Nombre</TableHead>
+                  <TableHead className="hidden md:table-cell">Categoría</TableHead>
+                  <TableHead>Rango de Precio</TableHead>
+                  <TableHead className="hidden sm:table-cell">SKUs</TableHead>
+                  <TableHead className="hidden lg:table-cell">Stock total</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead className="w-12"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.map(p => (
+                  <TableRow key={p.id} className="cursor-pointer hover:bg-accent/50" onClick={() => openEdit(p)}>
+                    <TableCell>
+                      <img src={p.image} alt={p.name} className="w-10 h-10 rounded-lg object-cover bg-muted border border-border" />
+                    </TableCell>
+                    <TableCell>
+                      <p className="font-semibold text-foreground">{p.name}</p>
+                      <p className="text-xs text-muted-foreground hidden sm:block">
+                        Producto padre
+                      </p>
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell text-sm font-medium text-muted-foreground">{p.category}</TableCell>
+                    <TableCell className="font-bold text-foreground ui-tabular">{p.priceLabel}</TableCell>
+                    <TableCell className="hidden sm:table-cell font-medium ui-tabular">{p.skuCount}</TableCell>
+                    <TableCell className="hidden lg:table-cell text-xs font-semibold text-muted-foreground">{p.stockLabel}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        <Badge variant={p.active ? 'success' : 'secondary'} className="shadow-2xs">{p.active ? 'Activo' : 'Inactivo'}</Badge>
+                        <Badge variant="type" className="shadow-2xs">Padre</Badge>
+                      </div>
+                    </TableCell>
+                    <TableCell onClick={e => e.stopPropagation()}>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg">
+                            <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="rounded-xl">
+                          <DropdownMenuItem onClick={() => openEdit(p)} className="rounded-lg">
+                            <Pencil className="w-4 h-4 mr-2 text-muted-foreground" /> Editar
+                          </DropdownMenuItem>
+                          {p.active ? (
+                            <DropdownMenuItem className="ui-status-danger rounded-lg focus:bg-[var(--status-danger-surface)]" onClick={() => { setDeleting(p); setDeleteOpen(true); }}>
+                              <Trash2 className="w-4 h-4 mr-2" /> Desactivar
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem onClick={() => updateProductoEstado({ id: Number(p.id), estado: 'ACTIVO' })} className="rounded-lg">
+                              <RotateCcw className="w-4 h-4 mr-2 text-muted-foreground" /> Reactivar
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </SectionCard>
       )}
 
       {/* Product Dialog with Tabs */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl rounded-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{selected ? 'Editar Producto' : 'Nuevo Producto'}</DialogTitle>
+            <DialogTitle className="text-lg font-bold">{dialogMode}</DialogTitle>
           </DialogHeader>
-          <Tabs value={productTab} onValueChange={setProductTab}>
-            <TabsList className="grid w-full" style={{ gridTemplateColumns: `repeat(${form.type === 'PREPARADO' ? 4 : 3}, minmax(0, 1fr))` }}>
-              <TabsTrigger value="general">General</TabsTrigger>
-              <TabsTrigger value="variantes">Variantes</TabsTrigger>
-              {form.type === 'PREPARADO' && <TabsTrigger value="receta">Receta</TabsTrigger>}
-              <TabsTrigger value="inventario">Inventario</TabsTrigger>
+          <Tabs
+            value={productTab}
+            onValueChange={(value) =>
+              setProductTab(!showRecipeTab && value === 'receta' ? 'inventario' : value)
+            }
+          >
+            <TabsList className="grid w-full rounded-xl h-11 p-1 bg-muted/30" style={{ gridTemplateColumns: `repeat(${tabCount}, minmax(0, 1fr))` }}>
+              <TabsTrigger value="general" className="rounded-lg h-9">General</TabsTrigger>
+              {isFormParent && <TabsTrigger value="variantes" className="rounded-lg h-9">SKUs hijos</TabsTrigger>}
+              {showRecipeTab && <TabsTrigger value="receta" className="rounded-lg h-9">Receta</TabsTrigger>}
+              <TabsTrigger value="inventario" className="rounded-lg h-9">Inventario</TabsTrigger>
             </TabsList>
 
             {/* General */}
@@ -394,112 +483,220 @@ export function Products() {
                 module="productos"
                 description="Sube una imagen o arrástrala desde tu equipo o internet. Formatos: JPG, PNG, WEBP."
               />
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
-                  <Label>Nombre *</Label>
-                  <Input placeholder="Nombre del producto" value={form.name || ''} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="mt-1" />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2 space-y-1.5">
+                  <Label className="text-sm font-semibold">Nombre *</Label>
+                  <Input placeholder="Nombre del producto" value={form.name || ''} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="h-11 rounded-xl" />
                 </div>
-                <div>
-                  <Label>Categoría</Label>
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-semibold">Categoría</Label>
                   <Select value={form.category || 'Hamburguesas'} onValueChange={v => setForm(f => ({ ...f, category: v }))}>
-                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                    <SelectContent>{categorias.map(c => <SelectItem key={c.idCategoria} value={c.nombre}>{c.nombre}</SelectItem>)}</SelectContent>
+                    <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
+                    <SelectContent className="rounded-xl">{categorias.map(c => <SelectItem key={c.idCategoria} value={c.nombre} className="rounded-lg">{c.nombre}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
-                <div>
-                  <Label>Tipo de producto</Label>
-                  <Select value={form.type || 'PREPARADO'} onValueChange={v => setForm(f => ({ ...f, type: v as Product['type'] }))}>
-                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="PREPARADO">Elaborado</SelectItem>
-                      <SelectItem value="INVENTARIO_DIRECTO">Directo</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Precio base (S/)</Label>
-                  <Input type="number" step="0.01" value={form.price || ''} onChange={e => setForm(f => ({ ...f, price: parseFloat(e.target.value) }))} className="mt-1" />
-                </div>
+                {isFormParent ? (
+                  <div className="md:col-span-2 rounded-xl border border-border bg-muted/20 p-4 space-y-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="type" className="shadow-2xs">Producto padre</Badge>
+                      <span className="text-xs text-muted-foreground font-medium">Unidad organizadora del catálogo visual.</span>
+                    </div>
+                    <div className="grid gap-3 text-xs text-muted-foreground md:grid-cols-2">
+                      <div>
+                        <p className="uppercase tracking-wider text-[10px] text-muted-foreground/80 font-bold">Unidad de catálogo</p>
+                        <p className="font-semibold text-foreground mt-0.5">Producto padre</p>
+                      </div>
+                      <div>
+                        <p className="uppercase tracking-wider text-[10px] text-muted-foreground/80 font-bold">Precio base</p>
+                        <p className="font-semibold text-foreground mt-0.5">Gestionado en SKUs hijos</p>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground font-medium leading-relaxed border-t border-border/40 pt-2.5">
+                      El precio real, stock, tipo operativo, lotes y receta se configuran individualmente en cada SKU hijo.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="space-y-1.5">
+                      <Label className="text-sm font-semibold">Tipo de producto</Label>
+                      <Select
+                        value={form.type || 'PREPARADO'}
+                        onValueChange={v => {
+                          const nextType = v as Product['type'];
+                          setForm(f => ({ ...f, type: nextType }));
+                          if (nextType === 'INVENTARIO_DIRECTO' && productTab === 'receta') {
+                            setProductTab('inventario');
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
+                        <SelectContent className="rounded-xl">
+                          <SelectItem value="PREPARADO" className="rounded-lg">Elaborado</SelectItem>
+                          <SelectItem value="INVENTARIO_DIRECTO" className="rounded-lg">Directo</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-sm font-semibold">Precio SKU (S/*) *</Label>
+                      <Input type="number" step="0.01" min="0" value={form.price || ''} onChange={e => setForm(f => ({ ...f, price: parseFloat(e.target.value) }))} className="h-11 rounded-xl" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-sm font-semibold">Producto padre</Label>
+                      <Select
+                        value={form.idProductoPadre ? String(form.idProductoPadre) : ''}
+                        onValueChange={v => setForm(f => ({ ...f, idProductoPadre: Number(v) }))}
+                        disabled={parentOptions.length === 0}
+                      >
+                        <SelectTrigger className="h-11 rounded-xl">
+                          <SelectValue placeholder="Selecciona un producto padre" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl">
+                          {parentOptions
+                            .filter(p => !selected || p.idProducto !== Number(selected.id))
+                            .map(p => <SelectItem key={p.idProducto} value={String(p.idProducto)} className="rounded-lg">{p.nombre}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-sm font-semibold">Código SKU</Label>
+                      <Input
+                        value={form.sku || ''}
+                        onChange={e => setForm(f => ({ ...f, sku: e.target.value }))}
+                        className="h-11 rounded-xl uppercase font-mono"
+                        placeholder="Ej: PIZ-FAM-001"
+                      />
+                    </div>
+                  </>
+                )}
                 <div className="flex items-center gap-3 pt-6">
                   <Switch checked={form.active ?? true} onCheckedChange={v => setForm(f => ({ ...f, active: v }))} />
-                  <Label>Producto activo</Label>
+                  <Label className="text-sm font-semibold">Producto activo en carta</Label>
                 </div>
               </div>
-              <div>
-                <Label>Descripción</Label>
-                <Textarea placeholder="Descripción breve..." value={form.description || ''} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} className="mt-1 resize-none" rows={2} />
+              <div className="space-y-1.5">
+                <Label className="text-sm font-semibold">Descripción</Label>
+                <Textarea placeholder="Descripción breve para la carta..." value={form.description || ''} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} className="rounded-xl resize-none" rows={2} />
               </div>
+              {formError && (
+                <div className="rounded-xl border ui-status-warning-soft px-4 py-3 text-xs font-semibold">
+                  {formError}
+                </div>
+              )}
             </TabsContent>
 
             {/* Variantes */}
             <TabsContent value="variantes" className="mt-4 space-y-4">
-              <p className="text-sm text-muted-foreground">Define tamaños o presentaciones para este producto.</p>
-              <div className="flex gap-2">
-                <Input placeholder="Ej: Mediana" value={newVariant.name} onChange={e => setNewVariant(v => ({ ...v, name: e.target.value }))} />
-                <Input placeholder="Precio extra" type="number" className="w-32" value={newVariant.price} onChange={e => setNewVariant(v => ({ ...v, price: e.target.value }))} />
-                <Button onClick={addVariant} type="button"><Plus className="w-4 h-4" /></Button>
-              </div>
-              <div className="space-y-2">
-                {(form.variants || []).map(v => (
-                  <div key={v.id} className="flex items-center gap-3 p-3 rounded-lg border border-border bg-muted/30">
-                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                    <span className="flex-1 text-sm font-medium">{v.name}</span>
-                    <span className="text-sm text-muted-foreground">+S/ {v.price.toFixed(2)}</span>
-                    <Switch checked={v.active} onCheckedChange={val => setForm(f => ({ ...f, variants: (f.variants || []).map(vv => vv.id === v.id ? { ...vv, active: val } : vv) }))} />
-                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => removeVariant(v.id)}>
-                      <Trash2 className="w-3.5 h-3.5" />
+              {form.esSku === false ? (
+                <>
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs text-muted-foreground font-medium">SKUs hijos vinculados a este producto del catálogo.</p>
+                    <Button type="button" size="sm" onClick={openCreateSkuChild} disabled={!selected} className="h-9 rounded-xl gap-1">
+                      <Plus className="w-4 h-4" /> Nuevo SKU hijo
                     </Button>
                   </div>
-                ))}
-                {(form.variants || []).length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-6">Sin variantes configuradas</p>
-                )}
-              </div>
+                  <div className="rounded-xl border border-border overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>SKU</TableHead>
+                          <TableHead>Nombre</TableHead>
+                          <TableHead>Precio real</TableHead>
+                          <TableHead>Stock computado</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {childSkuRows.map(sku => {
+                          const mappedSku = mappedProducts.find(p => p.id === String(sku.idProducto));
+                          return (
+                            <TableRow
+                              key={sku.idProducto}
+                              className={mappedSku ? 'cursor-pointer hover:bg-accent/40' : undefined}
+                              onClick={() => mappedSku && openEdit(mappedSku)}
+                            >
+                              <TableCell className="font-mono text-xs font-bold">{sku.sku || 'Sin código'}</TableCell>
+                              <TableCell className="font-semibold text-foreground text-sm">{sku.nombre}</TableCell>
+                              <TableCell className="font-bold text-foreground ui-tabular">S/ {sku.precio.toFixed(2)}</TableCell>
+                              <TableCell className="ui-tabular text-sm">{sku.stockActual ?? sku.stockTotal ?? 0}</TableCell>
+                            </TableRow>
+                          );
+                        })}
+                        {childSkuRows.length === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={4} className="text-center text-xs text-muted-foreground py-6 font-medium">
+                              Sin SKUs hijos configurados para este producto padre.
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-10 text-center gap-3 bg-muted/10 border border-dashed border-border rounded-xl">
+                  <Layers className="w-8 h-8 text-muted-foreground" />
+                  <p className="text-sm font-bold text-foreground">Registro de SKU vendible</p>
+                  <p className="text-xs text-muted-foreground max-w-xs leading-normal">
+                    Este registro ya es una variante vendible. Las relaciones y la jerarquía se administran desde su producto padre.
+                  </p>
+                </div>
+              )}
             </TabsContent>
 
             {/* Receta */}
             <TabsContent value="receta" className="mt-4">
-              <div className="flex flex-col items-center justify-center py-10 text-center gap-3">
-                <FlaskConical className="w-10 h-10 text-muted-foreground" />
-                <p className="text-sm font-medium">Gestión de receta</p>
-                <p className="text-xs text-muted-foreground max-w-xs">Configura los insumos y cantidades desde el módulo de Recetas para mayor detalle.</p>
-                <Button variant="outline" size="sm" onClick={() => navigate('/recetas')}>
-                  <ChevronRight className="w-4 h-4 mr-1" /> Ir al constructor de recetas
+              <div className="flex flex-col items-center justify-center py-10 text-center gap-3 bg-muted/10 border border-dashed border-border rounded-xl">
+                <FlaskConical className="w-8 h-8 text-muted-foreground" />
+                <p className="text-sm font-bold text-foreground">Constructor de Recetas</p>
+                <p className="text-xs text-muted-foreground max-w-xs leading-normal">
+                  Configura insumos, cantidades y costos unitarios detallados para el descuento automático de ingredientes.
+                </p>
+                <Button variant="outline" size="sm" onClick={() => selected && navigate(`/recetas?producto=${selected.id}`)} className="h-9 rounded-xl gap-1 mt-1 text-xs font-bold">
+                  <ChevronRight className="w-4 h-4" /> Ir a recetas
                 </Button>
               </div>
             </TabsContent>
 
             {/* Inventario */}
             <TabsContent value="inventario" className="mt-4 space-y-4">
-              {form.type === 'INVENTARIO_DIRECTO' ? (
-                <>
+              {form.esSku === false ? (
+                <div className="flex flex-col items-center justify-center py-10 text-center gap-3 bg-muted/10 border border-dashed border-border rounded-xl">
+                  <Layers className="w-8 h-8 text-muted-foreground" />
+                  <p className="text-sm font-bold text-foreground">Producto padre sin stock propio</p>
+                  <p className="text-xs text-muted-foreground max-w-xs leading-normal">
+                    El inventario se controla en los SKUs hijos vinculados. El producto padre solo organiza la visualización en la carta.
+                  </p>
+                </div>
+              ) : form.type === 'INVENTARIO_DIRECTO' ? (
+                <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label>Stock actual</Label>
-                      <Input type="number" value={form.stock || 0} onChange={e => setForm(f => ({ ...f, stock: parseInt(e.target.value) }))} className="mt-1" />
+                    <div className="rounded-xl border border-border p-4 bg-muted/20">
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Stock actual</p>
+                      <p className="text-xl font-bold text-foreground mt-1 ui-tabular">{form.stock || 0} unidades</p>
                     </div>
-                    <div>
-                      <Label>Stock mínimo</Label>
-                      <Input type="number" value={form.stockMinimo || 5} onChange={e => setForm(f => ({ ...f, stockMinimo: parseInt(e.target.value) }))} className="mt-1" />
+                    <div className="space-y-1.5">
+                      <Label className="text-sm font-semibold">Stock mínimo de seguridad</Label>
+                      <Input type="number" value={form.stockMinimo || 5} onChange={e => setForm(f => ({ ...f, stockMinimo: parseInt(e.target.value) }))} className="h-11 rounded-xl bg-background" />
                     </div>
                   </div>
-                  <div className="p-3 rounded-lg bg-muted/50 text-sm text-muted-foreground">
-                    Los productos directos requieren gestión manual de inventario.
+                  <div className="p-3.5 rounded-xl bg-muted/30 border border-border/60 text-xs text-muted-foreground leading-normal font-medium">
+                    El stock actual de venta es informativo en este panel. Registra entradas desde Compras y salidas/ajustes mediante el Kardex del almacén.
                   </div>
-                </>
+                </div>
               ) : (
-                <div className="flex flex-col items-center justify-center py-10 text-center gap-3">
-                  <Layers className="w-10 h-10 text-muted-foreground" />
-                  <p className="text-sm font-medium">Inventario automático</p>
-                  <p className="text-xs text-muted-foreground max-w-xs">El stock se descuenta automáticamente de los insumos al registrar una venta.</p>
+                <div className="flex flex-col items-center justify-center py-10 text-center gap-3 bg-muted/10 border border-dashed border-border rounded-xl">
+                  <Layers className="w-8 h-8 text-muted-foreground" />
+                  <p className="text-sm font-bold text-foreground">Descuento por Receta Activa</p>
+                  <p className="text-xs text-muted-foreground max-w-xs leading-normal font-medium">
+                    Este item se prepara al momento. El stock se deduce de forma automatizada y unitaria de cada uno de sus insumos base al procesar la venta.
+                  </p>
                 </div>
               )}
             </TabsContent>
 
           </Tabs>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={!form.name?.trim()}>
+          <DialogFooter className="gap-2 sm:gap-0 mt-5 pt-3 border-t border-border/40">
+            <Button variant="outline" onClick={() => setDialogOpen(false)} className="h-10 rounded-xl">Cancelar</Button>
+            <Button onClick={handleSave} disabled={!form.name?.trim()} className="h-10 rounded-xl font-semibold">
               {selected ? 'Guardar cambios' : 'Crear producto'}
             </Button>
           </DialogFooter>
@@ -508,18 +705,20 @@ export function Products() {
 
       {/* Delete */}
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader><DialogTitle>Eliminar producto</DialogTitle></DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            ¿Eliminar <strong>{deleting?.name}</strong>? Esta acción no se puede deshacer.
+        <DialogContent className="sm:max-w-sm rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">Desactivar producto</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+            ¿Desactivar <strong>{deleting?.name}</strong>? Quedará oculto de la carta de ventas del POS, pero podrás reactivarlo en cualquier momento.
           </p>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteOpen(false)}>Cancelar</Button>
-            <Button variant="destructive" onClick={async () => { if (deleting) { await deleteProducto(Number(deleting.id)); } setDeleteOpen(false); }}>Eliminar</Button>
+          <DialogFooter className="gap-2 sm:gap-0 mt-4">
+            <Button variant="outline" onClick={() => setDeleteOpen(false)} className="h-10 rounded-xl">Cancelar</Button>
+            <Button variant="destructive" onClick={async () => { if (deleting) { await deleteProducto(Number(deleting.id)); } setDeleteOpen(false); }} className="h-10 rounded-xl">Desactivar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageWrapper>
   );
 }
 
@@ -528,107 +727,107 @@ function ProductGridCard({
   product,
   onEdit,
   onDelete,
-  onNavigateReceta,
+  onReactivate,
 }: {
   product: Product;
   onEdit: (p: Product) => void;
   onDelete: () => void;
-  onNavigateReceta: () => void;
+  onReactivate: () => void;
 }) {
-  const stockColor =
-    !product.active          ? 'bg-gray-100 text-gray-500'
-    : product.type === 'PREPARADO' ? 'bg-blue-100 text-blue-700'
-    : product.stock < 5     ? 'bg-red-100 text-red-700'
-    : product.stock < 20    ? 'bg-orange-100 text-orange-700'
-    : 'bg-green-100 text-green-700';
-
-  const stockLabel =
-    product.type === 'PREPARADO'
-      ? 'Elaborado'
-      : `${product.stock} uds`;
-
-  const hasVariants = product.variants?.length > 0 || product.type === 'PREPARADO';
-
   return (
-    <div className="bg-card rounded-2xl overflow-hidden shadow-sm hover:shadow-md border border-border transition-all duration-200 flex flex-col group">
-      {/* Imagen */}
-      <div className="relative overflow-hidden" style={{ height: '155px' }}>
+    <Card className="group flex min-w-0 flex-col border border-border bg-card text-card-foreground shadow-sm rounded-2xl overflow-hidden hover:border-primary/40 transition-all">
+      <div className="relative aspect-[4/3] overflow-hidden bg-muted border-b border-border/60">
         <img
           src={product.image}
           alt={product.name}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 cursor-pointer"
           onClick={() => onEdit(product)}
+          title={product.name}
         />
-        {/* Stock / tipo badge */}
-        <span className={`absolute bottom-2 left-2 text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm ${stockColor}`}>
-          {stockLabel}
-        </span>
-        {/* Estado badge */}
-        <span className={`absolute top-2 right-2 text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm ${
-          product.active ? 'bg-teal-500 text-white' : 'bg-gray-200 text-gray-600'
-        }`}>
+        <Badge
+          variant={product.active ? 'success' : 'secondary'}
+          className="absolute right-2 top-2 max-w-[calc(100%-1rem)] shadow-2xs font-semibold text-[9px]"
+        >
           {product.active ? 'Activo' : 'Inactivo'}
-        </span>
+        </Badge>
       </div>
 
-      {/* Body */}
-      <div className="p-3 flex flex-col flex-1 gap-2">
-        {/* Nombre + categoría */}
-        <div className="flex items-start gap-1.5">
+      <CardContent className="flex flex-1 flex-col gap-3.5 p-4 justify-between">
+        <div className="space-y-2">
           <h3
-            className="font-bold text-sm leading-tight flex-1 cursor-pointer hover:text-red-600 transition-colors line-clamp-2"
+            className="line-clamp-2 cursor-pointer text-xs font-bold leading-normal text-foreground hover:text-primary transition-colors"
             onClick={() => onEdit(product)}
+            title={product.name}
           >
             {product.name}
           </h3>
-          <span className={`shrink-0 text-[9px] font-semibold px-1.5 py-0.5 rounded-md leading-none mt-0.5 ${typeLabels[product.type].color}`}>
-            {typeLabels[product.type].label}
-          </span>
+          <div className="flex min-w-0 flex-wrap gap-1">
+            <Badge variant="type" className="text-[9px] font-bold px-1.5 py-0">Padre</Badge>
+            <Badge variant={product.activeSkuCount > 0 ? 'info' : 'warning'} className="text-[9px] font-bold px-1.5 py-0 shadow-2xs">
+              {product.skuCount} SKU
+            </Badge>
+          </div>
         </div>
 
-        {/* Descripción */}
         {product.description && (
-          <p className="text-[11px] text-muted-foreground line-clamp-2 leading-snug">
+          <p className="line-clamp-2 text-[11px] leading-normal text-muted-foreground font-medium" title={product.description}>
             {product.description}
           </p>
         )}
 
-        {/* Precio */}
-        <div className="flex items-center justify-between mt-auto pt-2 border-t border-border/60">
-          <span className="text-xs text-muted-foreground">Precio</span>
-          <span className="text-base font-extrabold text-red-600 dark:text-red-400">
-            S/ {product.price.toFixed(2)}
-          </span>
+        <div className="mt-auto grid grid-cols-2 gap-2 border-t border-border/40 pt-3 text-[10px] font-semibold text-muted-foreground">
+          <div className="min-w-0">
+            <p className="uppercase tracking-wider text-[9px] text-muted-foreground/80">Precio</p>
+            <p className="truncate text-xs font-bold text-foreground mt-0.5 ui-tabular" title={product.priceLabel}>
+              {product.priceLabel}
+            </p>
+          </div>
+          <div className="min-w-0 text-right">
+            <p className="uppercase tracking-wider text-[9px] text-muted-foreground/80">Stock total</p>
+            <p className="truncate text-xs font-bold text-foreground mt-0.5 ui-tabular" title={product.stockLabel}>
+              {product.stockLabel}
+            </p>
+          </div>
         </div>
 
-        {/* Receta link */}
-        {hasVariants && (
-          <button
-            className="flex items-center gap-1 text-[11px] text-red-500 hover:text-red-700 font-medium transition-colors w-fit"
-            onClick={onNavigateReceta}
-          >
-            <BookOpen className="w-3 h-3" />
-            Ver receta
-          </button>
-        )}
-
-        {/* Botones: Editar + Eliminar */}
-        <div className="flex items-center gap-1.5 pt-1">
-          <button
-            className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-lg border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 text-xs font-semibold hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
+        <div className="flex items-center gap-1.5 border-t border-border/40 pt-3">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 rounded-lg text-xs font-semibold flex-1 gap-1"
             onClick={() => onEdit(product)}
           >
-            <Pencil className="w-3 h-3" />
+            <Pencil className="w-3.5 h-3.5" />
             Editar
-          </button>
-          <button
-            className="h-8 w-8 rounded-lg bg-red-600 hover:bg-red-700 text-white flex items-center justify-center transition-colors shrink-0"
-            onClick={onDelete}
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
+          </Button>
+          {product.active ? (
+            <Button
+              type="button"
+              size="icon"
+              variant="destructive"
+              className="h-8 w-8 rounded-lg"
+              onClick={onDelete}
+              aria-label="Desactivar producto"
+              title="Desactivar producto"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              size="icon"
+              variant="outline"
+              className="h-8 w-8 rounded-lg"
+              onClick={onReactivate}
+              aria-label="Reactivar producto"
+              title="Reactivar producto"
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-muted-foreground" />
+            </Button>
+          )}
         </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }

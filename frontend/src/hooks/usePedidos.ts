@@ -1,8 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { pedidosApi, PedidoRequest } from '../api/pedidos';
+import { Pedido, pedidosApi } from '../api/pedidos';
 import { PrivateQueryOptions, usePrivateQueryEnabled } from './usePrivateQuery';
 
-const EMPTY_ARRAY: any[] = [];
+const EMPTY_ARRAY: Pedido[] = [];
 
 interface UsePedidosOptions extends PrivateQueryOptions {
   pollingEnabled?: boolean;

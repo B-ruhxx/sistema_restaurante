@@ -18,7 +18,7 @@ public class PedidoEstadoHistorial {
     private Pedido pedido;
 
     @Enumerated(EnumType.STRING)
-    @Column(columnDefinition = "ENUM('ABIERTO', 'ENVIADO_COCINA', 'EN_PREPARACION', 'LISTO', 'ENTREGADO', 'CUENTA_SOLICITADA', 'CUENTA_EMITIDA', 'PAGADO', 'CANCELADO')")
+    @Column(columnDefinition = "ENUM('BORRADOR_ATENCION','EN_COCINA','LISTO','SERVIDO','CUENTA','CERRADO','CANCELADO')")
     private Pedido.Estado estado;
 
     @CreationTimestamp

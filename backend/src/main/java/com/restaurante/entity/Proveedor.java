@@ -14,23 +14,20 @@ public class Proveedor {
     @Column(name = "razon_social", nullable = false, length = 150)
     private String razonSocial;
 
-    @Column(name = "nombre_comercial", length = 150)
-    private String nombreComercial;
-
-    @Column(unique = true, length = 20)
+    @Column(unique = true, length = 11)
     private String ruc;
 
-    @Column(length = 20)
+    @Column(length = 30)
     private String telefono;
 
-    @Column(length = 100)
+    @Column(length = 120)
     private String email;
 
     @Column(length = 255)
     private String direccion;
 
-    @Column(name = "contacto_principal", length = 100)
-    private String contactoPrincipal;
+    @Column(length = 120)
+    private String contacto;
 
     @Enumerated(EnumType.STRING)
     @Column(columnDefinition = "ENUM('ACTIVO', 'INACTIVO') DEFAULT 'ACTIVO'")
@@ -57,14 +54,6 @@ public class Proveedor {
 
     public void setRazonSocial(String razonSocial) {
         this.razonSocial = razonSocial;
-    }
-
-    public String getNombreComercial() {
-        return nombreComercial;
-    }
-
-    public void setNombreComercial(String nombreComercial) {
-        this.nombreComercial = nombreComercial;
     }
 
     public String getRuc() {
@@ -99,12 +88,12 @@ public class Proveedor {
         this.direccion = direccion;
     }
 
-    public String getContactoPrincipal() {
-        return contactoPrincipal;
+    public String getContacto() {
+        return contacto;
     }
 
-    public void setContactoPrincipal(String contactoPrincipal) {
-        this.contactoPrincipal = contactoPrincipal;
+    public void setContacto(String contacto) {
+        this.contacto = contacto;
     }
 
     public Estado getEstado() {

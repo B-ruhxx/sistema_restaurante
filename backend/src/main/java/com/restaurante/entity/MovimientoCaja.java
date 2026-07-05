@@ -28,6 +28,19 @@ public class MovimientoCaja {
     @Column(precision = 10, scale = 2)
     private BigDecimal monto;
 
+    @Column(name = "reference_type", nullable = false, length = 40)
+    private String referenceType;
+
+    @Column(name = "reference_id", nullable = false)
+    private Integer referenceId;
+
+    @Column(nullable = false, length = 80)
+    private String comprobante;
+
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "id_empleado", nullable = false)
+    private Empleado empleado;
+
     @CreationTimestamp
     @Column(name = "fecha", nullable = false, updatable = false)
     private LocalDateTime fecha;
@@ -77,6 +90,38 @@ public class MovimientoCaja {
 
     public void setMonto(BigDecimal monto) {
         this.monto = monto;
+    }
+
+    public String getReferenceType() {
+        return referenceType;
+    }
+
+    public void setReferenceType(String referenceType) {
+        this.referenceType = referenceType;
+    }
+
+    public Integer getReferenceId() {
+        return referenceId;
+    }
+
+    public void setReferenceId(Integer referenceId) {
+        this.referenceId = referenceId;
+    }
+
+    public String getComprobante() {
+        return comprobante;
+    }
+
+    public void setComprobante(String comprobante) {
+        this.comprobante = comprobante;
+    }
+
+    public Empleado getEmpleado() {
+        return empleado;
+    }
+
+    public void setEmpleado(Empleado empleado) {
+        this.empleado = empleado;
     }
 
     public LocalDateTime getFecha() {

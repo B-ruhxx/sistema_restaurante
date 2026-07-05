@@ -9,6 +9,8 @@ import com.restaurante.dto.response.PedidoResponse;
 import com.restaurante.entity.*;
 import com.restaurante.exception.ResourceNotFoundException;
 import com.restaurante.repository.*;
+import com.restaurante.service.policy.PedidoPolicy;
+import com.restaurante.service.policy.ProductoPolicy;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
@@ -26,16 +28,14 @@ import org.springframework.transaction.annotation.Transactional;
 public class PedidoService {
     private static final BigDecimal IGV_PORCENTAJE = new BigDecimal("18.00");
     private static final Set<Pedido.Estado> ESTADOS_ACTIVOS_POR_MESA = Set.of(
-            Pedido.Estado.ABIERTO,
-            Pedido.Estado.ENVIADO_COCINA,
-            Pedido.Estado.EN_PREPARACION,
+            Pedido.Estado.BORRADOR_ATENCION,
+            Pedido.Estado.EN_COCINA,
             Pedido.Estado.LISTO,
-            Pedido.Estado.ENTREGADO,
-            Pedido.Estado.CUENTA_SOLICITADA,
-            Pedido.Estado.CUENTA_EMITIDA);
+            Pedido.Estado.SERVIDO,
+            Pedido.Estado.CUENTA);
     private static final Set<Pedido.Estado> ESTADOS_NO_MODIFICABLES = Set.of(
-            Pedido.Estado.CUENTA_EMITIDA,
-            Pedido.Estado.PAGADO,
+            Pedido.Estado.CUENTA,
+            Pedido.Estado.CERRADO,
             Pedido.Estado.CANCELADO);
 
     @Autowired
@@ -66,9 +66,6 @@ public class PedidoService {
     private ComboDetalleRepository comboDetalleRepository;
 
     @Autowired
-    private VarianteProductoRepository varianteProductoRepository;
-
-    @Autowired
     private ExtraProductoRepository extraProductoRepository;
 
     @Autowired
@@ -77,17 +74,24 @@ public class PedidoService {
     @Autowired
     private PedidoMapper pedidoMapper;
 
+    @Autowired
+    private ProductoPolicy productoPolicy;
+
+    @Autowired
+    private PedidoPolicy pedidoPolicy;
+
     public PedidoResponse crearPedido(PedidoRequest request, Empleado empleado) {
         Pedido pedido = new Pedido();
         pedido.setEmpleado(empleado);
-        pedido.setEstado(Pedido.Estado.ABIERTO);
+        pedido.setEstado(Pedido.Estado.BORRADOR_ATENCION);
         asignarClienteSiExiste(pedido, request.getIdCliente());
 
-        if (request.getIdMesa() != null) {
-            Mesa mesa = validarMesaLibre(request.getIdMesa());
-            pedido.setMesa(mesa);
-            mesa.setEstado(Mesa.Estado.OCUPADA);
+        if (request.getIdMesa() == null) {
+            throw new IllegalArgumentException("Un pedido de salón debe estar asociado a una mesa.");
         }
+        Mesa mesa = validarMesaLibre(request.getIdMesa());
+        pedido.setMesa(mesa);
+        mesa.setEstado(Mesa.Estado.ATENCION);
 
         Pedido pedidoGuardado = pedidoRepository.save(pedido);
         if (request.getDetalles() != null) {
@@ -97,7 +101,7 @@ public class PedidoService {
         }
 
         recalcularTotales(pedidoGuardado);
-        registrarHistorial(pedidoGuardado, Pedido.Estado.ABIERTO, empleado);
+        registrarHistorial(pedidoGuardado, Pedido.Estado.BORRADOR_ATENCION, empleado);
         return mapToDetailedResponse(pedidoRepository.save(pedidoGuardado));
     }
 
@@ -107,18 +111,18 @@ public class PedidoService {
         Pedido pedido = new Pedido();
         pedido.setEmpleado(empleado);
         pedido.setMesa(mesa);
-        pedido.setEstado(Pedido.Estado.ABIERTO);
+        pedido.setEstado(Pedido.Estado.BORRADOR_ATENCION);
         asignarClienteSiExiste(pedido, request != null ? request.getIdCliente() : null);
 
-        mesa.setEstado(Mesa.Estado.OCUPADA);
+        mesa.setEstado(Mesa.Estado.ATENCION);
         Pedido pedidoGuardado = pedidoRepository.save(pedido);
-        registrarHistorial(pedidoGuardado, Pedido.Estado.ABIERTO, empleado);
+        registrarHistorial(pedidoGuardado, Pedido.Estado.BORRADOR_ATENCION, empleado);
         return mapToDetailedResponse(pedidoGuardado);
     }
 
     @Transactional(readOnly = true)
     public Optional<PedidoResponse> obtenerPedidoActivoPorMesa(Integer idMesa) {
-        return pedidoRepository.findFirstByMesaIdMesaAndEstadoInOrderByFechaDesc(idMesa, ESTADOS_ACTIVOS_POR_MESA)
+        return pedidoRepository.findFirstByMesaIdMesaAndEstadoInOrderByFechaAperturaDesc(idMesa, ESTADOS_ACTIVOS_POR_MESA)
                 .map(this::mapToDetailedResponse);
     }
 
@@ -136,10 +140,10 @@ public class PedidoService {
         validarModificable(pedido);
         DetallePedido detalle = crearDetalle(pedido, request);
         recalcularTotales(pedido);
-        if (pedido.getEstado() == Pedido.Estado.ENTREGADO || pedido.getEstado() == Pedido.Estado.LISTO) {
-            cambiarEstadoInterno(pedido, Pedido.Estado.ABIERTO, pedido.getEmpleado());
+        if (pedido.getEstado() == Pedido.Estado.SERVIDO || pedido.getEstado() == Pedido.Estado.LISTO) {
+            cambiarEstadoInterno(pedido, Pedido.Estado.BORRADOR_ATENCION, pedido.getEmpleado());
             if (pedido.getMesa() != null) {
-                pedido.getMesa().setEstado(Mesa.Estado.OCUPADA);
+                pedido.getMesa().setEstado(Mesa.Estado.ATENCION);
             }
         }
         pedidoRepository.save(pedido);
@@ -149,18 +153,26 @@ public class PedidoService {
 
     public PedidoResponse enviarACocina(Integer idPedido, Empleado empleado) {
         Pedido pedido = findPedido(idPedido);
-        List<DetallePedido> detallesPendientes = detallePedidoRepository.findByPedidoIdPedido(idPedido).stream()
+        List<DetallePedido> detalles = detallePedidoRepository.findByPedidoIdPedido(idPedido);
+        List<DetallePedido> detallesPendientes = detalles.stream()
                 .filter(detalle -> detalle.getEstadoCocina() == null
                         || detalle.getEstadoCocina() == DetallePedido.EstadoCocina.PENDIENTE)
+                .filter(detalle -> Boolean.TRUE.equals(detalle.getRequierePreparacion()))
                 .collect(Collectors.toList());
         if (detallesPendientes.isEmpty()) {
-            throw new IllegalArgumentException("No hay nuevos productos pendientes para enviar a cocina.");
+            if (!detalles.isEmpty() && detalles.stream().noneMatch(detalle -> Boolean.TRUE.equals(detalle.getRequierePreparacion()))) {
+                cambiarEstadoInterno(pedido, Pedido.Estado.SERVIDO, empleado);
+                if (pedido.getMesa() != null) {
+                    pedido.getMesa().setEstado(Mesa.Estado.SERVIDO);
+                }
+                return mapToDetailedResponse(pedidoRepository.save(pedido));
+            }
+            throw new IllegalArgumentException("No hay nuevos productos preparables pendientes para enviar a cocina.");
         }
-        if (pedido.getEstado() != Pedido.Estado.ABIERTO
-                && pedido.getEstado() != Pedido.Estado.ENTREGADO
+        if (pedido.getEstado() != Pedido.Estado.BORRADOR_ATENCION
+                && pedido.getEstado() != Pedido.Estado.SERVIDO
                 && pedido.getEstado() != Pedido.Estado.LISTO
-                && pedido.getEstado() != Pedido.Estado.ENVIADO_COCINA
-                && pedido.getEstado() != Pedido.Estado.EN_PREPARACION) {
+                && pedido.getEstado() != Pedido.Estado.EN_COCINA) {
             throw new IllegalStateException("Solo se puede enviar a cocina un pedido abierto.");
         }
 
@@ -175,31 +187,40 @@ public class PedidoService {
 
         pedido.setFechaEnvioCocina(LocalDateTime.now());
         pedido.setTiempoEstimadoMinutos(estimado);
-        if (pedido.getEstado() != Pedido.Estado.EN_PREPARACION) {
-            cambiarEstadoInterno(pedido, Pedido.Estado.ENVIADO_COCINA, empleado);
+        if (pedido.getEstado() != Pedido.Estado.EN_COCINA) {
+            cambiarEstadoInterno(pedido, Pedido.Estado.EN_COCINA, empleado);
         }
         if (pedido.getMesa() != null) {
-            pedido.getMesa().setEstado(Mesa.Estado.ESPERANDO_COCINA);
+            pedido.getMesa().setEstado(Mesa.Estado.EN_COCINA);
         }
-        return mapToDetailedResponse(pedidoRepository.save(pedido));
-    }
-
-    public PedidoResponse solicitarCuenta(Integer idPedido, Empleado empleado) {
-        Pedido pedido = findPedido(idPedido);
-        if (pedido.getEstado() != Pedido.Estado.ENTREGADO) {
-            throw new IllegalStateException("Solo se puede solicitar cuenta de un pedido entregado.");
-        }
-        cambiarEstadoInterno(pedido, Pedido.Estado.CUENTA_SOLICITADA, empleado);
         return mapToDetailedResponse(pedidoRepository.save(pedido));
     }
 
     public PedidoResponse actualizarEstado(Integer idPedido, Pedido.Estado nuevoEstado, Empleado empleado) {
         Pedido pedido = findPedido(idPedido);
-        if (pedido.getEstado() == Pedido.Estado.PAGADO && nuevoEstado != Pedido.Estado.CANCELADO) {
+        if (pedido.getEstado() == Pedido.Estado.CERRADO && nuevoEstado != Pedido.Estado.CANCELADO) {
             throw new IllegalStateException("No se puede modificar un pedido pagado.");
         }
+        pedidoPolicy.validarTransicion(pedido, nuevoEstado);
         cambiarEstadoInterno(pedido, nuevoEstado, empleado);
         sincronizarMesaPorEstado(pedido);
+        return mapToDetailedResponse(pedidoRepository.save(pedido));
+    }
+
+    public PedidoResponse cancelarPedido(Integer idPedido, String motivo, Empleado empleado) {
+        Pedido pedido = findPedido(idPedido);
+        pedidoPolicy.validarCancelacion(pedido, empleado, motivo);
+        detallePedidoRepository.findByPedidoIdPedido(idPedido).forEach(detalle -> {
+            if (detalle.getEstadoCocina() != DetallePedido.EstadoCocina.LISTO) {
+                detalle.setEstadoCocina(DetallePedido.EstadoCocina.CANCELADO);
+                detallePedidoRepository.save(detalle);
+            }
+        });
+        pedido.setMotivoCancelacion(motivo.trim());
+        cambiarEstadoInterno(pedido, Pedido.Estado.CANCELADO, empleado);
+        if (pedido.getMesa() != null) {
+            pedido.getMesa().setEstado(Mesa.Estado.DISPONIBLE);
+        }
         return mapToDetailedResponse(pedidoRepository.save(pedido));
     }
 
@@ -222,7 +243,7 @@ public class PedidoService {
 
     @Transactional(readOnly = true)
     public List<PedidoResponse> listarPedidosCobrables() {
-        return pedidoRepository.findByEstadoIn(List.of(Pedido.Estado.CUENTA_EMITIDA, Pedido.Estado.ENTREGADO)).stream()
+        return pedidoRepository.findByEstadoIn(List.of(Pedido.Estado.CUENTA)).stream()
                 .map(this::mapToDetailedResponse)
                 .collect(Collectors.toList());
     }
@@ -231,11 +252,11 @@ public class PedidoService {
     public List<PedidoResponse> buscarPedidosParaCaja(String query) {
         String normalized = query == null ? "" : query.trim();
         LinkedHashMap<Integer, Pedido> encontrados = new LinkedHashMap<>();
-        pedidoRepository.buscarParaCaja(normalized, List.of(Pedido.Estado.CUENTA_EMITIDA, Pedido.Estado.ENTREGADO))
+        pedidoRepository.buscarParaCaja(normalized, List.of(Pedido.Estado.CUENTA))
                 .forEach(pedido -> encontrados.put(pedido.getIdPedido(), pedido));
         if (normalized.matches("\\d+")) {
             pedidoRepository.findById(Integer.valueOf(normalized))
-                    .filter(pedido -> pedido.getEstado() == Pedido.Estado.CUENTA_EMITIDA || pedido.getEstado() == Pedido.Estado.ENTREGADO)
+                    .filter(pedido -> pedido.getEstado() == Pedido.Estado.CUENTA)
                     .ifPresent(pedido -> encontrados.put(pedido.getIdPedido(), pedido));
         }
         return encontrados.values().stream().map(this::mapToDetailedResponse).collect(Collectors.toList());
@@ -243,7 +264,7 @@ public class PedidoService {
 
     @Transactional(readOnly = true)
     public List<PedidoResponse> obtenerPedidosCobrablesPorMesa(Integer idMesa) {
-        return pedidoRepository.findByMesaIdMesaAndEstadoIn(idMesa, List.of(Pedido.Estado.CUENTA_EMITIDA, Pedido.Estado.ENTREGADO))
+        return pedidoRepository.findByMesaIdMesaAndEstadoIn(idMesa, List.of(Pedido.Estado.CUENTA))
                 .stream()
                 .map(this::mapToDetailedResponse)
                 .collect(Collectors.toList());
@@ -290,17 +311,14 @@ public class PedidoService {
         if (item.getIdProducto() != null) {
             Producto prod = productoRepository.findById(item.getIdProducto())
                     .orElseThrow(() -> new ResourceNotFoundException("Producto no encontrado: " + item.getIdProducto()));
+            productoPolicy.validarVendible(prod, recetaProductoRepository);
+            productoPolicy.validarEnrutamientoCocina(prod);
             detalle.setProducto(prod);
-            precioUnitario = prod.getPrecio();
-
-            if (item.getIdVariante() != null) {
-                VarianteProducto variante = varianteProductoRepository.findById(item.getIdVariante())
-                        .orElseThrow(() -> new ResourceNotFoundException("Variante no encontrada: " + item.getIdVariante()));
-                detalle.setVariante(variante);
-                if (variante.getPrecioExtra() != null) {
-                    precioUnitario = precioUnitario.add(variante.getPrecioExtra());
-                }
+            detalle.setRequierePreparacion(prod.getTipoProducto() == Producto.TipoProducto.PREPARADO);
+            if (!Boolean.TRUE.equals(detalle.getRequierePreparacion())) {
+                detalle.setEstadoCocina(DetallePedido.EstadoCocina.LISTO);
             }
+            precioUnitario = prod.getPrecio();
         } else if (item.getIdCombo() != null) {
             ComboProducto combo = comboProductoRepository.findById(item.getIdCombo())
                     .orElseThrow(() -> new ResourceNotFoundException("Combo no encontrado: " + item.getIdCombo()));
@@ -317,6 +335,7 @@ public class PedidoService {
             for (Integer extraId : item.getExtrasIds()) {
                 ExtraProducto extra = extraProductoRepository.findById(extraId)
                         .orElseThrow(() -> new ResourceNotFoundException("Extra de producto no encontrado: " + extraId));
+                validarExtraVendible(extra);
                 subtotalAcumulado = subtotalAcumulado.add(extra.getPrecio().multiply(BigDecimal.valueOf(item.getCantidad())));
             }
         }
@@ -328,10 +347,13 @@ public class PedidoService {
             for (Integer extraId : item.getExtrasIds()) {
                 ExtraProducto extra = extraProductoRepository.findById(extraId)
                         .orElseThrow(() -> new ResourceNotFoundException("Extra de producto no encontrado: " + extraId));
+                validarExtraVendible(extra);
                 PedidoExtra pedExtra = new PedidoExtra();
                 pedExtra.setDetallePedido(detalleGuardado);
                 pedExtra.setExtra(extra);
                 pedExtra.setCantidad(1);
+                pedExtra.setPrecioUnitario(extra.getPrecio());
+                pedExtra.setSubtotal(extra.getPrecio().multiply(BigDecimal.valueOf(item.getCantidad())));
                 pedidoExtraRepository.save(pedExtra);
             }
         }
@@ -339,10 +361,20 @@ public class PedidoService {
         return detalleGuardado;
     }
 
+    private void validarExtraVendible(ExtraProducto extra) {
+        if (extra.getEstado() != ExtraProducto.Estado.ACTIVO) {
+            throw new IllegalStateException("El extra no está activo: " + extra.getNombre());
+        }
+        if (extra.getInsumo() == null || extra.getCantidadConsumida() == null
+                || extra.getCantidadConsumida().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalStateException("El extra no tiene insumo/cantidad de consumo configurados: " + extra.getNombre());
+        }
+    }
+
     private Mesa validarMesaLibre(Integer idMesa) {
         Mesa mesa = mesaRepository.findById(idMesa)
                 .orElseThrow(() -> new ResourceNotFoundException("Mesa no encontrada."));
-        if (mesa.getEstado() != Mesa.Estado.LIBRE) {
+        if (mesa.getEstado() != Mesa.Estado.DISPONIBLE) {
             throw new IllegalStateException("La mesa no está libre.");
         }
         if (pedidoRepository.existsByMesaIdMesaAndEstadoIn(idMesa, ESTADOS_ACTIVOS_POR_MESA)) {
@@ -367,18 +399,21 @@ public class PedidoService {
 
     private void sincronizarMesaPorEstado(Pedido pedido) {
         if (pedido.getMesa() == null) return;
-        if (pedido.getEstado() == Pedido.Estado.ENTREGADO) {
+        if (pedido.getEstado() == Pedido.Estado.SERVIDO) {
             pedido.getMesa().setEstado(Mesa.Estado.SERVIDO);
         } else if (pedido.getEstado() == Pedido.Estado.LISTO) {
-            pedido.getMesa().setEstado(Mesa.Estado.ESPERANDO_COCINA);
-        } else if (pedido.getEstado() == Pedido.Estado.PAGADO) {
-            pedido.getMesa().setEstado(Mesa.Estado.LIBRE);
+            pedido.getMesa().setEstado(Mesa.Estado.EN_COCINA);
+        } else if (pedido.getEstado() == Pedido.Estado.CERRADO) {
+            pedido.getMesa().setEstado(Mesa.Estado.DISPONIBLE);
         } else if (pedido.getEstado() == Pedido.Estado.CANCELADO) {
-            pedido.getMesa().setEstado(Mesa.Estado.LIBRE);
+            pedido.getMesa().setEstado(Mesa.Estado.DISPONIBLE);
         }
     }
 
     private int calcularTiempoEstimadoDetalle(DetallePedido detalle) {
+        if (!Boolean.TRUE.equals(detalle.getRequierePreparacion())) {
+            return 0;
+        }
         if (detalle.getProducto() != null) {
             return calcularTiempoEstimadoProducto(detalle.getProducto().getIdProducto());
         }
@@ -392,11 +427,9 @@ public class PedidoService {
     }
 
     private int calcularTiempoEstimadoProducto(Integer idProducto) {
-        return recetaProductoRepository.findByProductoIdProducto(idProducto).stream()
-                .map(RecetaProducto::getTiempoPreparacionMinutos)
+        return productoRepository.findById(idProducto)
+                .map(Producto::getTiempoPreparacionMinutos)
                 .filter(tiempo -> tiempo != null && tiempo > 0)
-                .mapToInt(Integer::intValue)
-                .max()
                 .orElse(1);
     }
 

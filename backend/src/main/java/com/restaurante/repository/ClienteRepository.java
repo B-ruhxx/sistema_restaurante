@@ -6,6 +6,6 @@ import java.util.List;
 import java.util.Optional;
 
 public interface ClienteRepository extends JpaRepository<Cliente, Integer> {
-    Optional<Cliente> findByDocumentoIdentidad(String documentoIdentidad);
+    Optional<Cliente> findByNumeroDocumento(String numeroDocumento);
     List<Cliente> findByEstado(Cliente.Estado estado);
 }

@@ -3,6 +3,7 @@ package com.restaurante.dto.mapper;
 import com.restaurante.dto.request.InsumoRequest;
 import com.restaurante.dto.response.InsumoResponse;
 import com.restaurante.entity.Insumo;
+import java.math.BigDecimal;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -28,7 +29,7 @@ public class InsumoMapper {
         Insumo entity = new Insumo();
         entity.setNombre(request.getNombre());
         entity.setUnidad(request.getUnidad());
-        entity.setStock(request.getStock());
+        entity.setStock(BigDecimal.ZERO);
         entity.setStockMinimo(request.getStockMinimo());
         if (request.getCostoPromedio() != null) {
             entity.setCostoPromedio(request.getCostoPromedio());

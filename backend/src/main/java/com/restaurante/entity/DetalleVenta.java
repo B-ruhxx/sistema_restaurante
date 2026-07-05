@@ -24,6 +24,10 @@ public class DetalleVenta {
     @JoinColumn(name = "id_combo")
     private ComboProducto combo;
 
+    @ManyToOne
+    @JoinColumn(name = "id_detalle_pedido")
+    private DetallePedido detallePedido;
+
     @Column(nullable = false)
     private Integer cantidad;
 
@@ -49,6 +53,9 @@ public class DetalleVenta {
 
     public ComboProducto getCombo() { return combo; }
     public void setCombo(ComboProducto combo) { this.combo = combo; }
+
+    public DetallePedido getDetallePedido() { return detallePedido; }
+    public void setDetallePedido(DetallePedido detallePedido) { this.detallePedido = detallePedido; }
 
     public Integer getCantidad() { return cantidad; }
     public void setCantidad(Integer cantidad) { this.cantidad = cantidad; }

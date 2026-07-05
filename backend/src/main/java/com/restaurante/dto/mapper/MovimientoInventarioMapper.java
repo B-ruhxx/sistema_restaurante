@@ -18,18 +18,28 @@ public class MovimientoInventarioMapper {
             response.setIdInsumo(entity.getInsumo().getIdInsumo());
             response.setNombreInsumo(entity.getInsumo().getNombre());
         }
+        if (entity.getLoteInsumo() != null) {
+            response.setIdLoteInsumo(entity.getLoteInsumo().getIdLoteInsumo());
+            response.setFechaVencimientoLote(entity.getLoteInsumo().getFechaVencimiento());
+        }
         if (entity.getProducto() != null) {
             response.setIdProducto(entity.getProducto().getIdProducto());
             response.setNombreProducto(entity.getProducto().getNombre());
         }
+        if (entity.getLoteProducto() != null) {
+            response.setIdLoteProducto(entity.getLoteProducto().getIdLoteProducto());
+            response.setFechaVencimientoLote(entity.getLoteProducto().getFechaVencimiento());
+        }
         if (entity.getTipoMovimiento() != null) {
             response.setTipoMovimiento(entity.getTipoMovimiento().name());
         }
-        if (entity.getOrigen() != null) {
-            response.setOrigen(entity.getOrigen().name());
-        }
-        response.setReferenciaId(entity.getReferenciaId());
+        response.setReferenceType(entity.getReferenceType());
+        response.setReferenceId(entity.getReferenceId());
         response.setCantidad(entity.getCantidad());
+        response.setStockAnterior(entity.getStockAnterior());
+        response.setStockNuevo(entity.getStockNuevo());
+        response.setCostoUnitario(entity.getCostoUnitario());
+        response.setSaldoValorizado(entity.getSaldoValorizado());
         response.setMotivo(entity.getMotivo());
         response.setFecha(entity.getFecha());
         if (entity.getEmpleado() != null) {

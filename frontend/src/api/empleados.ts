@@ -25,6 +25,28 @@ export interface EmpleadoRequest {
   idRol: number;
 }
 
+export interface EmpleadoSesion {
+  id: string;
+  fecha: string;
+  horaInicio: string;
+  horaFin?: string;
+  duracion: string;
+  actividades: number;
+}
+
+export interface EmpleadoActividad {
+  id: string;
+  accion: string;
+  modulo: string;
+  fecha: string;
+  detalles: string;
+}
+
+export interface EmpleadoRol {
+  idRol: number;
+  nombre: string;
+}
+
 export const empleadosApi = {
   getAll: async (): Promise<Empleado[]> => {
     const response = await api.get('/empleados');
@@ -50,8 +72,18 @@ export const empleadosApi = {
     await api.delete(`/empleados/${id}`);
   },
 
-  getRoles: async (): Promise<any[]> => {
+  getRoles: async (): Promise<EmpleadoRol[]> => {
     const response = await api.get('/empleados/roles');
     return response.data;
-  }
+  },
+
+  getSesiones: async (id: number): Promise<EmpleadoSesion[]> => {
+    const response = await api.get(`/empleados/${id}/sesiones`);
+    return response.data;
+  },
+
+  getActividad: async (id: number): Promise<EmpleadoActividad[]> => {
+    const response = await api.get(`/empleados/${id}/actividad`);
+    return response.data;
+  },
 };

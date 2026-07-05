@@ -28,4 +28,7 @@ public class StockInsuficienteDto {
 
     public BigDecimal getCantidadNecesaria() { return cantidadNecesaria; }
     public void setCantidadNecesaria(BigDecimal cantidadNecesaria) { this.cantidadNecesaria = cantidadNecesaria; }
+
+    public BigDecimal getCantidad() { return cantidadNecesaria; }
+    public void setCantidad(BigDecimal cantidad) { this.cantidadNecesaria = cantidad; }
 }

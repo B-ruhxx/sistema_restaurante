@@ -4,12 +4,18 @@ export interface ExtraProducto {
   idExtra: number;
   nombre: string;
   precio: number;
+  idInsumo: number;
+  nombreInsumo?: string;
+  unidadMedidaInsumo?: string;
+  cantidadConsumida: number;
   estado?: 'ACTIVO' | 'INACTIVO';
 }
 
 export interface ExtraProductoRequest {
   nombre: string;
   precio: number;
+  idInsumo: number;
+  cantidadConsumida: number;
   estado?: 'ACTIVO' | 'INACTIVO';
 }
 

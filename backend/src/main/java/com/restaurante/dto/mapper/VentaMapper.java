@@ -19,18 +19,16 @@ public class VentaMapper {
         if (entity == null) return null;
         VentaResponse dto = new VentaResponse();
         dto.setIdVenta(entity.getIdVenta());
-        dto.setCodigoVenta(entity.getCodigoVenta());
+        dto.setComprobante(entity.getComprobante());
         dto.setFecha(entity.getFecha());
         dto.setSubtotal(entity.getSubtotal());
-        dto.setSubtotalGravado(entity.getSubtotalGravado());
-        dto.setigv(entity.getIgv());
-        dto.setIgvPorcentaje(entity.getIgvPorcentaje());
+        dto.setIgv(entity.getIgv());
         dto.setTotal(entity.getTotal());
         if (entity.getTipoComprobante() != null) {
             dto.setTipoComprobante(entity.getTipoComprobante().name());
         }
         dto.setSerie(entity.getSerie());
-        dto.setCorrelativo(entity.getCorrelativo());
+        dto.setNumero(entity.getNumero());
         if (entity.getEstado() != null) {
             dto.setEstado(entity.getEstado().name());
         }
@@ -89,7 +87,7 @@ public class VentaMapper {
         VentaPagoResponse dto = new VentaPagoResponse();
         dto.setIdVentaPago(entity.getIdVentaPago());
         dto.setMonto(entity.getMonto());
-        dto.setNumeroOperacion(entity.getNumeroOperacion());
+        dto.setReferencia(entity.getReferencia());
         if (entity.getEstado() != null) {
             dto.setEstado(entity.getEstado().name());
         }

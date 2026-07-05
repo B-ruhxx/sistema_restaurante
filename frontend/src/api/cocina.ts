@@ -8,6 +8,9 @@ export interface ComandaDetalle {
   observacion?: string;
   extras?: string[];
   estadoCocina: 'PENDIENTE' | 'EN_PREPARACION' | 'LISTO' | 'CANCELADO';
+  tipoProducto?: 'PREPARADO' | 'INVENTARIO_DIRECTO';
+  requierePreparacion?: boolean;
+  esDespachoDirecto?: boolean;
   tiempoEstimadoMinutos?: number;
   tiempoRealMinutos?: number;
   fechaInicioPreparacion?: string;

@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -21,10 +20,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../components/ui/dialog';
-import { CreditCard, Plus, Edit, Trash2, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
+import { CreditCard, Plus, Pencil, Trash2, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { toast } from '../../lib/notifications';
 import { useMetodoPagos } from '../../hooks/useMetodoPagos';
 import type { MetodoPago, MetodoPagoRequest } from '../../api/metodoPagos';
+import { PageWrapper, ModuleHeader, KpiCard, EmptyState, SectionCard } from '../components/ui/erp-layout';
+import { cn } from '../components/ui/utils';
 
 export function PaymentMethods() {
   const {
@@ -39,12 +40,14 @@ export function PaymentMethods() {
   const [editingMethod, setEditingMethod] = useState<MetodoPago | null>(null);
   const [formData, setFormData] = useState<MetodoPagoRequest>({
     nombre: '',
+    codigo: '',
+    requiereReferencia: false,
     estado: 'ACTIVO',
   });
 
   const handleOpenCreate = () => {
     setEditingMethod(null);
-    setFormData({ nombre: '', estado: 'ACTIVO' });
+    setFormData({ nombre: '', codigo: '', requiereReferencia: false, estado: 'ACTIVO' });
     setDialogOpen(true);
   };
 
@@ -52,6 +55,8 @@ export function PaymentMethods() {
     setEditingMethod(method);
     setFormData({
       nombre: method.nombre,
+      codigo: method.codigo,
+      requiereReferencia: method.requiereReferencia ?? false,
       estado: method.estado,
     });
     setDialogOpen(true);
@@ -59,19 +64,35 @@ export function PaymentMethods() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const payload: MetodoPagoRequest = {
+      nombre: formData.nombre.trim(),
+      codigo: formData.codigo.trim().toUpperCase(),
+      requiereReferencia: formData.requiereReferencia ?? false,
+      estado: formData.estado,
+    };
+
+    if (!payload.nombre || !payload.codigo) {
+      toast.error('El nombre y el código son obligatorios');
+      return;
+    }
 
     try {
       if (editingMethod) {
-        await updateMetodoPago({ id: editingMethod.idMetodoPago, data: formData });
+        await updateMetodoPago({ id: editingMethod.idMetodoPago, data: payload });
         toast.success('Método de pago actualizado');
       } else {
-        await createMetodoPago(formData);
+        await createMetodoPago(payload);
         toast.success('Método de pago creado');
       }
       setDialogOpen(false);
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      toast.error(err.response?.data || 'Ocurrió un error al guardar');
+      const apiError = err as AppApiErrorLike;
+      const errorMessage =
+        typeof apiError.response?.data === 'string'
+          ? apiError.response.data
+          : apiError.response?.data?.message;
+      toast.error(errorMessage || 'Ocurrió un error al guardar');
     }
   };
 
@@ -80,9 +101,14 @@ export function PaymentMethods() {
     try {
       await deleteMetodoPago(method.idMetodoPago);
       toast.success('Método de pago eliminado');
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      toast.error(err.response?.data || 'Error al eliminar método de pago');
+      const apiError = err as AppApiErrorLike;
+      const errorMessage =
+        typeof apiError.response?.data === 'string'
+          ? apiError.response.data
+          : apiError.response?.data?.message;
+      toast.error(errorMessage || 'Error al eliminar método de pago');
     }
   };
 
@@ -91,10 +117,15 @@ export function PaymentMethods() {
     try {
       await updateMetodoPago({
         id: method.idMetodoPago,
-        data: { nombre: method.nombre, estado: newEstado },
+        data: {
+          nombre: method.nombre,
+          codigo: method.codigo,
+          requiereReferencia: method.requiereReferencia ?? false,
+          estado: newEstado,
+        },
       });
       toast.success(`Método ${newEstado === 'ACTIVO' ? 'activado' : 'desactivado'}`);
-    } catch (err) {
+    } catch {
       toast.error('Error al cambiar estado');
     }
   };
@@ -104,179 +135,199 @@ export function PaymentMethods() {
 
   if (isLoading) {
     return (
-      <div className="h-[80vh] flex flex-col items-center justify-center gap-2">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="h-[80vh] flex flex-col items-center justify-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+          <Loader2 className="w-5 h-5 animate-spin text-primary" />
+        </div>
         <p className="text-sm text-muted-foreground">Cargando métodos de pago...</p>
       </div>
     );
   }
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <CreditCard className="w-6 h-6 text-primary" />
-            <h1 className="text-2xl font-semibold">Métodos de Pago</h1>
-          </div>
-          <Button onClick={handleOpenCreate}>
-            <Plus className="w-4 h-4 mr-2" />
-            Nuevo Método
+    <PageWrapper>
+      <ModuleHeader
+        breadcrumbs={[
+          { label: 'Finanzas' },
+          { label: 'Métodos de Pago' },
+        ]}
+        icon={CreditCard}
+        iconColor="blue"
+        title="Métodos de Pago"
+        subtitle="Administra los medios de cobro y pago (Efectivo, Tarjetas, Yape, Plin) disponibles en caja."
+        action={
+          <Button onClick={handleOpenCreate} className="h-11 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95 gap-2 font-semibold">
+            <Plus className="w-4 h-4" /> Nuevo Método
           </Button>
-        </div>
-        <p className="text-sm text-muted-foreground">
-          Configura los métodos de pago aceptados en tu negocio
-        </p>
-      </div>
+        }
+      />
 
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardDescription>Total Métodos</CardDescription>
-            <CardTitle className="text-3xl">{metodoPagos.length}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-xs text-muted-foreground">Configurados en el sistema</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-3">
-            <CardDescription>Métodos Activos</CardDescription>
-            <CardTitle className="text-3xl text-green-600">{activeMethods}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-xs text-muted-foreground">Disponibles para ventas</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-3">
-            <CardDescription>Métodos Inactivos</CardDescription>
-            <CardTitle className="text-3xl text-red-600">{inactiveMethods}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-xs text-muted-foreground">Deshabilitados temporalmente</div>
-          </CardContent>
-        </Card>
+        <KpiCard icon={CreditCard} label="Total Métodos" value={metodoPagos.length} color="slate" />
+        <KpiCard icon={CheckCircle2} label="Métodos Activos" value={activeMethods} color="green" />
+        <KpiCard icon={XCircle} label="Deshabilitados" value={inactiveMethods} color="red" />
       </div>
 
-      {/* Payment Methods Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Métodos Configurados</CardTitle>
-          <CardDescription>Administra los métodos de pago disponibles</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Método</TableHead>
-                <TableHead>ID</TableHead>
-                <TableHead className="text-center">Estado</TableHead>
-                <TableHead className="text-center">Habilitado</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {metodoPagos.map((method: MetodoPago) => (
-                <TableRow key={method.idMetodoPago}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                        <CreditCard className="w-5 h-5 text-primary" />
-                      </div>
-                      <div className="font-medium">{method.nombre}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <code className="text-xs bg-muted px-2 py-1 rounded">
-                      #{method.idMetodoPago}
-                    </code>
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {method.estado === 'ACTIVO' ? (
-                      <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">
-                        <CheckCircle2 className="w-3 h-3 mr-1" />
-                        Activo
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20">
-                        <XCircle className="w-3 h-3 mr-1" />
-                        Inactivo
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <Switch
-                      checked={method.estado === 'ACTIVO'}
-                      onCheckedChange={() => handleToggleStatus(method)}
-                    />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => handleOpenEdit(method)}
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive hover:text-destructive"
-                        onClick={() => handleDelete(method)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {metodoPagos.length === 0 && (
+      {/* Table Section */}
+      {metodoPagos.length === 0 ? (
+        <EmptyState
+          icon={CreditCard}
+          title="Sin métodos configurados"
+          description="Debes configurar al menos un método de pago activo para realizar ventas en el sistema de POS."
+          action={
+            <Button onClick={handleOpenCreate} className="h-10 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95">
+              <Plus className="w-4 h-4 mr-2" />
+              Nuevo Método
+            </Button>
+          }
+        />
+      ) : (
+        <SectionCard
+          title="Métodos de Pago Configurados"
+          description="Habilita, deshabilita y controla los códigos operativos de cada medio de cobro."
+          icon={CreditCard}
+          iconColor="blue"
+        >
+          <div className="rounded-xl border border-border overflow-hidden">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                    No hay métodos de pago configurados.
-                  </TableCell>
+                  <TableHead>Método</TableHead>
+                  <TableHead>Código</TableHead>
+                  <TableHead className="text-center">Requiere Referencia</TableHead>
+                  <TableHead className="text-center">Estado</TableHead>
+                  <TableHead className="text-center">Habilitado</TableHead>
+                  <TableHead className="w-12 text-right"></TableHead>
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+              </TableHeader>
+              <TableBody>
+                {metodoPagos.map((method: MetodoPago) => (
+                  <TableRow key={method.idMetodoPago}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                          <CreditCard className="w-4.5 h-4.5 text-primary" />
+                        </div>
+                        <div className="font-bold text-foreground text-sm">{method.nombre}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <code className="text-xs bg-muted font-bold font-mono px-2.5 py-1 rounded-lg text-foreground">
+                        {method.codigo}
+                      </code>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge variant={method.requiereReferencia ? 'secondary' : 'outline'} className="shadow-3xs text-[10px] font-bold">
+                        {method.requiereReferencia ? 'Sí' : 'No'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {method.estado === 'ACTIVO' ? (
+                        <Badge variant="success" className="shadow-2xs font-bold gap-1">
+                          <CheckCircle2 className="w-3 h-3" />
+                          Activo
+                        </Badge>
+                      ) : (
+                        <Badge variant="danger" className="shadow-2xs font-bold gap-1">
+                          <XCircle className="w-3 h-3" />
+                          Inactivo
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <div className="inline-flex justify-center">
+                        <Switch
+                          checked={method.estado === 'ACTIVO'}
+                          onCheckedChange={() => handleToggleStatus(method)}
+                        />
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-lg"
+                          onClick={() => handleOpenEdit(method)}
+                        >
+                          <Pencil className="w-4 h-4 text-muted-foreground" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-lg ui-status-danger hover:bg-[var(--status-danger-surface)]"
+                          onClick={() => handleDelete(method)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </SectionCard>
+      )}
 
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md rounded-2xl">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="text-lg font-bold">
               {editingMethod ? 'Editar Método de Pago' : 'Nuevo Método de Pago'}
             </DialogTitle>
-            <DialogDescription>
-              Configura el nombre y estado del método de pago
+            <DialogDescription className="text-xs">
+              Define el nombre, código operativo del sistema y si exige referencia numérica al cobrar.
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmit}>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="nombre">Nombre del Método *</Label>
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="space-y-4 py-2 mt-1">
+              <div className="space-y-1.5">
+                <Label htmlFor="nombre" className="text-sm font-semibold">Nombre del Método *</Label>
                 <Input
                   id="nombre"
                   value={formData.nombre}
                   onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
                   placeholder="Ej: Tarjeta Visa, Yape, Efectivo..."
                   required
+                  className="h-11 rounded-xl"
                 />
               </div>
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div>
-                  <Label>Estado Activo</Label>
-                  <p className="text-sm text-muted-foreground">
+              <div className="space-y-1.5">
+                <Label htmlFor="codigo" className="text-sm font-semibold">Código interno *</Label>
+                <Input
+                  id="codigo"
+                  value={formData.codigo}
+                  onChange={(e) => setFormData({ ...formData, codigo: e.target.value.toUpperCase() })}
+                  placeholder="Ej: EFECTIVO, YAPE, VISA"
+                  maxLength={30}
+                  required
+                  className="h-11 rounded-xl font-mono uppercase font-bold"
+                />
+              </div>
+              <div className="flex items-center justify-between p-4 border border-border/60 rounded-xl bg-muted/20">
+                <div className="space-y-0.5">
+                  <Label className="text-sm font-semibold">Requiere referencia</Label>
+                  <p className="text-xs text-muted-foreground font-medium leading-relaxed">
+                    Obliga a registrar el número de operación, POS o celular al confirmar cobros.
+                  </p>
+                </div>
+                <Switch
+                  checked={formData.requiereReferencia ?? false}
+                  onCheckedChange={(checked) =>
+                    setFormData({ ...formData, requiereReferencia: checked })
+                  }
+                />
+              </div>
+              <div className="flex items-center justify-between p-4 border border-border/60 rounded-xl bg-muted/20">
+                <div className="space-y-0.5">
+                  <Label className="text-sm font-semibold">Estado Activo</Label>
+                  <p className="text-xs text-muted-foreground font-medium leading-relaxed">
                     {formData.estado === 'ACTIVO'
-                      ? 'El método estará disponible para ventas'
-                      : 'El método no estará disponible para ventas'}
+                      ? 'El método estará disponible inmediatamente en pantallas de caja.'
+                      : 'El método se ocultará y no podrá ser utilizado en ventas.'}
                   </p>
                 </div>
                 <Switch
@@ -287,17 +338,17 @@ export function PaymentMethods() {
                 />
               </div>
             </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+            <DialogFooter className="gap-2 sm:gap-0 mt-5 pt-3 border-t border-border/40">
+              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} className="h-10 rounded-xl">
                 Cancelar
               </Button>
-              <Button type="submit">
+              <Button type="submit" className="h-10 rounded-xl font-semibold">
                 {editingMethod ? 'Guardar Cambios' : 'Crear Método'}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageWrapper>
   );
 }

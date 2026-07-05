@@ -1,12 +1,10 @@
 package com.restaurante.controller;
 
 import com.restaurante.dto.request.AbrirPedidoMesaRequest;
-import com.restaurante.dto.request.MesaEstadoRequest;
 import com.restaurante.dto.request.MesaRequest;
 import com.restaurante.dto.response.MesaResponse;
 import com.restaurante.dto.response.PedidoResponse;
 import com.restaurante.entity.Empleado;
-import com.restaurante.entity.Mesa;
 import com.restaurante.security.CustomUserDetails;
 import com.restaurante.service.MesaService;
 import com.restaurante.service.PedidoService;
@@ -57,12 +55,6 @@ public class MesaController {
         return ResponseEntity.ok(mesaService.actualizar(id, request));
     }
 
-    @PatchMapping("/{id}/estado")
-    @PreAuthorize("hasAuthority('GESTION_MESAS') or hasAuthority('ACCESO_TOTAL')")
-    public ResponseEntity<MesaResponse> cambiarEstado(@PathVariable Integer id, @Valid @RequestBody MesaEstadoRequest request) {
-        return ResponseEntity.ok(mesaService.cambiarEstado(id, Mesa.Estado.valueOf(request.getEstado().toUpperCase())));
-    }
-
     @PostMapping("/{id}/abrir-pedido")
     @PreAuthorize("hasAuthority('GESTION_POS') or hasAuthority('ACCESO_TOTAL')")
     public ResponseEntity<PedidoResponse> abrirPedido(@PathVariable Integer id,
@@ -72,9 +64,4 @@ public class MesaController {
         return ResponseEntity.ok(pedidoService.abrirPedidoMesa(id, request, empleado));
     }
 
-    @PostMapping("/{id}/liberar")
-    @PreAuthorize("hasAuthority('GESTION_MESAS') or hasAuthority('GESTION_CAJA') or hasAuthority('ACCESO_TOTAL')")
-    public ResponseEntity<MesaResponse> liberar(@PathVariable Integer id) {
-        return ResponseEntity.ok(mesaService.liberar(id));
-    }
 }

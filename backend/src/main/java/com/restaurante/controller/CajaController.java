@@ -52,9 +52,18 @@ public class CajaController {
     @PostMapping("/{id}/movimientos")
     @PreAuthorize("hasAuthority('GESTION_CAJA') or hasAuthority('ACCESO_TOTAL')")
     public ResponseEntity<MovimientoCajaResponse> registrarMovimiento(@PathVariable Integer id,
-                                                               @Valid @RequestBody MovimientoCajaRequest request) {
+                                                               @Valid @RequestBody MovimientoCajaRequest request,
+                                                               @AuthenticationPrincipal CustomUserDetails userDetails) {
         MovimientoCaja.Tipo tipo = MovimientoCaja.Tipo.valueOf(request.getTipo().toUpperCase());
-        MovimientoCajaResponse response = cajaService.registrarMovimiento(id, tipo, request.getConcepto(), request.getMonto());
+        MovimientoCajaResponse response = cajaService.registrarMovimiento(
+                id,
+                tipo,
+                request.getConcepto(),
+                request.getMonto(),
+                userDetails.getEmpleado(),
+                request.getReferenceType(),
+                request.getReferenceId(),
+                request.getComprobante());
         return ResponseEntity.ok(response);
     }
 

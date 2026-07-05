@@ -2,6 +2,7 @@ package com.restaurante.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
@@ -14,6 +15,13 @@ public class ExtraProductoRequest {
     @NotNull(message = "El precio es obligatorio")
     @PositiveOrZero(message = "El precio no puede ser negativo")
     private BigDecimal precio;
+
+    @NotNull(message = "El insumo consumido es obligatorio")
+    private Integer idInsumo;
+
+    @NotNull(message = "La cantidad consumida es obligatoria")
+    @Positive(message = "La cantidad consumida debe ser mayor a 0")
+    private BigDecimal cantidadConsumida;
 
     private String estado;
 
@@ -31,6 +39,22 @@ public class ExtraProductoRequest {
 
     public void setPrecio(BigDecimal precio) {
         this.precio = precio;
+    }
+
+    public Integer getIdInsumo() {
+        return idInsumo;
+    }
+
+    public void setIdInsumo(Integer idInsumo) {
+        this.idInsumo = idInsumo;
+    }
+
+    public BigDecimal getCantidadConsumida() {
+        return cantidadConsumida;
+    }
+
+    public void setCantidadConsumida(BigDecimal cantidadConsumida) {
+        this.cantidadConsumida = cantidadConsumida;
     }
 
     public String getEstado() {

@@ -2,6 +2,7 @@ package com.restaurante.entity;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.Objects;
 
 @Entity
@@ -16,18 +17,28 @@ public class DetalleCompraInsumo {
     @JoinColumn(name = "id_compra", nullable = false)
     private CompraInsumo compra;
 
-    @ManyToOne(optional = false)
-    @JoinColumn(name = "id_insumo", nullable = false)
+    @ManyToOne
+    @JoinColumn(name = "id_insumo")
     private Insumo insumo;
+
+    @ManyToOne
+    @JoinColumn(name = "id_producto")
+    private Producto producto;
 
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal cantidad;
 
-    @Column(name = "precio_unitario", nullable = false, precision = 10, scale = 2)
+    @Column(name = "costo_unitario", nullable = false, precision = 10, scale = 4)
     private BigDecimal precioUnitario;
 
     @Column(precision = 10, scale = 2)
     private BigDecimal subtotal;
+
+    @Column(name = "numero_lote", nullable = false, length = 80)
+    private String numeroLote;
+
+    @Column(name = "fecha_vencimiento")
+    private LocalDate fechaVencimiento;
 
     public DetalleCompraInsumo() {}
 
@@ -40,6 +51,9 @@ public class DetalleCompraInsumo {
     public Insumo getInsumo() { return insumo; }
     public void setInsumo(Insumo insumo) { this.insumo = insumo; }
 
+    public Producto getProducto() { return producto; }
+    public void setProducto(Producto producto) { this.producto = producto; }
+
     public BigDecimal getCantidad() { return cantidad; }
     public void setCantidad(BigDecimal cantidad) { this.cantidad = cantidad; }
 
@@ -48,6 +62,12 @@ public class DetalleCompraInsumo {
 
     public BigDecimal getSubtotal() { return subtotal; }
     public void setSubtotal(BigDecimal subtotal) { this.subtotal = subtotal; }
+
+    public String getNumeroLote() { return numeroLote; }
+    public void setNumeroLote(String numeroLote) { this.numeroLote = numeroLote; }
+
+    public LocalDate getFechaVencimiento() { return fechaVencimiento; }
+    public void setFechaVencimiento(LocalDate fechaVencimiento) { this.fechaVencimiento = fechaVencimiento; }
 
     @Override
     public boolean equals(Object o) {

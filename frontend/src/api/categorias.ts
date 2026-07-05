@@ -17,6 +17,8 @@ export interface CategoriaRequest {
   estado?: 'ACTIVO' | 'INACTIVO';
 }
 
+export type CategoriaEstadoFiltro = 'ACTIVO' | 'INACTIVO' | 'TODOS';
+
 const normalizeCategoriaPayload = (data: CategoriaRequest) => ({
   nombre: data.nombre?.trim(),
   descripcion: data.descripcion?.trim() || null,
@@ -25,8 +27,8 @@ const normalizeCategoriaPayload = (data: CategoriaRequest) => ({
 });
 
 export const categoriasApi = {
-  getAll: async (): Promise<Categoria[]> => {
-    const response = await api.get('/categorias');
+  getAll: async (estado: CategoriaEstadoFiltro = 'ACTIVO'): Promise<Categoria[]> => {
+    const response = await api.get('/categorias', { params: { estado } });
     return response.data;
   },
 
@@ -53,5 +55,10 @@ export const categoriasApi = {
 
   delete: async (id: number): Promise<void> => {
     await api.delete(`/categorias/${id}`);
+  },
+
+  updateEstado: async (id: number, estado: 'ACTIVO' | 'INACTIVO'): Promise<Categoria> => {
+    const response = await api.patch(`/categorias/${id}/estado`, { estado });
+    return response.data;
   },
 };

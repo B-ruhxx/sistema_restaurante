@@ -1,24 +1,23 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { useTheme } from 'next-themes';
 import { useConfigStore } from '../../store/configStore';
 import { useAuthStore } from '../../store/authStore';
 import { useNotificationStore, AppNotificationType } from '../../store/notificationStore';
 import { useAuth } from '../../hooks/useAuth';
+import { PERMISSIONS, type PermissionCode } from '../../config/permissions';
 import {
   LayoutDashboard,
   ShoppingCart,
   ClipboardList,
   ChefHat,
   Wallet,
-  Menu,
   X,
   Sun,
   Moon,
   LogOut,
   Settings,
   Bell,
-  User,
   Tag,
   Package,
   FlaskConical,
@@ -44,6 +43,7 @@ import {
   AlertTriangle,
   Info,
   Armchair,
+  Menu,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { cn, getFullImageUrl } from './ui/utils';
@@ -55,15 +55,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
-import { Badge } from './ui/badge';
-import { useERP } from '../contexts/ERPContext';
+import { useERP } from '../contexts/ERPContextValue';
 
 interface NavItem {
   path: string;
   icon: React.ElementType;
   label: string;
   badge?: number;
-  permiso?: string;
+  permiso?: PermissionCode | PermissionCode[];
 }
 
 interface NavGroup {
@@ -76,56 +75,66 @@ const navGroups: NavGroup[] = [
     label: 'Operaciones',
     items: [
       { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
-      { path: '/mesas', icon: Armchair, label: 'Mesas', permiso: 'GESTION_MESAS' },
-      { path: '/pos', icon: ShoppingCart, label: 'Punto de Venta', permiso: 'GESTION_POS' },
-      { path: '/pedidos', icon: ClipboardList, label: 'Pedidos', permiso: 'GESTION_POS' },
-      { path: '/cocina', icon: ChefHat, label: 'Cocina', permiso: 'GESTION_COCINA' },
-      { path: '/caja', icon: Wallet, label: 'Caja', permiso: 'GESTION_CAJA' },
+      { path: '/mesas', icon: Armchair, label: 'Mesas', permiso: PERMISSIONS.GESTION_MESAS },
+      { path: '/pos', icon: ShoppingCart, label: 'Punto de Venta', permiso: PERMISSIONS.GESTION_POS },
+      { path: '/pedidos', icon: ClipboardList, label: 'Pedidos', permiso: PERMISSIONS.GESTION_POS },
+      { path: '/cocina', icon: ChefHat, label: 'Cocina', permiso: PERMISSIONS.GESTION_COCINA },
+      { path: '/caja', icon: Wallet, label: 'Caja', permiso: PERMISSIONS.GESTION_CAJA },
     ],
   },
   {
     label: 'Catálogo',
     items: [
-      { path: '/categorias', icon: Tag, label: 'Categorías', permiso: 'GESTIONAR_INVENTARIO' },
-      { path: '/productos', icon: Package, label: 'Productos', permiso: 'GESTIONAR_INVENTARIO' },
-      { path: '/combos', icon: Gift, label: 'Combos y Promos', permiso: 'GESTIONAR_INVENTARIO' },
-      { path: '/extras', icon: PlusCircle, label: 'Extras', permiso: 'GESTIONAR_INVENTARIO' },
+      { path: '/categorias', icon: Tag, label: 'Categorías', permiso: PERMISSIONS.ACCESO_TOTAL },
+      { path: '/productos', icon: Package, label: 'Productos', permiso: PERMISSIONS.ACCESO_TOTAL },
+      { path: '/combos', icon: Gift, label: 'Combos y Promos', permiso: PERMISSIONS.ACCESO_TOTAL },
+      { path: '/extras', icon: PlusCircle, label: 'Extras', permiso: PERMISSIONS.ACCESO_TOTAL },
     ],
   },
   {
     label: 'Producción',
     items: [
-      { path: '/recetas', icon: FlaskConical, label: 'Recetas', permiso: 'GESTIONAR_INVENTARIO' },
-      { path: '/insumos', icon: Boxes, label: 'Insumos', permiso: 'GESTIONAR_INVENTARIO' },
-      { path: '/kardex', icon: BookOpen, label: 'Kardex', permiso: 'GESTIONAR_INVENTARIO' },
-      { path: '/inventario', icon: PackageSearch, label: 'Inv. Directos', permiso: 'GESTIONAR_INVENTARIO' },
+      { path: '/recetas', icon: FlaskConical, label: 'Recetas', permiso: PERMISSIONS.ACCESO_TOTAL },
+      { path: '/insumos', icon: Boxes, label: 'Insumos', permiso: PERMISSIONS.ACCESO_TOTAL },
+      { path: '/kardex', icon: BookOpen, label: 'Kardex', permiso: [PERMISSIONS.ACCESO_TOTAL, PERMISSIONS.GESTION_REPORTES] },
+      { path: '/inventario', icon: PackageSearch, label: 'Inv. Directos', permiso: PERMISSIONS.ACCESO_TOTAL },
     ],
   },
   {
     label: 'Compras',
     items: [
-      { path: '/proveedores', icon: Truck, label: 'Proveedores', permiso: 'GESTIONAR_INVENTARIO' },
-      { path: '/compras', icon: ShoppingBag, label: 'Compras', permiso: 'GESTIONAR_INVENTARIO' },
+      { path: '/proveedores', icon: Truck, label: 'Proveedores', permiso: PERMISSIONS.GESTION_COMPRAS },
+      { path: '/compras', icon: ShoppingBag, label: 'Compras', permiso: PERMISSIONS.GESTION_COMPRAS },
     ],
   },
   {
     label: 'Administración',
     items: [
-      { path: '/dashboard-gerencial', icon: TrendingUp, label: 'Dashboard Gerencial', permiso: 'VER_DASHBOARD' },
-      { path: '/reportes', icon: FileText, label: 'Reportes', permiso: 'VER_DASHBOARD' },
-      { path: '/clientes', icon: Users, label: 'Clientes', permiso: 'ACCESO_TOTAL' },
-      { path: '/empleados', icon: UserCog, label: 'Empleados', permiso: 'ACCESO_TOTAL' },
-      { path: '/roles', icon: Shield, label: 'Roles y Permisos', permiso: 'ACCESO_TOTAL' },
-      { path: '/metodos-pago', icon: CreditCard, label: 'Métodos de Pago', permiso: 'ACCESO_TOTAL' },
-      { path: '/configuracion', icon: Building2, label: 'Configuración', permiso: 'ACCESO_TOTAL' },
-      { path: '/auditoria', icon: History, label: 'Auditoría', permiso: 'ACCESO_TOTAL' },
-      { path: '/seguridad', icon: Lock, label: 'Seguridad', permiso: 'ACCESO_TOTAL' },
+      { path: '/dashboard-gerencial', icon: TrendingUp, label: 'Dashboard Gerencial', permiso: PERMISSIONS.GESTION_REPORTES },
+      { path: '/reportes', icon: FileText, label: 'Reportes', permiso: PERMISSIONS.GESTION_REPORTES },
+      { path: '/clientes', icon: Users, label: 'Clientes', permiso: [PERMISSIONS.ACCESO_TOTAL, PERMISSIONS.GESTION_VENTAS] },
+      { path: '/ventas', icon: FileText, label: 'Ventas', permiso: [PERMISSIONS.GESTION_VENTAS, PERMISSIONS.GESTION_CAJA] },
+      { path: '/empleados', icon: UserCog, label: 'Empleados', permiso: PERMISSIONS.GESTION_EMPLEADOS },
+      { path: '/roles', icon: Shield, label: 'Roles y Permisos', permiso: PERMISSIONS.ACCESO_TOTAL },
+      { path: '/metodos-pago', icon: CreditCard, label: 'Métodos de Pago', permiso: [PERMISSIONS.ACCESO_TOTAL, PERMISSIONS.GESTION_CAJA] },
+      { path: '/configuracion', icon: Building2, label: 'Configuración', permiso: PERMISSIONS.GESTION_CONFIGURACION },
+      { path: '/auditoria', icon: History, label: 'Auditoría', permiso: PERMISSIONS.GESTION_REPORTES },
+      { path: '/seguridad', icon: Lock, label: 'Seguridad', permiso: PERMISSIONS.ACCESO_TOTAL },
     ],
   },
 ];
 
+const canAccessItem = (userPermisos: string[], permiso?: PermissionCode | PermissionCode[]) => {
+  if (!permiso) return true;
+  if (userPermisos.includes(PERMISSIONS.ACCESO_TOTAL)) return true;
+  const required = Array.isArray(permiso) ? permiso : [permiso];
+  return required.some((p) => userPermisos.includes(p));
+};
+
 export function Layout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
     Operaciones: true, Catálogo: true, Producción: true, Compras: true, Administración: true,
   });
@@ -142,6 +151,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
     clearNotifications,
   } = useNotificationStore();
   const { logout } = useAuth();
+  useEffect(() => {
+    const updateViewport = () => {
+      const mobile = window.innerWidth < 1024;
+      setIsMobile(mobile);
+      setCollapsed(mobile ? true : false);
+      if (!mobile) setMobileMenuOpen(false);
+    };
+
+    updateViewport();
+    window.addEventListener('resize', updateViewport);
+    return () => window.removeEventListener('resize', updateViewport);
+  }, []);
+
   if (!isAuthenticated) {
     navigate('/login');
     return null;
@@ -154,10 +176,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   const notificationIcon = (type: AppNotificationType) => {
     const className = 'w-3.5 h-3.5';
-    if (type === 'success') return <CheckCircle2 className={`${className} text-emerald-600`} />;
-    if (type === 'error') return <X className={`${className} text-red-600`} />;
-    if (type === 'warning') return <AlertTriangle className={`${className} text-amber-600`} />;
-    return <Info className={`${className} text-blue-600`} />;
+    if (type === 'success') return <CheckCircle2 className={`${className} ui-status-success`} />;
+    if (type === 'error') return <X className={`${className} ui-status-danger`} />;
+    if (type === 'warning') return <AlertTriangle className={`${className} ui-status-warning`} />;
+    return <Info className={`${className} ui-status-info`} />;
   };
 
   const formatNotificationTime = (createdAt: string) => {
@@ -172,12 +194,25 @@ export function Layout({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="theme-new flex h-screen bg-background text-foreground">
+      {isMobile && mobileMenuOpen && (
+        <button
+          type="button"
+          aria-label="Cerrar menú"
+          className="fixed inset-0 z-40 bg-black/30"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
       {/* Sidebar */}
       <aside
         className={cn(
-          'bg-sidebar border-r border-sidebar-border transition-all duration-300 flex flex-col shrink-0',
-          collapsed ? 'w-16' : 'w-60'
+          'bg-sidebar border-r border-sidebar-border transition-all duration-300 flex flex-col shrink-0 z-50',
+          isMobile
+            ? cn(
+              'fixed left-0 top-0 h-full w-72 shadow-ui-high',
+              mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+            )
+            : (collapsed ? 'w-16' : 'w-60')
         )}
       >
         {/* Logo */}
@@ -185,10 +220,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
           {!collapsed ? (
             <div className="flex items-center gap-2.5 w-full">
               {logoUrl ? (
-                <img src={getFullImageUrl(logoUrl)} alt="logo" className="w-8 h-8 rounded-xl object-cover shadow-sm border border-[#c5d8fc] dark:border-blue-900" />
+                <img src={getFullImageUrl(logoUrl)} alt="logo" className="w-8 h-8 rounded-lg object-cover shadow-ui-low border border-sidebar-border" />
               ) : (
-                <div className="w-8 h-8 bg-[#e8f0fe] dark:bg-blue-950 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm border border-[#c5d8fc] dark:border-blue-900">
-                  <ChefHat className="w-4 h-4 text-[#4f7bf7] dark:text-blue-400" />
+                <div className="w-8 h-8 bg-sidebar-accent rounded-lg flex items-center justify-center flex-shrink-0 shadow-ui-low border border-sidebar-border">
+                  <ChefHat className="w-4 h-4 text-sidebar-accent-foreground" />
                 </div>
               )}
               <div className="flex-1 min-w-0">
@@ -207,43 +242,42 @@ export function Layout({ children }: { children: React.ReactNode }) {
           ) : (
             <div className="flex items-center justify-center w-full">
               <button
-                className="w-8 h-8 bg-[#e8f0fe] dark:bg-blue-950 rounded-xl flex items-center justify-center shadow-sm border border-[#c5d8fc] dark:border-blue-900"
+                className="w-8 h-8 bg-sidebar-accent rounded-lg flex items-center justify-center shadow-ui-low border border-sidebar-border"
                 onClick={() => setCollapsed(false)}
               >
-                <ChefHat className="w-4 h-4 text-[#4f7bf7] dark:text-blue-400" />
+                <ChefHat className="w-4 h-4 text-sidebar-accent-foreground" />
               </button>
             </div>
           )}
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto p-2 space-y-0.5 scrollbar-thin">
-          {navGroups.map(group => {
+        <nav className="flex-1 overflow-y-auto py-3 px-2 scrollbar-thin">
+          {navGroups.map((group, gi) => {
             const userPermisos = user?.permisos || [];
-            const visibleItems = group.items.filter(item => {
-              return !item.permiso || 
-                     userPermisos.includes('ACCESO_TOTAL') || 
-                     userPermisos.includes(item.permiso);
-            });
+            const visibleItems = group.items.filter(item => canAccessItem(userPermisos, item.permiso));
 
             if (visibleItems.length === 0) return null;
 
             return (
-              <div key={group.label} className="mb-1">
+              <div key={group.label} className={gi > 0 ? 'mt-4' : ''}>
                 {!collapsed && (
                   <button
                     onClick={() => toggleGroup(group.label)}
-                    className="w-full flex items-center justify-between px-2.5 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-widest hover:text-foreground transition-colors mt-3 first:mt-1"
+                    className="w-full flex items-center justify-between px-2.5 py-1.5 mb-1 text-[10px] font-bold text-muted-foreground/70 uppercase tracking-[0.12em] hover:text-muted-foreground transition-colors"
                   >
                     <span>{group.label}</span>
                     {expandedGroups[group.label]
-                      ? <ChevronDown className="w-2.5 h-2.5" />
-                      : <ChevronRight className="w-2.5 h-2.5" />
+                      ? <ChevronDown className="w-3 h-3" />
+                      : <ChevronRight className="w-3 h-3" />
                     }
                   </button>
                 )}
+                {collapsed && gi > 0 && (
+                  <div className="mx-auto my-3 w-5 h-px bg-border" />
+                )}
                 {(collapsed || expandedGroups[group.label]) && (
-                  <div className="space-y-0.5 mt-0.5">
+                  <div className="space-y-0.5">
                     {visibleItems.map(item => {
                       const isActive = location.pathname === item.path;
                       const Icon = item.icon;
@@ -255,25 +289,28 @@ export function Layout({ children }: { children: React.ReactNode }) {
                           to={item.path}
                           title={collapsed ? item.label : undefined}
                           className={cn(
-                            'flex items-center gap-2.5 px-2.5 py-2 rounded-lg transition-all duration-150 text-sm',
+                            'relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg transition-all duration-150 text-sm group',
                             isActive
-                              ? 'bg-red-600 text-white shadow-sm font-semibold'
-                              : 'text-muted-foreground hover:bg-red-600 hover:text-white font-medium'
+                              ? 'bg-sidebar-primary/10 text-sidebar-primary font-semibold'
+                              : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground font-medium'
                           )}
                         >
-                          <Icon className="w-4 h-4 flex-shrink-0 opacity-90" />
+                          {isActive && (
+                            <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r-full bg-sidebar-primary" />
+                          )}
+                          <Icon className={cn('w-4 h-4 flex-shrink-0', isActive ? 'opacity-100' : 'opacity-70 group-hover:opacity-100')} />
                           {!collapsed && (
                             <>
                               <span className="flex-1 truncate">{item.label}</span>
                               {badge > 0 && (
-                                <span className="ml-auto bg-white/20 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                                <span className="ml-auto bg-sidebar-primary text-sidebar-primary-foreground text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
                                   {badge}
                                 </span>
                               )}
                             </>
                           )}
                           {collapsed && badge > 0 && (
-                            <span className="absolute right-1 top-1 w-1.5 h-1.5 bg-red-500 rounded-full" />
+                            <span className="absolute right-1 top-1 w-1.5 h-1.5 bg-destructive rounded-full" />
                           )}
                         </Link>
                       );
@@ -290,18 +327,30 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Header */}
         <header className="h-14 border-b border-border bg-card px-5 flex items-center justify-between flex-shrink-0">
-          <div>
-            <p className="font-semibold text-sm tracking-tight">
-              {navGroups
-                .flatMap(g => g.items)
-                .find(item => item.path === location.pathname)?.label || 'Dashboard'}
-            </p>
-            {cashRegister?.status === 'abierta' && (
-              <p className="text-[11px] text-muted-foreground flex items-center gap-1">
-                <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-500" />
-                Caja abierta · S/ {cashRegister.currentBalance.toFixed(2)}
-              </p>
+          <div className="flex items-center gap-3">
+            {isMobile && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-foreground -ml-1"
+                onClick={() => setMobileMenuOpen(true)}
+              >
+                <Menu className="w-4 h-4" />
+              </Button>
             )}
+            <div>
+              <p className="font-semibold text-sm tracking-tight">
+                {navGroups
+                  .flatMap(g => g.items)
+                  .find(item => item.path === location.pathname)?.label || 'Dashboard'}
+              </p>
+              {cashRegister?.status === 'abierta' && (
+                <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full ui-status-success-bg" />
+                  Caja abierta · S/ {cashRegister.currentBalance.toFixed(2)}
+                </p>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center gap-1">
@@ -319,7 +368,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <Button variant="ghost" size="icon" className="h-8 w-8 relative text-muted-foreground hover:text-foreground">
                   <Bell className="w-4 h-4" />
                   {(unreadNotifications > 0 || activeOrders > 0) && (
-                    <span className="absolute top-1 right-1 min-w-4 h-4 px-1 bg-red-500 text-white text-[10px] font-bold rounded-full border-2 border-card flex items-center justify-center">
+                    <span className="absolute top-1 right-1 min-w-4 h-4 px-1 ui-status-danger-bg text-[10px] font-bold rounded-full border-2 border-card flex items-center justify-center">
                       {unreadNotifications || activeOrders}
                     </span>
                   )}
@@ -383,22 +432,23 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <div className="w-px h-5 bg-border mx-1" />
+            <div className="w-px h-5 bg-border mx-2" />
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-accent transition-colors">
+                <button className="flex items-center gap-2.5 pl-1 pr-2.5 py-1 rounded-lg hover:bg-accent transition-colors group">
                   {user?.fotoUrl ? (
-                    <img src={user.fotoUrl} alt="avatar" className="w-7 h-7 rounded-full object-cover" />
+                    <img src={user.fotoUrl} alt="avatar" className="w-8 h-8 rounded-full object-cover ring-2 ring-border" />
                   ) : (
-                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center text-white text-xs font-bold">
+                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm font-bold ring-2 ring-primary/20">
                       {user?.nombre?.charAt(0) ?? 'U'}
                     </div>
                   )}
                   <div className="hidden sm:block text-left">
-                    <p className="text-xs font-semibold leading-none">{user?.nombre || 'Usuario'}</p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">{user?.email || ''}</p>
+                    <p className="text-sm font-semibold leading-none text-foreground">{user?.nombre || 'Usuario'}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5 capitalize">{(user?.rol || 'admin').toLowerCase()}</p>
                   </div>
+                  <ChevronDown className="hidden sm:block w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground transition-colors" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-52">
@@ -409,11 +459,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <Settings className="w-4 h-4 mr-2" />Configuración
+                <DropdownMenuItem onClick={() => navigate('/perfil')}>
+                  <Settings className="w-4 h-4 mr-2" />Mi perfil
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => { logout(); navigate('/login'); }} className="text-red-600 focus:text-red-600">
+                <DropdownMenuItem onClick={() => { logout(); navigate('/login'); }} className="ui-status-danger focus:text-[var(--status-danger)]">
                   <LogOut className="w-4 h-4 mr-2" />Cerrar Sesión
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -422,7 +472,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-auto bg-background">
+        <main className={cn('flex-1 overflow-auto bg-background', isMobile && 'pb-4')}>
           {children}
         </main>
       </div>

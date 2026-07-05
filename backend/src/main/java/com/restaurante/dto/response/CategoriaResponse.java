@@ -5,7 +5,6 @@ public class CategoriaResponse {
     private String nombre;
     private String descripcion;
     private String imagenUrl;
-    private String img;
     private String estado;
 
     public Integer getIdCategoria() {
@@ -38,14 +37,6 @@ public class CategoriaResponse {
 
     public void setImagenUrl(String imagenUrl) {
         this.imagenUrl = imagenUrl;
-    }
-
-    public String getImg() {
-        return img;
-    }
-
-    public void setImg(String img) {
-        this.img = img;
     }
 
     public String getEstado() {

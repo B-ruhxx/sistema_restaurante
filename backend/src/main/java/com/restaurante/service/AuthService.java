@@ -16,6 +16,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Optional;
 
 @Service
@@ -30,6 +34,9 @@ public class AuthService {
     @Autowired
     private SesionUsuarioRepository sesionUsuarioRepository;
 
+    @Autowired
+    private TokenWhitelistService tokenWhitelistService;
+
     @Transactional
     public AuthResponse login(String username, String password, String ip) {
         Authentication authentication = authenticationManager.authenticate(
@@ -41,11 +48,18 @@ public class AuthService {
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
         Empleado empleado = userDetails.getEmpleado();
 
+        sesionUsuarioRepository.cerrarSesionesActivas(empleado.getIdEmpleado());
+
         // Registrar sesión
         SesionUsuario sesion = new SesionUsuario();
         sesion.setEmpleado(empleado);
+        sesion.setTokenHash(hashToken(jwt));
         sesion.setIp(ip);
+        sesion.setFechaExpiracion(LocalDateTime.ofInstant(
+                tokenProvider.getExpirationFromJWT(jwt).toInstant(),
+                ZoneId.systemDefault()));
         sesionUsuarioRepository.save(sesion);
+        tokenWhitelistService.allowToken(empleado.getIdEmpleado(), jwt);
 
         java.util.List<String> permisosStr = new java.util.ArrayList<>();
         if (empleado.getRol() != null && empleado.getRol().getPermisos() != null) {
@@ -65,9 +79,13 @@ public class AuthService {
     }
 
     @Transactional
-    public void logout(Empleado empleado) {
+    public void logout(Empleado empleado, String token) {
+        if (token != null && !token.isBlank()) {
+            tokenWhitelistService.revokeTokenIfCurrent(empleado.getIdEmpleado(), token);
+        }
+
         Optional<SesionUsuario> lastSessionOpt = sesionUsuarioRepository
-                .findFirstByEmpleadoIdEmpleadoOrderByFechaLoginDesc(empleado.getIdEmpleado());
+                .findFirstByEmpleadoIdEmpleadoOrderByFechaInicioDesc(empleado.getIdEmpleado());
 
         if (lastSessionOpt.isPresent()) {
             SesionUsuario session = lastSessionOpt.get();
@@ -75,6 +93,20 @@ public class AuthService {
                 session.setFechaLogout(LocalDateTime.now());
                 sesionUsuarioRepository.save(session);
             }
+        }
+    }
+
+    private String hashToken(String token) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(token.getBytes(StandardCharsets.UTF_8));
+            StringBuilder builder = new StringBuilder(hash.length * 2);
+            for (byte b : hash) {
+                builder.append(String.format("%02x", b));
+            }
+            return builder.toString();
+        } catch (NoSuchAlgorithmException ex) {
+            throw new IllegalStateException("No se pudo calcular hash de sesión.", ex);
         }
     }
 }

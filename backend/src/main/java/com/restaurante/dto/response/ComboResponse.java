@@ -1,6 +1,7 @@
 package com.restaurante.dto.response;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 public class ComboResponse {
@@ -9,6 +10,8 @@ public class ComboResponse {
     private String descripcion;
     private BigDecimal precio;
     private String imagenUrl;
+    private String etiqueta;
+    private LocalDate validoHasta;
     private String estado;
 
     public String getImagenUrl() {
@@ -17,6 +20,22 @@ public class ComboResponse {
 
     public void setImagenUrl(String imagenUrl) {
         this.imagenUrl = imagenUrl;
+    }
+
+    public String getEtiqueta() {
+        return etiqueta;
+    }
+
+    public void setEtiqueta(String etiqueta) {
+        this.etiqueta = etiqueta;
+    }
+
+    public LocalDate getValidoHasta() {
+        return validoHasta;
+    }
+
+    public void setValidoHasta(LocalDate validoHasta) {
+        this.validoHasta = validoHasta;
     }
     private List<ComboDetalleResponse> detalles;
 

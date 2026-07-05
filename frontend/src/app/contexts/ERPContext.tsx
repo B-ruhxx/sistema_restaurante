@@ -1,113 +1,35 @@
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'react-router';
 import { useProductos } from '../../hooks/useProductos';
 import { useClientes } from '../../hooks/useClientes';
 import { usePedidos } from '../../hooks/usePedidos';
-import { useVentas } from '../../hooks/useVentas';
 import { useCaja } from '../../hooks/useCaja';
 import { usePrivateQueryEnabled } from '../../hooks/usePrivateQuery';
 import { productosApi } from '../../api/productos';
-import { clientesApi } from '../../api/clientes';
-import { pedidosApi } from '../../api/pedidos';
-import { ventasApi } from '../../api/ventas';
-import { metodoPagosApi, MetodoPago } from '../../api/metodoPagos';
 import { extrasApi, ExtraProducto } from '../../api/extras';
-import { variantesApi } from '../../api/variantes';
-import { cajasApi } from '../../api/cajas';
 import { toast } from '../../lib/notifications';
 import { getFullImageUrl } from '../components/ui/utils';
+import {
+  CartItem,
+  CashMovement,
+  CashRegister,
+  Customer,
+  ERPContext,
+  Order,
+  Product,
+} from './ERPContextValue';
 
-const EMPTY_ARRAY: any[] = [];
+const EMPTY_ARRAY: ExtraProducto[] = [];
+let localCartSequence = 0;
 
-// Tipos del contexto original (legacy)
-export interface Product {
-  id: string;
-  name: string;
-  category: string;
-  price: number;
-  image: string;
-  stock: number;
-  type: 'PREPARADO' | 'INVENTARIO_DIRECTO';
-  variants?: { name: string; price: number }[];
-  extras?: { name: string; price: number }[];
-}
-
-export interface CartItem {
-  id: string;
-  productId: string;
-  name: string;
-  price: number;
-  quantity: number;
-  variant?: string;
-  extras?: string[];
-  notes?: string;
-}
-
-export interface Order {
-  id: string;
-  orderNumber: string;
-  items: CartItem[];
-  customer?: Customer;
-  status: 'pendiente' | 'en-cocina' | 'listo' | 'entregado' | 'cancelado';
-  total: number;
-  paymentMethod?: string;
-  createdAt: Date;
-  updatedAt: Date;
-  notes?: string;
-  priority?: 'alta' | 'media' | 'baja';
-}
-
-export interface Customer {
-  id: string;
-  name: string;
-  documentType: 'DNI' | 'RUC';
-  documentNumber: string;
-  email?: string;
-  phone?: string;
-}
-
-export interface CashRegister {
-  id: string;
-  openedAt: Date;
-  closedAt?: Date;
-  openingBalance: number;
-  currentBalance: number;
-  status: 'abierta' | 'cerrada';
-  movements: CashMovement[];
-}
-
-export interface CashMovement {
-  id: string;
-  type: 'ingreso' | 'egreso';
-  amount: number;
-  description: string;
-  method: 'efectivo' | 'tarjeta' | 'yape' | 'plin';
-  orderId?: string;
-  createdAt: Date;
-}
-
-interface ERPContextType {
-  products: Product[];
-  cart: CartItem[];
-  orders: Order[];
-  currentOrder: Order | null;
-  cashRegister: CashRegister | null;
-  customers: Customer[];
-  createCustomer: (customer: Omit<Customer, 'id'>) => Promise<Customer>;
-  addToCart: (product: Product, variant?: string, extras?: string[], notes?: string) => void;
-  updateCartItem: (itemId: string, quantity: number) => void;
-  removeFromCart: (itemId: string) => void;
-  clearCart: () => void;
-  createOrder: (customer?: Customer, paymentMethod?: string) => Promise<void>;
-  updateOrderStatus: (orderId: string, status: Order['status']) => Promise<void>;
-  openCashRegister: (openingBalance: number, observacion?: string) => Promise<void>;
-  closeCashRegister: (montoCierre: number, observacion?: string) => Promise<void>;
-  addCashMovement: (movement: Omit<CashMovement, 'id' | 'createdAt'>) => Promise<void>;
-  setCurrentOrder: (order: Order | null) => void;
-}
-
-const ERPContext = createContext<ERPContextType | undefined>(undefined);
+const createCartItemId = () => {
+  if (globalThis.crypto?.randomUUID) {
+    return globalThis.crypto.randomUUID();
+  }
+  localCartSequence += 1;
+  return `cart-${localCartSequence}`;
+};
 
 const mapClienteToCustomer = (cliente: {
   idCliente: number;
@@ -134,6 +56,24 @@ const splitCustomerName = (fullName: string) => {
   };
 };
 
+const resolveCashMovementMethod = (concepto?: string): CashMovement['method'] => {
+  const normalizedConcept = concepto?.toLowerCase() ?? '';
+
+  if (normalizedConcept.includes('tarjeta')) {
+    return 'tarjeta';
+  }
+
+  if (normalizedConcept.includes('yape')) {
+    return 'yape';
+  }
+
+  if (normalizedConcept.includes('plin')) {
+    return 'plin';
+  }
+
+  return 'efectivo';
+};
+
 export function ERPProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   const location = useLocation();
@@ -143,15 +83,13 @@ export function ERPProvider({ children }: { children: React.ReactNode }) {
   // 1. Consume hooks de React Query conectados al backend
   const { productos } = useProductos();
   const { clientes, createCliente } = useClientes();
-  const { pedidos, createPedido, updateEstadoPedido } = usePedidos({ pollingEnabled: pedidosPollingEnabled });
-  const { createVenta, pagarVenta } = useVentas();
+  const { pedidos, updateEstadoPedido } = usePedidos({ pollingEnabled: pedidosPollingEnabled });
   const { cajaActiva, movimientos, abrirCaja, cerrarCaja, registrarMovimiento } = useCaja();
 
   // Local states
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [currentOrder, setCurrentOrder] = useState<Order | null>(null);
 
-  // Prefetch variants and extras dynamically for mapping absolute prices and options
+  // Prefetch extras and derive POS options from real child SKUs.
   const { data: allExtras = EMPTY_ARRAY } = useQuery<ExtraProducto[]>({
     queryKey: ['extras'],
     queryFn: extrasApi.getAll,
@@ -165,57 +103,83 @@ export function ERPProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const loadProductsData = async () => {
       if (!productos || productos.length === 0) return;
+      type ProductoApi = (typeof productos)[number];
+      const skuChildrenByParent = new Map<number, ProductoApi[]>();
+      for (const producto of productos) {
+        if (producto.esSku !== false && producto.idProductoPadre) {
+          const current = skuChildrenByParent.get(producto.idProductoPadre) || [];
+          current.push(producto);
+          skuChildrenByParent.set(producto.idProductoPadre, current);
+        }
+      }
 
       const items: Product[] = await Promise.all(
         productos.map(async p => {
-          // Fetch variants for this product
-          let variants: { name: string; price: number }[] = [];
-          try {
-            const vars = await queryClient.fetchQuery({
-              queryKey: ['variantes', p.idProducto],
-              queryFn: () => variantesApi.getByProducto(p.idProducto),
-            });
-            variants = vars.map(v => ({
-              name: v.nombre,
-              price: p.precio + v.precioExtra,
-            }));
-          } catch {
-            // no variants
-          }
+          const variants: Product['variants'] = (skuChildrenByParent.get(p.idProducto) || []).map(sku => {
+            const stock = sku.stockActual ?? sku.stockTotal ?? (sku.tipoProducto === 'PREPARADO' ? Number.MAX_SAFE_INTEGER : 0);
+            return {
+              name: sku.nombre,
+              price: sku.precio,
+              skuProductId: sku.idProducto,
+              skuCode: sku.sku,
+              stock,
+              type: sku.tipoProducto,
+              active: sku.estado === 'ACTIVO',
+              isAvailable: sku.estado === 'ACTIVO' && stock > 0,
+            };
+          });
 
           // Extras are global add-ons for prepared products only. Direct inventory
           // products should not inherit them because they are sold as stock items.
-          const mappedExtras = p.tipoProducto === 'PREPARADO' ? allExtras.map(e => ({
-            name: e.nombre,
-            price: e.precio,
-          })) : [];
+          const mappedExtras = p.tipoProducto === 'PREPARADO'
+            ? allExtras
+                .filter(e => e.estado !== 'INACTIVO' && e.idInsumo && e.cantidadConsumida > 0)
+                .map(e => ({
+                  name: e.nombre,
+                  price: e.precio,
+                }))
+            : [];
 
           // Fetch stock if available
-          let stock = 10;
+          let stock = p.tipoProducto === 'INVENTARIO_DIRECTO'
+            ? p.stockActual ?? p.stockTotal ?? 0
+            : Number.MAX_SAFE_INTEGER;
           try {
             const detail = await queryClient.fetchQuery({
               queryKey: ['productos', p.idProducto],
               queryFn: () => productosApi.getById(p.idProducto),
             });
-            stock = detail.inventario?.stock ?? 10;
+            stock = p.tipoProducto === 'INVENTARIO_DIRECTO'
+              ? detail.producto.stockActual ?? detail.producto.stockTotal ?? detail.inventario?.stock ?? 0
+              : Number.MAX_SAFE_INTEGER;
           } catch {
             // default stock
           }
+
+          const availableVariantPrices = (variants || [])
+            .filter(variant => variant.isAvailable)
+            .map(variant => variant.price);
+          const displayPrice = p.esSku === false && availableVariantPrices.length
+            ? Math.min(...availableVariantPrices)
+            : p.precio;
 
           return {
             id: String(p.idProducto),
             name: p.nombre,
             category: p.nombreCategoria?.toLowerCase() || 'general',
-            price: p.precio,
+            price: displayPrice,
             image: p.imagenUrl ? getFullImageUrl(p.imagenUrl) : 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400',
             stock,
             type: p.tipoProducto,
+            sku: p.sku,
+            parentProductId: p.idProductoPadre ? String(p.idProductoPadre) : undefined,
+            isCatalogParent: p.esSku === false,
             variants: variants.length > 0 ? variants : undefined,
             extras: mappedExtras.length > 0 ? mappedExtras : undefined,
           };
         })
       );
-      setMappedProducts(items);
+      setMappedProducts(items.filter(item => item.isCatalogParent && !!item.variants?.length));
     };
 
     loadProductsData();
@@ -233,17 +197,12 @@ export function ERPProvider({ children }: { children: React.ReactNode }) {
     const mapOrders = () => {
       const items: Order[] = pedidos.map(p => {
         const statusMap: Record<string, Order['status']> = {
-          ABIERTO: 'pendiente',
-          PENDIENTE: 'pendiente',
-          ENVIADO_COCINA: 'en-cocina',
-          EN_PREPARACION: 'en-cocina',
-          CUENTA_SOLICITADA: 'entregado',
-          CUENTA_EMITIDA: 'entregado',
-          PAGADO: 'entregado',
-          EN_PROCESO: 'en-cocina',
+          BORRADOR_ATENCION: 'pendiente',
           EN_COCINA: 'en-cocina',
           LISTO: 'listo',
-          ENTREGADO: 'entregado',
+          SERVIDO: 'entregado',
+          CUENTA: 'entregado',
+          CERRADO: 'entregado',
           CANCELADO: 'cancelado',
         };
 
@@ -275,17 +234,11 @@ export function ERPProvider({ children }: { children: React.ReactNode }) {
     };
 
     mapOrders();
-  }, [pedidos, clientes]);
+  }, [pedidos, mappedCustomers]);
 
   // Map active box to context CashRegister
   const mappedCashRegister: CashRegister | null = useMemo(() => {
     if (!cajaActiva) return null;
-    
-    const methodMap: Record<string, CashMovement['method']> = {
-      tarjeta: 'tarjeta',
-      yape: 'yape',
-      plin: 'plin',
-    };
 
     return {
       id: String(cajaActiva.idCaja),
@@ -295,11 +248,14 @@ export function ERPProvider({ children }: { children: React.ReactNode }) {
       currentBalance: cajaActiva.saldoEsperado ?? cajaActiva.montoApertura,
       status: cajaActiva.estado === 'ABIERTA' ? 'abierta' : 'cerrada',
       movements: movimientos.map(m => ({
-        id: String(m.idMovimientoCaja),
+        id: String(m.idMovimiento),
         type: m.tipo.toLowerCase() as 'ingreso' | 'egreso',
         amount: m.monto,
         description: m.concepto,
-        method: methodMap[m.concepto.toLowerCase()] || 'efectivo',
+        method: resolveCashMovementMethod(m.concepto),
+        referenceType: m.referenceType,
+        referenceId: m.referenceId,
+        comprobante: m.comprobante,
         createdAt: new Date(m.fecha),
       })),
     };
@@ -316,7 +272,12 @@ export function ERPProvider({ children }: { children: React.ReactNode }) {
 
     if (existingIndex > -1) {
       const existingItem = cart[existingIndex];
-      if (existingItem.quantity + 1 > product.stock) {
+      const variantMeta = product.variants?.find(v => v.skuProductId === existingItem.variantSkuProductId || v.name === existingItem.variant);
+      if (variantMeta && existingItem.quantity + 1 > variantMeta.stock) {
+        toast.warning(`No hay suficiente stock. Solo quedan ${variantMeta.stock} unidades de ${variantMeta.name}`);
+        return;
+      }
+      if (!product.isCatalogParent && product.type === 'INVENTARIO_DIRECTO' && existingItem.quantity + 1 > product.stock) {
         toast.warning(`No hay suficiente stock. Solo quedan ${product.stock} unidades de ${product.name}`);
         return;
       }
@@ -327,13 +288,22 @@ export function ERPProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    if (product.stock <= 0) {
+    if (!product.isCatalogParent && product.type === 'INVENTARIO_DIRECTO' && product.stock <= 0) {
       toast.warning(`El producto ${product.name} está agotado`);
       return;
     }
 
+    const variantMeta = variant ? product.variants?.find(v => v.name === variant) : undefined;
+    if (product.isCatalogParent && !variantMeta?.skuProductId) {
+      toast.warning('Selecciona un SKU válido antes de agregar al pedido');
+      return;
+    }
+    if (variantMeta && !variantMeta.isAvailable) {
+      toast.warning(`La opción ${variantMeta.name} no tiene stock disponible`);
+      return;
+    }
     const variantPrice = variant 
-      ? product.variants?.find(v => v.name === variant)?.price || product.price
+      ? variantMeta?.price || product.price
       : product.price;
     
     const extrasPrice = extras 
@@ -344,12 +314,14 @@ export function ERPProvider({ children }: { children: React.ReactNode }) {
       : 0;
 
     const newItem: CartItem = {
-      id: `${Date.now()}-${Math.random()}`,
+      id: createCartItemId(),
       productId: product.id,
       name: product.name,
       price: variantPrice + extrasPrice,
       quantity: 1,
       variant,
+      variantId: variantMeta?.id,
+      variantSkuProductId: variantMeta?.skuProductId,
       extras,
       notes
     };
@@ -366,7 +338,12 @@ export function ERPProvider({ children }: { children: React.ReactNode }) {
     const item = cart.find(i => i.id === itemId);
     if (item) {
       const prod = mappedProducts.find(p => p.id === item.productId);
-      if (prod && quantity > prod.stock) {
+      const variantMeta = prod?.variants?.find(v => v.skuProductId === item.variantSkuProductId || v.name === item.variant);
+      if (variantMeta && quantity > variantMeta.stock) {
+        toast.warning(`No hay suficiente stock. Solo quedan ${variantMeta.stock} unidades de ${variantMeta.name}`);
+        return;
+      }
+      if (prod && !prod.isCatalogParent && prod.type === 'INVENTARIO_DIRECTO' && quantity > prod.stock) {
         toast.warning(`No hay suficiente stock. Solo quedan ${prod.stock} unidades de ${prod.name}`);
         return;
       }
@@ -403,124 +380,13 @@ export function ERPProvider({ children }: { children: React.ReactNode }) {
     return mapClienteToCustomer(created);
   };
 
-  // API Integration: Create Order
-  const createOrder = async (customer?: Customer, paymentMethod?: string) => {
-    // 1. Resolve or create customer in backend
-    let idCliente: number | undefined = undefined;
-    if (customer) {
-      const cleanDoc = customer.documentNumber.trim();
-      const existing = clientes.find(c => c.documentoIdentidad === cleanDoc);
-      if (existing) {
-        idCliente = existing.idCliente;
-      } else {
-        const newCustomer = await createCustomer(customer);
-        idCliente = Number(newCustomer.id);
-      }
-    }
-
-    // 2. Map cart to backend DetallePedidoRequest
-    const detalles = await Promise.all(cart.map(async item => {
-      let idVariante: number | undefined = undefined;
-      if (item.variant) {
-        try {
-          const vars = await queryClient.fetchQuery({
-            queryKey: ['variantes', Number(item.productId)],
-            queryFn: () => variantesApi.getByProducto(Number(item.productId)),
-          });
-          const found = vars.find(v => v.nombre === item.variant);
-          if (found) idVariante = found.idVariante;
-        } catch {
-          // ignore
-        }
-      }
-
-      // Map extras to IDs
-      const extrasIds: number[] = [];
-      if (item.extras && item.extras.length > 0) {
-        for (const exName of item.extras) {
-          const found = allExtras.find(e => e.nombre === exName);
-          if (found) extrasIds.push(found.idExtra);
-        }
-      }
-
-      return {
-        idProducto: Number(item.productId),
-        cantidad: item.quantity,
-        idVariante,
-        observacion: item.notes,
-        extrasIds,
-      };
-    }));
-
-    // 3. Post Pedido to backend
-    const pedido = await createPedido({
-      idCliente,
-      detalles,
-    });
-
-    // 4. Handle immediate payment/sale if payment method is provided
-    if (paymentMethod && cajaActiva) {
-      const activeMetodos = await queryClient.fetchQuery<MetodoPago[]>({
-        queryKey: ['metodoPagos', 'activos'],
-        queryFn: metodoPagosApi.getActivos,
-      });
-
-      const foundMethod = activeMetodos.find(m =>
-        m.nombre.toLowerCase().includes(paymentMethod.toLowerCase())
-      ) ?? activeMetodos.find(m => m.nombre.toLowerCase() === 'efectivo') ?? activeMetodos[0];
-
-      if (foundMethod) {
-        const total = cart.reduce((sum, i) => sum + i.price * i.quantity, 0);
-        // Register sale
-        const venta = await createVenta({
-          idPedido: pedido.idPedido,
-          tipoComprobante: customer?.documentType === 'RUC' ? 'FACTURA' : 'BOLETA',
-          pagos: [
-            {
-              idMetodoPago: foundMethod.idMetodoPago,
-              monto: total,
-            }
-          ]
-        });
-
-        // Pay sale
-        await pagarVenta({
-          id: venta.idVenta,
-          pagos: [
-            {
-              idMetodoPago: foundMethod.idMetodoPago,
-              monto: venta.total,
-            }
-          ]
-        });
-      }
-    }
-
-    clearCart();
-
-    // Set dynamic current order for visual success ticket
-    const orderNum = `ORD-${String(pedido.idPedido).padStart(3, '0')}`;
-    const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    setCurrentOrder({
-      id: String(pedido.idPedido),
-      orderNumber: orderNum,
-      items: cart,
-      customer,
-      status: 'pendiente',
-      total,
-      paymentMethod,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-  };
-
   // API Integration: Update Order Status
   const updateOrderStatus = async (orderId: string, status: Order['status']) => {
     const statusMap: Record<Order['status'], string> = {
-      pendiente: 'ABIERTO',
-      'en-cocina': 'ENVIADO_COCINA',
+      pendiente: 'BORRADOR_ATENCION',
+      'en-cocina': 'EN_COCINA',
       listo: 'LISTO',
-      entregado: 'ENTREGADO',
+      entregado: 'SERVIDO',
       cancelado: 'CANCELADO',
     };
     const backendStatus = statusMap[status];
@@ -548,6 +414,9 @@ export function ERPProvider({ children }: { children: React.ReactNode }) {
           tipo: movement.type.toUpperCase() as 'INGRESO' | 'EGRESO',
           concepto: `${movement.description} [Método: ${movement.method}]`,
           monto: movement.amount,
+          referenceType: movement.referenceType || 'MOVIMIENTO_MANUAL',
+          referenceId: movement.referenceId || cajaActiva.idCaja,
+          comprobante: movement.comprobante || `MOV-CAJA-${cajaActiva.idCaja}`,
         }
       });
     }
@@ -559,7 +428,6 @@ export function ERPProvider({ children }: { children: React.ReactNode }) {
         products: mappedProducts,
         cart,
         orders: mappedOrders,
-        currentOrder,
         cashRegister: mappedCashRegister,
         customers: mappedCustomers,
         createCustomer,
@@ -567,23 +435,13 @@ export function ERPProvider({ children }: { children: React.ReactNode }) {
         updateCartItem,
         removeFromCart,
         clearCart,
-        createOrder,
         updateOrderStatus,
         openCashRegister,
         closeCashRegister,
         addCashMovement,
-        setCurrentOrder
       }}
     >
       {children}
     </ERPContext.Provider>
   );
-}
-
-export function useERP() {
-  const context = useContext(ERPContext);
-  if (!context) {
-    throw new Error('useERP must be used within ERPProvider');
-  }
-  return context;
 }

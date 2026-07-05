@@ -10,8 +10,6 @@ public class DetallePedidoResponse {
     private String nombreProducto;
     private Integer idCombo;
     private String nombreCombo;
-    private Integer idVariante;
-    private String nombreVariante;
     private Integer cantidad;
     private BigDecimal precioUnitario;
     private BigDecimal subtotal;
@@ -61,22 +59,6 @@ public class DetallePedidoResponse {
 
     public void setNombreCombo(String nombreCombo) {
         this.nombreCombo = nombreCombo;
-    }
-
-    public Integer getIdVariante() {
-        return idVariante;
-    }
-
-    public void setIdVariante(Integer idVariante) {
-        this.idVariante = idVariante;
-    }
-
-    public String getNombreVariante() {
-        return nombreVariante;
-    }
-
-    public void setNombreVariante(String nombreVariante) {
-        this.nombreVariante = nombreVariante;
     }
 
     public Integer getCantidad() {

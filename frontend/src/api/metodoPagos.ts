@@ -1,13 +1,23 @@
 import api from './auth';
+import type { ApiSchemas } from './generated/openapi-types';
 
-export interface MetodoPago {
+export interface MetodoPago
+  extends Omit<
+    ApiSchemas.MetodoPagoResponse,
+    'idMetodoPago' | 'nombre' | 'codigo' | 'requiereReferencia' | 'estado'
+  > {
   idMetodoPago: number;
   nombre: string;
+  codigo: string;
+  requiereReferencia: boolean;
   estado: 'ACTIVO' | 'INACTIVO';
 }
 
-export interface MetodoPagoRequest {
+export interface MetodoPagoRequest
+  extends Omit<ApiSchemas.MetodoPagoRequest, 'nombre' | 'codigo' | 'requiereReferencia' | 'estado'> {
   nombre: string;
+  codigo: string;
+  requiereReferencia?: boolean;
   estado?: 'ACTIVO' | 'INACTIVO';
 }
 

@@ -1,6 +1,7 @@
 package com.restaurante.dto.response;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 public class MovimientoInventarioResponse {
@@ -8,12 +9,19 @@ public class MovimientoInventarioResponse {
     private String tipoRecurso;
     private Integer idInsumo;
     private String nombreInsumo;
+    private Integer idLoteInsumo;
+    private Integer idLoteProducto;
+    private LocalDate fechaVencimientoLote;
     private Integer idProducto;
     private String nombreProducto;
     private String tipoMovimiento;
-    private String origen;
-    private Integer referenciaId;
+    private String referenceType;
+    private Integer referenceId;
     private BigDecimal cantidad;
+    private BigDecimal stockAnterior;
+    private BigDecimal stockNuevo;
+    private BigDecimal costoUnitario;
+    private BigDecimal saldoValorizado;
     private String motivo;
     private LocalDateTime fecha;
     private Integer idEmpleado;
@@ -51,6 +59,30 @@ public class MovimientoInventarioResponse {
         this.nombreInsumo = nombreInsumo;
     }
 
+    public Integer getIdLoteInsumo() {
+        return idLoteInsumo;
+    }
+
+    public void setIdLoteInsumo(Integer idLoteInsumo) {
+        this.idLoteInsumo = idLoteInsumo;
+    }
+
+    public Integer getIdLoteProducto() {
+        return idLoteProducto;
+    }
+
+    public void setIdLoteProducto(Integer idLoteProducto) {
+        this.idLoteProducto = idLoteProducto;
+    }
+
+    public LocalDate getFechaVencimientoLote() {
+        return fechaVencimientoLote;
+    }
+
+    public void setFechaVencimientoLote(LocalDate fechaVencimientoLote) {
+        this.fechaVencimientoLote = fechaVencimientoLote;
+    }
+
     public Integer getIdProducto() {
         return idProducto;
     }
@@ -75,20 +107,20 @@ public class MovimientoInventarioResponse {
         this.tipoMovimiento = tipoMovimiento;
     }
 
-    public String getOrigen() {
-        return origen;
+    public String getReferenceType() {
+        return referenceType;
     }
 
-    public void setOrigen(String origen) {
-        this.origen = origen;
+    public void setReferenceType(String referenceType) {
+        this.referenceType = referenceType;
     }
 
-    public Integer getReferenciaId() {
-        return referenciaId;
+    public Integer getReferenceId() {
+        return referenceId;
     }
 
-    public void setReferenciaId(Integer referenciaId) {
-        this.referenciaId = referenciaId;
+    public void setReferenceId(Integer referenceId) {
+        this.referenceId = referenceId;
     }
 
     public BigDecimal getCantidad() {
@@ -97,6 +129,38 @@ public class MovimientoInventarioResponse {
 
     public void setCantidad(BigDecimal cantidad) {
         this.cantidad = cantidad;
+    }
+
+    public BigDecimal getStockAnterior() {
+        return stockAnterior;
+    }
+
+    public void setStockAnterior(BigDecimal stockAnterior) {
+        this.stockAnterior = stockAnterior;
+    }
+
+    public BigDecimal getStockNuevo() {
+        return stockNuevo;
+    }
+
+    public void setStockNuevo(BigDecimal stockNuevo) {
+        this.stockNuevo = stockNuevo;
+    }
+
+    public BigDecimal getCostoUnitario() {
+        return costoUnitario;
+    }
+
+    public void setCostoUnitario(BigDecimal costoUnitario) {
+        this.costoUnitario = costoUnitario;
+    }
+
+    public BigDecimal getSaldoValorizado() {
+        return saldoValorizado;
+    }
+
+    public void setSaldoValorizado(BigDecimal saldoValorizado) {
+        this.saldoValorizado = saldoValorizado;
     }
 
     public String getMotivo() {

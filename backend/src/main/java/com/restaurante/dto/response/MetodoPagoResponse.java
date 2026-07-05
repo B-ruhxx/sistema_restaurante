@@ -3,7 +3,8 @@ package com.restaurante.dto.response;
 public class MetodoPagoResponse {
     private Integer idMetodoPago;
     private String nombre;
-    private Boolean requiereOperacion;
+    private String codigo;
+    private Boolean requiereReferencia;
     private String estado;
 
     public Integer getIdMetodoPago() {
@@ -22,12 +23,20 @@ public class MetodoPagoResponse {
         this.nombre = nombre;
     }
 
-    public Boolean getRequiereOperacion() {
-        return requiereOperacion;
+    public String getCodigo() {
+        return codigo;
     }
 
-    public void setRequiereOperacion(Boolean requiereOperacion) {
-        this.requiereOperacion = requiereOperacion;
+    public void setCodigo(String codigo) {
+        this.codigo = codigo;
+    }
+
+    public Boolean getRequiereReferencia() {
+        return requiereReferencia;
+    }
+
+    public void setRequiereReferencia(Boolean requiereReferencia) {
+        this.requiereReferencia = requiereReferencia;
     }
 
     public String getEstado() {

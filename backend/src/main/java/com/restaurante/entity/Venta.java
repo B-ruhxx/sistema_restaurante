@@ -16,45 +16,40 @@ public class Venta {
     @Column(name = "id_venta")
     private Integer idVenta;
 
-    @Column(name = "codigo_venta", unique = true, length = 50)
-    private String codigoVenta;
-
     @CreationTimestamp
-    @Column(name = "fecha", nullable = false, updatable = false, columnDefinition = "DATETIME(6)")
+    @Column(name = "fecha_venta", nullable = false, updatable = false, columnDefinition = "DATETIME(6)")
     private LocalDateTime fecha;
 
     @Column(precision = 10, scale = 2)
     private BigDecimal subtotal;
 
-    @Column(name = "subtotal_gravado", precision = 10, scale = 2)
-    private BigDecimal subtotalGravado;
-
     @Column(precision = 10, scale = 2)
     private BigDecimal igv;
-
-    @Column(name = "igv_porcentaje", columnDefinition = "DECIMAL(5,2) DEFAULT 18.00")
-    private BigDecimal igvPorcentaje = new BigDecimal("18.00");
 
     @Column(precision = 10, scale = 2)
     private BigDecimal total;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "tipo_comprobante", columnDefinition = "ENUM('BOLETA', 'FACTURA') DEFAULT 'BOLETA'")
-    private TipoComprobante tipoComprobante = TipoComprobante.BOLETA;
+    @Column(name = "tipo_comprobante", columnDefinition = "ENUM('BOLETA','FACTURA','TICKET') DEFAULT 'TICKET'")
+    private TipoComprobante tipoComprobante = TipoComprobante.TICKET;
 
-    @Column(length = 10)
+    @Column(nullable = false, length = 10)
     private String serie;
 
-    @Column(length = 20)
-    private String correlativo;
+    @Column(nullable = false, length = 20)
+    private String numero;
 
     @Enumerated(EnumType.STRING)
-    @Column(columnDefinition = "ENUM('PENDIENTE', 'PAGADA', 'ANULADA') DEFAULT 'PENDIENTE'")
-    private Estado estado = Estado.PENDIENTE;
+    @Column(columnDefinition = "ENUM('EMITIDA','ANULADA') DEFAULT 'EMITIDA'")
+    private Estado estado = Estado.EMITIDA;
 
     @ManyToOne
     @JoinColumn(name = "id_pedido")
     private Pedido pedido;
+
+    @ManyToOne
+    @JoinColumn(name = "id_cliente")
+    private Cliente cliente;
 
     @ManyToOne(optional = false)
     @JoinColumn(name = "id_empleado", nullable = false)
@@ -69,15 +64,8 @@ public class Venta {
     @Column(name = "fecha_anulacion", columnDefinition = "DATETIME(6)")
     private LocalDateTime fechaAnulacion;
 
-    @Column(name = "motivo_anulacion", columnDefinition = "TEXT")
+    @Column(name = "motivo_anulacion", length = 255)
     private String motivoAnulacion;
-
-    @ManyToOne
-    @JoinColumn(name = "id_empleado_anulacion")
-    private Empleado empleadoAnulacion;
-
-    @Version
-    private Long version = 0L;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false, columnDefinition = "DATETIME(6)")
@@ -88,11 +76,11 @@ public class Venta {
     private LocalDateTime updatedAt;
 
     public enum TipoComprobante {
-        BOLETA, FACTURA
+        BOLETA, FACTURA, TICKET
     }
 
     public enum Estado {
-        PENDIENTE, PAGADA, ANULADA
+        EMITIDA, ANULADA
     }
 
     public Venta() {
@@ -116,12 +104,11 @@ public class Venta {
         this.idVenta = idVenta;
     }
 
-    public String getCodigoVenta() {
-        return codigoVenta;
-    }
-
-    public void setCodigoVenta(String codigoVenta) {
-        this.codigoVenta = codigoVenta;
+    public String getComprobante() {
+        if (serie != null && numero != null) {
+            return serie + "-" + numero;
+        }
+        return null;
     }
 
     public LocalDateTime getFecha() {
@@ -136,28 +123,12 @@ public class Venta {
         this.subtotal = subtotal;
     }
 
-    public BigDecimal getSubtotalGravado() {
-        return subtotalGravado;
-    }
-
-    public void setSubtotalGravado(BigDecimal subtotalGravado) {
-        this.subtotalGravado = subtotalGravado;
-    }
-
     public BigDecimal getIgv() {
         return igv;
     }
 
     public void setIgv(BigDecimal igv) {
         this.igv = igv;
-    }
-
-    public BigDecimal getIgvPorcentaje() {
-        return igvPorcentaje;
-    }
-
-    public void setIgvPorcentaje(BigDecimal igvPorcentaje) {
-        this.igvPorcentaje = igvPorcentaje;
     }
 
     public BigDecimal getTotal() {
@@ -184,12 +155,12 @@ public class Venta {
         this.serie = serie;
     }
 
-    public String getCorrelativo() {
-        return correlativo;
+    public String getNumero() {
+        return numero;
     }
 
-    public void setCorrelativo(String correlativo) {
-        this.correlativo = correlativo;
+    public void setNumero(String numero) {
+        this.numero = numero;
     }
 
     public Estado getEstado() {
@@ -206,6 +177,14 @@ public class Venta {
 
     public void setPedido(Pedido pedido) {
         this.pedido = pedido;
+    }
+
+    public Cliente getCliente() {
+        return cliente;
+    }
+
+    public void setCliente(Cliente cliente) {
+        this.cliente = cliente;
     }
 
     public Empleado getEmpleado() {
@@ -230,22 +209,6 @@ public class Venta {
 
     public void setMotivoAnulacion(String motivoAnulacion) {
         this.motivoAnulacion = motivoAnulacion;
-    }
-
-    public Empleado getEmpleadoAnulacion() {
-        return empleadoAnulacion;
-    }
-
-    public void setEmpleadoAnulacion(Empleado empleadoAnulacion) {
-        this.empleadoAnulacion = empleadoAnulacion;
-    }
-
-    public Long getVersion() {
-        return version;
-    }
-
-    public void setVersion(Long version) {
-        this.version = version;
     }
 
     public LocalDateTime getCreatedAt() {

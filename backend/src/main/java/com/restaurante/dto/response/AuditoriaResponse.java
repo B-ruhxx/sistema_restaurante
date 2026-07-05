@@ -3,7 +3,7 @@ package com.restaurante.dto.response;
 import java.time.LocalDateTime;
 
 public class AuditoriaResponse {
-    private Integer idAuditoria;
+    private Long idAuditoria;
     private String tablaAfectada;
     private String accion;
     private String idRegistro;
@@ -13,11 +13,11 @@ public class AuditoriaResponse {
     private String datosNuevos;
     private LocalDateTime fechaEvento;
 
-    public Integer getIdAuditoria() {
+    public Long getIdAuditoria() {
         return idAuditoria;
     }
 
-    public void setIdAuditoria(Integer idAuditoria) {
+    public void setIdAuditoria(Long idAuditoria) {
         this.idAuditoria = idAuditoria;
     }
 

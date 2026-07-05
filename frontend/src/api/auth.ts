@@ -1,4 +1,5 @@
 import axios from 'axios';
+import type { AxiosError } from 'axios';
 import { queryClient } from '../lib/queryClient';
 import { toast } from '../lib/notifications';
 import { useAuthStore } from '../store/authStore';
@@ -24,7 +25,7 @@ const isPublicRequest = (url?: string) => {
   return PUBLIC_PATHS.some((path) => url.includes(path));
 };
 
-const getApiErrorMessage = (error: any) => {
+const getApiErrorMessage = (error: AxiosError<AppApiErrorPayload | string>) => {
   const status = error.response?.status;
   const data = error.response?.data;
 
@@ -32,11 +33,11 @@ const getApiErrorMessage = (error: any) => {
     return data;
   }
 
-  if (typeof data?.message === 'string' && data.message.trim()) {
+  if (typeof data === 'object' && data && typeof data.message === 'string' && data.message.trim()) {
     return data.message;
   }
 
-  const firstValidationError = data?.validationErrors
+  const firstValidationError = typeof data === 'object' && data?.validationErrors
     ? Object.values(data.validationErrors).find(Boolean)
     : null;
   if (typeof firstValidationError === 'string') {
@@ -46,7 +47,7 @@ const getApiErrorMessage = (error: any) => {
   if (status === 400) return 'Revisa los datos enviados.';
   if (status === 404) return 'No se encontro el recurso solicitado.';
   if (status === 409) return 'Ya existe un registro con esos datos.';
-  if (status >= 500) return 'Ocurrio un error en el servidor.';
+  if (status !== undefined && status >= 500) return 'Ocurrio un error en el servidor.';
   return 'No se pudo completar la operacion.';
 };
 
@@ -60,23 +61,24 @@ const clearSessionAndRedirect = () => {
 
   if (window.location.pathname !== '/login' && !isRedirectingToLogin) {
     isRedirectingToLogin = true;
+    toast.warning('Tu sesion expiro o fue iniciada en otro dispositivo.');
     window.location.href = '/login';
   }
 };
 
-// Response interceptor: on private 401/403, clear session and redirect to login
+// Response interceptor: on private 401, clear session and redirect to login
 authApi.interceptors.response.use(
   (response) => response,
   (error) => {
     const status = error.response?.status;
     const isPublic = isPublicRequest(error.config?.url);
 
-    if ((status === 401 || status === 403) && !isPublic) {
+    if (status === 401 && !isPublic) {
       clearSessionAndRedirect();
       return Promise.reject(error);
     }
 
-    if ([400, 404, 409, 500].includes(status) && !isPublic) {
+    if (status && [400, 404, 409, 500].includes(status) && !isPublic) {
       toast.error(getApiErrorMessage(error));
     }
 

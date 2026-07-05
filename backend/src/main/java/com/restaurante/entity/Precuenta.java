@@ -25,25 +25,34 @@ public class Precuenta {
     @Column(name = "fecha_emision", nullable = false, updatable = false)
     private LocalDateTime fechaEmision;
 
+    @Column(name = "version_pedido", nullable = false)
+    private Long versionPedido = 0L;
+
     @ManyToOne(optional = false)
     @JoinColumn(name = "emitido_por", nullable = false)
     private Empleado emitidoPor;
 
-    @Column(precision = 10, scale = 2)
+    @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal subtotal;
 
-    @Column(precision = 10, scale = 2)
+    @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal igv;
 
-    @Column(precision = 10, scale = 2)
+    @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal total;
 
     @Enumerated(EnumType.STRING)
-    @Column(columnDefinition = "ENUM('EMITIDA','ANULADA','CONVERTIDA_VENTA') DEFAULT 'EMITIDA'")
+    @Column(columnDefinition = "ENUM('EMITIDA','INVALIDADA_POR_ADICION','CONVERTIDA_VENTA','ANULADA') DEFAULT 'EMITIDA'")
     private Estado estado = Estado.EMITIDA;
 
+    @Column(name = "fecha_invalidacion")
+    private LocalDateTime fechaInvalidacion;
+
+    @Column(name = "motivo_invalidacion", length = 255)
+    private String motivoInvalidacion;
+
     public enum Estado {
-        EMITIDA, ANULADA, CONVERTIDA_VENTA
+        EMITIDA, INVALIDADA_POR_ADICION, CONVERTIDA_VENTA, ANULADA
     }
 
     public Integer getIdPrecuenta() {
@@ -72,6 +81,14 @@ public class Precuenta {
 
     public LocalDateTime getFechaEmision() {
         return fechaEmision;
+    }
+
+    public Long getVersionPedido() {
+        return versionPedido;
+    }
+
+    public void setVersionPedido(Long versionPedido) {
+        this.versionPedido = versionPedido;
     }
 
     public Empleado getEmitidoPor() {
@@ -112,6 +129,22 @@ public class Precuenta {
 
     public void setEstado(Estado estado) {
         this.estado = estado;
+    }
+
+    public LocalDateTime getFechaInvalidacion() {
+        return fechaInvalidacion;
+    }
+
+    public void setFechaInvalidacion(LocalDateTime fechaInvalidacion) {
+        this.fechaInvalidacion = fechaInvalidacion;
+    }
+
+    public String getMotivoInvalidacion() {
+        return motivoInvalidacion;
+    }
+
+    public void setMotivoInvalidacion(String motivoInvalidacion) {
+        this.motivoInvalidacion = motivoInvalidacion;
     }
 
     @Override

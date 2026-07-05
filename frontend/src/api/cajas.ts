@@ -1,42 +1,37 @@
 import api from './auth';
 import { Pedido } from './pedidos';
 import { Venta, VentaPagoRequest } from './ventas';
+import type { ApiSchemas } from './generated/openapi-types';
 
-export interface CajaResponse {
+export interface CajaResponse extends Omit<ApiSchemas.CajaResponse, 'idCaja' | 'empleadoNombre' | 'montoApertura' | 'fechaApertura' | 'estado'> {
   idCaja: number;
   empleadoNombre: string;
   montoApertura: number;
-  montoCierre?: number;
-  montoVentas?: number;
-  montoIngresos?: number;
-  montoEgresos?: number;
-  saldoEsperado?: number;
   fechaApertura: string;
-  fechaCierre?: string;
   estado: 'ABIERTA' | 'CERRADA';
-  observacionApertura?: string;
-  observacionCierre?: string;
 }
 
-export interface MovimientoCajaRequest {
+export interface MovimientoCajaRequest extends Omit<ApiSchemas.MovimientoCajaRequest, 'tipo'> {
   tipo: 'INGRESO' | 'EGRESO';
-  concepto: string;
-  monto: number;
+  referenceType: string;
+  referenceId: number;
+  comprobante: string;
 }
 
-export interface MovimientoCajaResponse {
-  idMovimientoCaja: number;
+export interface MovimientoCajaResponse extends Omit<ApiSchemas.MovimientoCajaResponse, 'idMovimiento' | 'idCaja' | 'tipo' | 'concepto' | 'monto' | 'fecha'> {
+  idMovimiento: number;
   idCaja: number;
   tipo: 'INGRESO' | 'EGRESO';
   concepto: string;
   monto: number;
   fecha: string;
+  referenceType?: string;
+  referenceId?: number;
+  comprobante?: string;
 }
 
-export interface CobrarPedidoRequest {
-  tipoComprobante: 'BOLETA' | 'FACTURA';
-  serie?: string;
-  correlativo?: string;
+export interface CobrarPedidoRequest extends Omit<ApiSchemas.CobrarPedidoRequest, 'tipoComprobante' | 'pagos'> {
+  tipoComprobante: 'BOLETA' | 'FACTURA' | 'TICKET';
   pagos: VentaPagoRequest[];
 }
 

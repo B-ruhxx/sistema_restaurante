@@ -22,8 +22,19 @@ public class CategoriaService {
     @Autowired
     private CategoriaMapper categoriaMapper;
 
-    public List<CategoriaResponse> getAllCategorias() {
-        return categoriaRepository.findByEstado(Categoria.Estado.ACTIVO).stream()
+    public List<CategoriaResponse> getAllCategorias(String estado) {
+        List<Categoria> categorias;
+        if (estado == null || estado.isBlank() || "ACTIVO".equalsIgnoreCase(estado)) {
+            categorias = categoriaRepository.findByEstadoOrderByNombreAsc(Categoria.Estado.ACTIVO);
+        } else if ("INACTIVO".equalsIgnoreCase(estado)) {
+            categorias = categoriaRepository.findByEstadoOrderByNombreAsc(Categoria.Estado.INACTIVO);
+        } else if ("TODOS".equalsIgnoreCase(estado)) {
+            categorias = categoriaRepository.findAllByOrderByNombreAsc();
+        } else {
+            throw new IllegalArgumentException("Estado de categoría no válido: " + estado);
+        }
+
+        return categorias.stream()
                 .map(categoriaMapper::toResponse)
                 .collect(Collectors.toList());
     }
@@ -52,7 +63,6 @@ public class CategoriaService {
         categoria.setNombre(request.getNombre());
         categoria.setDescripcion(request.getDescripcion());
         categoria.setImagenUrl(request.getImagenUrl());
-        categoria.setImg(request.getImg());
         if (request.getEstado() != null) {
             categoria.setEstado(Categoria.Estado.valueOf(request.getEstado().toUpperCase()));
         }
@@ -67,5 +77,13 @@ public class CategoriaService {
                 .orElseThrow(() -> new ResourceNotFoundException("Categoría no encontrada con ID: " + id));
         categoria.setEstado(Categoria.Estado.INACTIVO);
         categoriaRepository.save(categoria);
+    }
+
+    @Transactional
+    public CategoriaResponse updateEstadoCategoria(Integer id, String estado) {
+        Categoria categoria = categoriaRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Categoría no encontrada con ID: " + id));
+        categoria.setEstado(Categoria.Estado.valueOf(estado.toUpperCase()));
+        return categoriaMapper.toResponse(categoriaRepository.save(categoria));
     }
 }

@@ -13,7 +13,7 @@ public class VentaPagoRequest {
     @Positive(message = "El monto del pago debe ser mayor a 0.")
     private BigDecimal monto;
 
-    private String numeroOperacion;
+    private String referencia;
 
     public VentaPagoRequest() {}
 
@@ -23,6 +23,6 @@ public class VentaPagoRequest {
     public BigDecimal getMonto() { return monto; }
     public void setMonto(BigDecimal monto) { this.monto = monto; }
 
-    public String getNumeroOperacion() { return numeroOperacion; }
-    public void setNumeroOperacion(String numeroOperacion) { this.numeroOperacion = numeroOperacion; }
+    public String getReferencia() { return referencia; }
+    public void setReferencia(String referencia) { this.referencia = referencia; }
 }

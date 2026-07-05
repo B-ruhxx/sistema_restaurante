@@ -1,16 +1,20 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { categoriasApi, CategoriaRequest } from '../api/categorias';
+import { categoriasApi, Categoria, CategoriaEstadoFiltro, CategoriaRequest } from '../api/categorias';
 import { PrivateQueryOptions, usePrivateQueryEnabled } from './usePrivateQuery';
 
-const EMPTY_ARRAY: any[] = [];
+const EMPTY_ARRAY: Categoria[] = [];
 
-export const useCategorias = ({ enabled = true }: PrivateQueryOptions = {}) => {
+type UseCategoriasOptions = PrivateQueryOptions & {
+  estado?: CategoriaEstadoFiltro;
+};
+
+export const useCategorias = ({ enabled = true, estado = 'ACTIVO' }: UseCategoriasOptions = {}) => {
   const queryClient = useQueryClient();
   const queryEnabled = usePrivateQueryEnabled(enabled);
 
   const categoriasQuery = useQuery({
-    queryKey: ['categorias'],
-    queryFn: categoriasApi.getAll,
+    queryKey: ['categorias', estado],
+    queryFn: () => categoriasApi.getAll(estado),
     enabled: queryEnabled,
     staleTime: 30_000,
   });
@@ -37,6 +41,14 @@ export const useCategorias = ({ enabled = true }: PrivateQueryOptions = {}) => {
     },
   });
 
+  const updateEstadoMutation = useMutation({
+    mutationFn: ({ id, estado }: { id: number; estado: 'ACTIVO' | 'INACTIVO' }) =>
+      categoriasApi.updateEstado(id, estado),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['categorias'] });
+    },
+  });
+
   return {
     categorias: categoriasQuery.data || EMPTY_ARRAY,
     isLoading: categoriasQuery.isLoading,
@@ -44,8 +56,10 @@ export const useCategorias = ({ enabled = true }: PrivateQueryOptions = {}) => {
     createCategoria: createMutation.mutateAsync,
     updateCategoria: updateMutation.mutateAsync,
     deleteCategoria: deleteMutation.mutateAsync,
+    updateCategoriaEstado: updateEstadoMutation.mutateAsync,
     isCreating: createMutation.isPending,
     isUpdating: updateMutation.isPending,
     isDeleting: deleteMutation.isPending,
+    isUpdatingEstado: updateEstadoMutation.isPending,
   };
 };

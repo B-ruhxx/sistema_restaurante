@@ -3,6 +3,7 @@ package com.restaurante.service;
 import com.restaurante.dto.mapper.PedidoMapper;
 import com.restaurante.dto.mapper.PrecuentaMapper;
 import com.restaurante.dto.response.DetallePedidoResponse;
+import com.restaurante.dto.response.PedidoResponse;
 import com.restaurante.dto.response.PrecuentaResponse;
 import com.restaurante.entity.Empleado;
 import com.restaurante.entity.Mesa;
@@ -16,6 +17,7 @@ import com.restaurante.repository.PedidoRepository;
 import com.restaurante.repository.PrecuentaRepository;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.time.LocalDateTime;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -51,23 +53,24 @@ public class PrecuentaService {
         if (!detallePedidoRepository.existsByPedidoIdPedido(idPedido)) {
             throw new IllegalArgumentException("No se puede emitir precuenta para un pedido vacío.");
         }
-        if (pedido.getEstado() == Pedido.Estado.CANCELADO || pedido.getEstado() == Pedido.Estado.PAGADO) {
+        if (pedido.getEstado() == Pedido.Estado.CANCELADO || pedido.getEstado() == Pedido.Estado.CERRADO) {
             throw new IllegalStateException("No se puede emitir precuenta para un pedido cancelado o pagado.");
         }
-        if (pedido.getEstado() == Pedido.Estado.ENVIADO_COCINA || pedido.getEstado() == Pedido.Estado.EN_PREPARACION) {
+        if (pedido.getEstado() == Pedido.Estado.EN_COCINA) {
             throw new IllegalStateException("No se puede emitir precuenta mientras el pedido está en cocina.");
         }
 
         pedidoService.recalcularTotales(pedido);
-        pedidoService.cambiarEstadoInterno(pedido, Pedido.Estado.CUENTA_EMITIDA, empleado);
+        pedidoService.cambiarEstadoInterno(pedido, Pedido.Estado.CUENTA, empleado);
         if (pedido.getMesa() != null) {
-            pedido.getMesa().setEstado(Mesa.Estado.CUENTA_EMITIDA);
+            pedido.getMesa().setEstado(Mesa.Estado.CUENTA);
         }
 
         Precuenta precuenta = new Precuenta();
         precuenta.setPedido(pedido);
         precuenta.setEmitidoPor(empleado);
         precuenta.setNumero(generarNumero());
+        precuenta.setVersionPedido(pedido.getVersion());
         precuenta.setSubtotal(pedido.getSubtotal());
         precuenta.setIgv(pedido.getIgv());
         precuenta.setTotal(pedido.getTotal());
@@ -97,6 +100,31 @@ public class PrecuentaService {
                 });
     }
 
+    public PedidoResponse reabrirPedidoPorAdicion(Integer idPedido, Empleado empleado) {
+        Pedido pedido = pedidoRepository.findById(idPedido)
+                .orElseThrow(() -> new ResourceNotFoundException("Pedido no encontrado."));
+        if (pedido.getEstado() != Pedido.Estado.CUENTA) {
+            throw new IllegalStateException("Solo se puede reabrir un pedido en estado CUENTA.");
+        }
+
+        Precuenta precuenta = precuentaRepository.findFirstByPedidoIdPedidoOrderByFechaEmisionDesc(idPedido)
+                .orElseThrow(() -> new IllegalStateException("No existe precuenta emitida para invalidar."));
+        if (precuenta.getEstado() != Precuenta.Estado.EMITIDA) {
+            throw new IllegalStateException("La última precuenta no está emitida y no puede invalidarse por adición.");
+        }
+
+        precuenta.setEstado(Precuenta.Estado.INVALIDADA_POR_ADICION);
+        precuenta.setFechaInvalidacion(LocalDateTime.now());
+        precuenta.setMotivoInvalidacion("INVALIDADA_POR_ADICION");
+        precuentaRepository.save(precuenta);
+
+        pedidoService.cambiarEstadoInterno(pedido, Pedido.Estado.EN_COCINA, empleado);
+        if (pedido.getMesa() != null) {
+            pedido.getMesa().setEstado(Mesa.Estado.EN_COCINA);
+        }
+        return mapPedido(pedidoRepository.save(pedido));
+    }
+
     private PrecuentaResponse map(Precuenta precuenta) {
         List<DetallePedidoResponse> detalles = detallePedidoRepository
                 .findByPedidoIdPedido(precuenta.getPedido().getIdPedido())
@@ -107,6 +135,18 @@ public class PrecuentaService {
                 })
                 .collect(Collectors.toList());
         return precuentaMapper.toResponse(precuenta, detalles);
+    }
+
+    private PedidoResponse mapPedido(Pedido pedido) {
+        List<DetallePedidoResponse> detalles = detallePedidoRepository
+                .findByPedidoIdPedido(pedido.getIdPedido())
+                .stream()
+                .map(det -> {
+                    List<PedidoExtra> extras = pedidoExtraRepository.findByDetallePedidoIdDetallePedido(det.getIdDetallePedido());
+                    return pedidoMapper.toDetalleResponse(det, extras);
+                })
+                .collect(Collectors.toList());
+        return pedidoMapper.toResponse(pedido, detalles);
     }
 
     private String generarNumero() {

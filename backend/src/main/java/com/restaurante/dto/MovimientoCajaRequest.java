@@ -17,6 +17,15 @@ public class MovimientoCajaRequest {
     @Positive(message = "El monto debe ser mayor a 0.")
     private BigDecimal monto;
 
+    @NotBlank(message = "El tipo de referencia es obligatorio.")
+    private String referenceType;
+
+    @NotNull(message = "El id de referencia es obligatorio.")
+    private Integer referenceId;
+
+    @NotBlank(message = "El comprobante es obligatorio.")
+    private String comprobante;
+
     public MovimientoCajaRequest() {}
 
     public String getTipo() { return tipo; }
@@ -27,4 +36,13 @@ public class MovimientoCajaRequest {
 
     public BigDecimal getMonto() { return monto; }
     public void setMonto(BigDecimal monto) { this.monto = monto; }
+
+    public String getReferenceType() { return referenceType; }
+    public void setReferenceType(String referenceType) { this.referenceType = referenceType; }
+
+    public Integer getReferenceId() { return referenceId; }
+    public void setReferenceId(Integer referenceId) { this.referenceId = referenceId; }
+
+    public String getComprobante() { return comprobante; }
+    public void setComprobante(String comprobante) { this.comprobante = comprobante; }
 }

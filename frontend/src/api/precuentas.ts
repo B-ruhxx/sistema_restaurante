@@ -12,13 +12,13 @@ export interface Precuenta {
   subtotal: number;
   igv: number;
   total: number;
-  estado: 'EMITIDA' | 'ANULADA' | 'CONVERTIDA_VENTA';
+  estado: 'EMITIDA' | 'CONVERTIDA_VENTA' | 'INVALIDADA_POR_ADICION';
   detalles?: DetallePedido[];
 }
 
 export const precuentasApi = {
   emitir: async (idPedido: number): Promise<Precuenta> => {
-    const response = await api.post(`/pedidos/${idPedido}/precuenta`);
+    const response = await api.post(`/pedidos/${idPedido}/precuentas`);
     return response.data;
   },
   getById: async (id: number): Promise<Precuenta> => {

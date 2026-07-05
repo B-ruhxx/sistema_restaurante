@@ -19,17 +19,17 @@ public class VentaPago {
     private Venta venta;
 
     @ManyToOne(optional = false)
-    @JoinColumn(name = "id_metodo_pago", nullable = false)
+    @JoinColumn(name = "id_metodo", nullable = false)
     private MetodoPago metodoPago;
 
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal monto;
 
-    @Column(name = "numero_operacion", length = 100)
-    private String numeroOperacion;
+    @Column(length = 120)
+    private String referencia;
 
     @Enumerated(EnumType.STRING)
-    @Column(columnDefinition = "ENUM('PENDIENTE', 'APROBADO', 'RECHAZADO')")
+    @Column(columnDefinition = "ENUM('APROBADO','ANULADO','RECHAZADO')")
     private Estado estado;
 
     @CreationTimestamp
@@ -37,7 +37,7 @@ public class VentaPago {
     private LocalDateTime fechaPago;
 
     public enum Estado {
-        PENDIENTE, APROBADO, RECHAZADO
+        APROBADO, ANULADO, RECHAZADO
     }
 
     public VentaPago() {
@@ -75,12 +75,12 @@ public class VentaPago {
         this.monto = monto;
     }
 
-    public String getNumeroOperacion() {
-        return numeroOperacion;
+    public String getReferencia() {
+        return referencia;
     }
 
-    public void setNumeroOperacion(String numeroOperacion) {
-        this.numeroOperacion = numeroOperacion;
+    public void setReferencia(String referencia) {
+        this.referencia = referencia;
     }
 
     public Estado getEstado() {

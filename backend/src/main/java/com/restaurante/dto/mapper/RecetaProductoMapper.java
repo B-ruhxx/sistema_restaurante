@@ -12,7 +12,6 @@ public class RecetaProductoMapper {
         RecetaProductoResponse response = new RecetaProductoResponse();
         response.setIdReceta(entity.getIdReceta());
         response.setCantidad(entity.getCantidad());
-        response.setTiempoPreparacionMinutos(entity.getTiempoPreparacionMinutos());
         if (entity.getProducto() != null) {
             response.setIdProducto(entity.getProducto().getIdProducto());
             response.setNombreProducto(entity.getProducto().getNombre());

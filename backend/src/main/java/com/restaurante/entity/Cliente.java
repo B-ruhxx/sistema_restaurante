@@ -14,18 +14,21 @@ public class Cliente {
     @Column(name = "id_cliente")
     private Integer idCliente;
 
-    @Column(length = 50)
+    @Column(length = 120, nullable = false)
     private String nombre;
 
-    @Column(length = 50)
+    @Column(length = 120)
     private String apellido;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "tipo_documento", columnDefinition = "ENUM('DNI', 'RUC', 'CE') DEFAULT 'DNI'")
-    private TipoDocumento tipoDocumento = TipoDocumento.DNI;
+    @Column(name = "tipo_documento", columnDefinition = "ENUM('DNI','RUC','CE','PASAPORTE','SIN_DOCUMENTO') DEFAULT 'SIN_DOCUMENTO'")
+    private TipoDocumento tipoDocumento = TipoDocumento.SIN_DOCUMENTO;
 
-    @Column(name = "documento_identidad", length = 20)
-    private String documentoIdentidad;
+    @Column(name = "numero_documento", length = 20)
+    private String numeroDocumento;
+
+    @Column(name = "razon_social", length = 180)
+    private String razonSocial;
 
     @Column(length = 20)
     private String telefono;
@@ -49,7 +52,7 @@ public class Cliente {
     private LocalDateTime updatedAt;
 
     public enum TipoDocumento {
-        DNI, RUC, CE
+        DNI, RUC, CE, PASAPORTE, SIN_DOCUMENTO
     }
 
     public enum Estado {
@@ -92,11 +95,27 @@ public class Cliente {
     }
 
     public String getDocumentoIdentidad() {
-        return documentoIdentidad;
+        return numeroDocumento;
     }
 
     public void setDocumentoIdentidad(String documentoIdentidad) {
-        this.documentoIdentidad = documentoIdentidad;
+        this.numeroDocumento = documentoIdentidad;
+    }
+
+    public String getNumeroDocumento() {
+        return numeroDocumento;
+    }
+
+    public void setNumeroDocumento(String numeroDocumento) {
+        this.numeroDocumento = numeroDocumento;
+    }
+
+    public String getRazonSocial() {
+        return razonSocial;
+    }
+
+    public void setRazonSocial(String razonSocial) {
+        this.razonSocial = razonSocial;
     }
 
     public String getTelefono() {

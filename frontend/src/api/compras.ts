@@ -1,9 +1,11 @@
 import api from './auth';
 
 export interface DetalleCompraRequest {
-  idInsumo: number;
+  idInsumo?: number;
+  idProducto?: number;
   cantidad: number;
   precioUnitario: number;
+  fechaVencimiento: string;
 }
 
 export interface CompraRequest {
@@ -15,12 +17,17 @@ export interface CompraRequest {
 
 export interface DetalleCompraResponse {
   idDetalleCompra: number;
-  idInsumo: number;
-  nombreInsumo: string;
-  unidadInsumo: string;
+  idInsumo?: number;
+  nombreInsumo?: string;
+  unidadInsumo?: string;
+  idProducto?: number;
+  nombreProducto?: string;
+  skuProducto?: string;
+  tipoRecurso?: 'INSUMO' | 'PRODUCTO';
   cantidad: number;
   precioUnitario: number;
   subtotal: number;
+  fechaVencimiento?: string;
 }
 
 export interface CompraResponse {

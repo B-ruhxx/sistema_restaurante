@@ -1,15 +1,22 @@
 package com.restaurante.dto.response;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 public class DetalleCompraResponse {
     private Integer idDetalleCompra;
     private Integer idInsumo;
     private String nombreInsumo;
     private String unidadInsumo;
+    private Integer idProducto;
+    private String nombreProducto;
+    private String skuProducto;
+    private String tipoRecurso;
     private BigDecimal cantidad;
     private BigDecimal precioUnitario;
     private BigDecimal subtotal;
+    private String numeroLote;
+    private LocalDate fechaVencimiento;
 
     public Integer getIdDetalleCompra() {
         return idDetalleCompra;
@@ -43,6 +50,38 @@ public class DetalleCompraResponse {
         this.unidadInsumo = unidadInsumo;
     }
 
+    public Integer getIdProducto() {
+        return idProducto;
+    }
+
+    public void setIdProducto(Integer idProducto) {
+        this.idProducto = idProducto;
+    }
+
+    public String getNombreProducto() {
+        return nombreProducto;
+    }
+
+    public void setNombreProducto(String nombreProducto) {
+        this.nombreProducto = nombreProducto;
+    }
+
+    public String getSkuProducto() {
+        return skuProducto;
+    }
+
+    public void setSkuProducto(String skuProducto) {
+        this.skuProducto = skuProducto;
+    }
+
+    public String getTipoRecurso() {
+        return tipoRecurso;
+    }
+
+    public void setTipoRecurso(String tipoRecurso) {
+        this.tipoRecurso = tipoRecurso;
+    }
+
     public BigDecimal getCantidad() {
         return cantidad;
     }
@@ -65,5 +104,21 @@ public class DetalleCompraResponse {
 
     public void setSubtotal(BigDecimal subtotal) {
         this.subtotal = subtotal;
+    }
+
+    public String getNumeroLote() {
+        return numeroLote;
+    }
+
+    public void setNumeroLote(String numeroLote) {
+        this.numeroLote = numeroLote;
+    }
+
+    public LocalDate getFechaVencimiento() {
+        return fechaVencimiento;
+    }
+
+    public void setFechaVencimiento(LocalDate fechaVencimiento) {
+        this.fechaVencimiento = fechaVencimiento;
     }
 }

@@ -49,12 +49,11 @@ public class ProveedorService {
                 .orElseThrow(() -> new IllegalArgumentException("Proveedor no encontrado con ID: " + id));
 
         proveedor.setRazonSocial(request.getRazonSocial());
-        proveedor.setNombreComercial(request.getNombreComercial());
         proveedor.setRuc(request.getRuc());
         proveedor.setTelefono(request.getTelefono());
         proveedor.setEmail(request.getEmail());
         proveedor.setDireccion(request.getDireccion());
-        proveedor.setContactoPrincipal(request.getContactoPrincipal());
+        proveedor.setContacto(request.getContacto());
         if (request.getEstado() != null) {
             proveedor.setEstado(Proveedor.Estado.valueOf(request.getEstado().toUpperCase()));
         }

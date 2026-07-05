@@ -7,8 +7,11 @@ import com.restaurante.dto.response.PedidoResponse;
 import com.restaurante.entity.Caja;
 import com.restaurante.entity.Empleado;
 import com.restaurante.entity.MovimientoCaja;
+import com.restaurante.entity.Venta;
 import com.restaurante.repository.CajaRepository;
 import com.restaurante.repository.MovimientoCajaRepository;
+import com.restaurante.repository.VentaRepository;
+import com.restaurante.service.policy.CajaPolicy;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,10 +33,16 @@ public class CajaService {
     private MovimientoCajaRepository movimientoCajaRepository;
 
     @Autowired
+    private VentaRepository ventaRepository;
+
+    @Autowired
     private CajaMapper cajaMapper;
 
     @Autowired
     private PedidoService pedidoService;
+
+    @Autowired
+    private CajaPolicy cajaPolicy;
 
     public CajaResponse abrirCaja(Empleado empleado, BigDecimal montoApertura, String observacion) {
         // Validar si el empleado ya cuenta con una caja abierta
@@ -50,7 +59,7 @@ public class CajaService {
         caja.setObservacion(observacion);
 
         Caja savedCaja = cajaRepository.save(caja);
-        return cajaMapper.toResponse(savedCaja);
+        return toResponseConTotales(savedCaja);
     }
 
     public CajaResponse cerrarCaja(Integer idCaja, BigDecimal montoCierre, String observacion) {
@@ -71,27 +80,24 @@ public class CajaService {
         caja.setDiferencia(diferencia);
 
         Caja savedCaja = cajaRepository.save(caja);
-        return cajaMapper.toResponse(savedCaja);
+        return toResponseConTotales(savedCaja);
     }
 
     public MovimientoCajaResponse registrarMovimiento(Integer idCaja, MovimientoCaja.Tipo tipo, String concepto,
-            BigDecimal monto) {
-        if (monto.compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException("El monto del movimiento debe ser mayor o igual a 0.");
-        }
-
+            BigDecimal monto, Empleado empleado, String referenceType, Integer referenceId, String comprobante) {
         Caja caja = cajaRepository.findById(idCaja)
                 .orElseThrow(() -> new IllegalArgumentException("Caja no encontrada."));
-
-        if (caja.getEstado() == Caja.Estado.CERRADA) {
-            throw new IllegalStateException("No se pueden registrar movimientos en una caja cerrada.");
-        }
+        cajaPolicy.validarMovimiento(caja, tipo, monto, empleado, referenceType, referenceId, comprobante);
 
         MovimientoCaja movimiento = new MovimientoCaja();
         movimiento.setCaja(caja);
         movimiento.setTipo(tipo);
         movimiento.setConcepto(concepto);
         movimiento.setMonto(monto);
+        movimiento.setEmpleado(empleado);
+        movimiento.setReferenceType(referenceType.trim().toUpperCase());
+        movimiento.setReferenceId(referenceId);
+        movimiento.setComprobante(comprobante.trim());
 
         // Actualizar el saldo teórico del sistema en la caja
         if (tipo == MovimientoCaja.Tipo.INGRESO) {
@@ -108,22 +114,36 @@ public class CajaService {
     public Optional<CajaResponse> obtenerCajaAbiertaParaEmpleado(Empleado empleado) {
         Optional<Caja> cajaPropia = cajaRepository.findByEmpleadoAndEstado(empleado, Caja.Estado.ABIERTA);
         if (cajaPropia.isPresent()) {
-            return cajaPropia.map(cajaMapper::toResponse);
+            return cajaPropia.map(this::toResponseConTotales);
         }
         return cajaRepository.findFirstByEstadoOrderByFechaAperturaDesc(Caja.Estado.ABIERTA)
-                .map(cajaMapper::toResponse);
+                .map(this::toResponseConTotales);
     }
 
     public List<MovimientoCajaResponse> obtenerMovimientos(Integer idCaja) {
-        return movimientoCajaRepository.findByCajaIdCaja(idCaja).stream()
+        return movimientoCajaRepository.findByCajaIdCajaOrderByFechaDescIdMovimientoDesc(idCaja).stream()
                 .map(cajaMapper::toResponse)
                 .collect(Collectors.toList());
     }
 
     public List<CajaResponse> obtenerHistorialCajas() {
         return cajaRepository.findAll().stream()
-                .map(cajaMapper::toResponse)
+                .map(this::toResponseConTotales)
                 .collect(Collectors.toList());
+    }
+
+    private CajaResponse toResponseConTotales(Caja caja) {
+        CajaResponse response = cajaMapper.toResponse(caja);
+        BigDecimal montoVentas = ventaRepository.sumTotalByCajaIdAndEstado(caja.getIdCaja(), Venta.Estado.EMITIDA);
+
+        BigDecimal montoIngresos = movimientoCajaRepository.sumMontoByCajaIdAndTipo(caja.getIdCaja(), MovimientoCaja.Tipo.INGRESO);
+        BigDecimal montoEgresos = movimientoCajaRepository.sumMontoByCajaIdAndTipo(caja.getIdCaja(), MovimientoCaja.Tipo.EGRESO);
+
+        response.setMontoVentas(montoVentas);
+        response.setMontoIngresos(montoIngresos);
+        response.setMontoEgresos(montoEgresos);
+        response.setSaldoEsperado(caja.getMontoSistema() != null ? caja.getMontoSistema() : BigDecimal.ZERO);
+        return response;
     }
 
     @Transactional(readOnly = true)

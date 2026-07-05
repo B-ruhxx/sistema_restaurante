@@ -15,7 +15,9 @@ function ScrollArea({
       data-slot="scroll-area"
       className={cn("relative overflow-hidden", className)}
       {...props}
-    />
+    >
+      {children}
+    </ScrollAreaPrimitive.Root>
   );
 }
 

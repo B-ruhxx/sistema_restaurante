@@ -18,8 +18,9 @@ public class CategoriaController {
     private CategoriaService categoriaService;
 
     @GetMapping
-    public ResponseEntity<List<CategoriaResponse>> getAllCategorias() {
-        return ResponseEntity.ok(categoriaService.getAllCategorias());
+    public ResponseEntity<List<CategoriaResponse>> getAllCategorias(
+            @RequestParam(required = false, defaultValue = "ACTIVO") String estado) {
+        return ResponseEntity.ok(categoriaService.getAllCategorias(estado));
     }
 
     @GetMapping("/{id}")
@@ -41,5 +42,12 @@ public class CategoriaController {
     public ResponseEntity<?> deleteCategoria(@PathVariable Integer id) {
         categoriaService.deleteCategoria(id);
         return ResponseEntity.ok().build();
+    }
+
+    @PatchMapping("/{id}/estado")
+    public ResponseEntity<CategoriaResponse> updateEstadoCategoria(
+            @PathVariable Integer id,
+            @RequestBody java.util.Map<String, String> body) {
+        return ResponseEntity.ok(categoriaService.updateEstadoCategoria(id, body.get("estado")));
     }
 }

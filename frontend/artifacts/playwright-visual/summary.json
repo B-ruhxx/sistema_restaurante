@@ -1,0 +1,636 @@
+[
+  {
+    "route": "/",
+    "viewport": "desktop",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/dashboard-desktop.png",
+    "extraShots": [],
+    "bodyTextLength": 1215,
+    "interactiveCount": 9,
+    "visibleCards": 9,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/",
+    "viewport": "mobile",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/dashboard-mobile.png",
+    "extraShots": [],
+    "bodyTextLength": 812,
+    "interactiveCount": 5,
+    "visibleCards": 9,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/mesas",
+    "viewport": "desktop",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/mesas-desktop.png",
+    "extraShots": [
+      "interaction failed: locator.click: Error: strict mode violation: getByRole('button', { name: 'Nueva mesa' }) resolved to 2 elements:\n    1) <button data-slot=\"button\" class=\"inline-flex min-w-0 shrink-0 items-center justify-center whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow-ui-low min-h-10 px-4 py-2 has-[>svg]:px-3 h-11 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95 gap-2 font-semibold text-sm\">…</button> aka getByRole('button', { name: 'Nueva mesa' }).first()\n    2) <button data-slot=\"button\" class=\"inline-flex min-w-0 shrink-0 items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow-ui-low min-h-10 px-4 py-2 has-[>svg]:px-3 h-10 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95\">…</button> aka getByRole('button', { name: 'Nueva mesa' }).nth(1)\n\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Nueva mesa' })\u001b[22m\n"
+    ],
+    "bodyTextLength": 699,
+    "interactiveCount": 12,
+    "visibleCards": 3,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/mesas",
+    "viewport": "mobile",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/mesas-mobile.png",
+    "extraShots": [
+      "interaction failed: locator.click: Error: strict mode violation: getByRole('button', { name: 'Nueva mesa' }) resolved to 2 elements:\n    1) <button data-slot=\"button\" class=\"inline-flex min-w-0 shrink-0 items-center justify-center whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow-ui-low min-h-10 px-4 py-2 has-[>svg]:px-3 h-11 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95 gap-2 font-semibold text-sm\">…</button> aka getByRole('button', { name: 'Nueva mesa' }).first()\n    2) <button data-slot=\"button\" class=\"inline-flex min-w-0 shrink-0 items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow-ui-low min-h-10 px-4 py-2 has-[>svg]:px-3 h-10 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95\">…</button> aka getByRole('button', { name: 'Nueva mesa' }).nth(1)\n\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Nueva mesa' })\u001b[22m\n"
+    ],
+    "bodyTextLength": 296,
+    "interactiveCount": 8,
+    "visibleCards": 3,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/pos",
+    "viewport": "desktop",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/pos-desktop.png",
+    "extraShots": [],
+    "bodyTextLength": 659,
+    "interactiveCount": 16,
+    "visibleCards": 0,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/pos",
+    "viewport": "mobile",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/pos-mobile.png",
+    "extraShots": [],
+    "bodyTextLength": 256,
+    "interactiveCount": 12,
+    "visibleCards": 0,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/pedidos",
+    "viewport": "desktop",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/pedidos-desktop.png",
+    "extraShots": [],
+    "bodyTextLength": 710,
+    "interactiveCount": 13,
+    "visibleCards": 5,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/pedidos",
+    "viewport": "mobile",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/pedidos-mobile.png",
+    "extraShots": [],
+    "bodyTextLength": 307,
+    "interactiveCount": 9,
+    "visibleCards": 5,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/cocina",
+    "viewport": "desktop",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/cocina-desktop.png",
+    "extraShots": [],
+    "bodyTextLength": 702,
+    "interactiveCount": 10,
+    "visibleCards": 4,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/cocina",
+    "viewport": "mobile",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/cocina-mobile.png",
+    "extraShots": [],
+    "bodyTextLength": 299,
+    "interactiveCount": 6,
+    "visibleCards": 4,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/caja",
+    "viewport": "desktop",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/caja-desktop.png",
+    "extraShots": [],
+    "bodyTextLength": 709,
+    "interactiveCount": 11,
+    "visibleCards": 1,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/caja",
+    "viewport": "mobile",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/caja-mobile.png",
+    "extraShots": [],
+    "bodyTextLength": 306,
+    "interactiveCount": 7,
+    "visibleCards": 1,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/categorias",
+    "viewport": "desktop",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/categorias-desktop.png",
+    "extraShots": [
+      "interaction failed: locator.click: Error: strict mode violation: getByRole('button', { name: 'Nueva Categoría' }) resolved to 2 elements:\n    1) <button data-slot=\"button\" class=\"inline-flex min-w-0 shrink-0 items-center justify-center whitespace-nowrap text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow-ui-low min-h-10 px-4 py-2 has-[>svg]:px-3 h-11 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95 gap-2 font-semibold\">…</button> aka getByRole('button', { name: 'Nueva Categoría' }).first()\n    2) <button data-slot=\"button\" class=\"inline-flex min-w-0 shrink-0 items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow-ui-low min-h-10 px-4 py-2 has-[>svg]:px-3 h-10 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95\">…</button> aka getByRole('button', { name: 'Nueva Categoría' }).nth(1)\n\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Nueva Categoría' })\u001b[22m\n"
+    ],
+    "bodyTextLength": 714,
+    "interactiveCount": 15,
+    "visibleCards": 2,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/categorias",
+    "viewport": "mobile",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/categorias-mobile.png",
+    "extraShots": [
+      "interaction failed: locator.click: Error: strict mode violation: getByRole('button', { name: 'Nueva Categoría' }) resolved to 2 elements:\n    1) <button data-slot=\"button\" class=\"inline-flex min-w-0 shrink-0 items-center justify-center whitespace-nowrap text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow-ui-low min-h-10 px-4 py-2 has-[>svg]:px-3 h-11 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95 gap-2 font-semibold\">…</button> aka getByRole('button', { name: 'Nueva Categoría' }).first()\n    2) <button data-slot=\"button\" class=\"inline-flex min-w-0 shrink-0 items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow-ui-low min-h-10 px-4 py-2 has-[>svg]:px-3 h-10 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95\">…</button> aka getByRole('button', { name: 'Nueva Categoría' }).nth(1)\n\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Nueva Categoría' })\u001b[22m\n"
+    ],
+    "bodyTextLength": 311,
+    "interactiveCount": 11,
+    "visibleCards": 2,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/productos",
+    "viewport": "desktop",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/productos-desktop.png",
+    "extraShots": [
+      "interaction failed: locator.click: Error: strict mode violation: getByRole('button', { name: 'Nuevo Producto' }) resolved to 2 elements:\n    1) <button data-slot=\"button\" class=\"inline-flex min-w-0 shrink-0 items-center justify-center whitespace-nowrap text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow-ui-low min-h-10 px-4 py-2 has-[>svg]:px-3 h-11 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95 gap-2 font-semibold\">…</button> aka getByRole('button', { name: 'Nuevo Producto' }).first()\n    2) <button data-slot=\"button\" class=\"inline-flex min-w-0 shrink-0 items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow-ui-low min-h-10 px-4 py-2 has-[>svg]:px-3 h-10 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95\">…</button> aka locator('button').filter({ hasText: /^Nuevo Producto$/ })\n\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Nuevo Producto' })\u001b[22m\n"
+    ],
+    "bodyTextLength": 786,
+    "interactiveCount": 18,
+    "visibleCards": 4,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/productos",
+    "viewport": "mobile",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/productos-mobile.png",
+    "extraShots": [
+      "interaction failed: locator.click: Error: strict mode violation: getByRole('button', { name: 'Nuevo Producto' }) resolved to 2 elements:\n    1) <button data-slot=\"button\" class=\"inline-flex min-w-0 shrink-0 items-center justify-center whitespace-nowrap text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow-ui-low min-h-10 px-4 py-2 has-[>svg]:px-3 h-11 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95 gap-2 font-semibold\">…</button> aka getByRole('button', { name: 'Nuevo Producto' }).first()\n    2) <button data-slot=\"button\" class=\"inline-flex min-w-0 shrink-0 items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow-ui-low min-h-10 px-4 py-2 has-[>svg]:px-3 h-10 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95\">…</button> aka locator('button').filter({ hasText: /^Nuevo Producto$/ })\n\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Nuevo Producto' })\u001b[22m\n"
+    ],
+    "bodyTextLength": 383,
+    "interactiveCount": 14,
+    "visibleCards": 4,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/combos",
+    "viewport": "desktop",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/combos-desktop.png",
+    "extraShots": [
+      "interaction failed: locator.click: Error: strict mode violation: getByRole('button', { name: 'Nuevo Combo' }) resolved to 2 elements:\n    1) <button data-slot=\"button\" class=\"inline-flex min-w-0 shrink-0 items-center justify-center whitespace-nowrap text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow-ui-low min-h-10 px-4 py-2 has-[>svg]:px-3 h-11 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95 gap-2 font-semibold\">…</button> aka getByRole('button', { name: 'Nuevo Combo' }).first()\n    2) <button data-slot=\"button\" class=\"inline-flex min-w-0 shrink-0 items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow-ui-low min-h-10 px-4 py-2 has-[>svg]:px-3 h-10 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95\">…</button> aka locator('button').filter({ hasText: /^Nuevo Combo$/ })\n\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Nuevo Combo' })\u001b[22m\n"
+    ],
+    "bodyTextLength": 732,
+    "interactiveCount": 14,
+    "visibleCards": 2,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/combos",
+    "viewport": "mobile",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/combos-mobile.png",
+    "extraShots": [
+      "interaction failed: locator.click: Error: strict mode violation: getByRole('button', { name: 'Nuevo Combo' }) resolved to 2 elements:\n    1) <button data-slot=\"button\" class=\"inline-flex min-w-0 shrink-0 items-center justify-center whitespace-nowrap text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow-ui-low min-h-10 px-4 py-2 has-[>svg]:px-3 h-11 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95 gap-2 font-semibold\">…</button> aka getByRole('button', { name: 'Nuevo Combo' }).first()\n    2) <button data-slot=\"button\" class=\"inline-flex min-w-0 shrink-0 items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow-ui-low min-h-10 px-4 py-2 has-[>svg]:px-3 h-10 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95\">…</button> aka locator('button').filter({ hasText: /^Nuevo Combo$/ })\n\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Nuevo Combo' })\u001b[22m\n"
+    ],
+    "bodyTextLength": 329,
+    "interactiveCount": 10,
+    "visibleCards": 2,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/extras",
+    "viewport": "desktop",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/extras-desktop.png",
+    "extraShots": [],
+    "bodyTextLength": 832,
+    "interactiveCount": 12,
+    "visibleCards": 4,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/extras",
+    "viewport": "mobile",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/extras-mobile.png",
+    "extraShots": [],
+    "bodyTextLength": 429,
+    "interactiveCount": 8,
+    "visibleCards": 4,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/recetas",
+    "viewport": "desktop",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/recetas-desktop.png",
+    "extraShots": [],
+    "bodyTextLength": 1047,
+    "interactiveCount": 14,
+    "visibleCards": 3,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/recetas",
+    "viewport": "mobile",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/recetas-mobile.png",
+    "extraShots": [],
+    "bodyTextLength": 644,
+    "interactiveCount": 10,
+    "visibleCards": 3,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/insumos",
+    "viewport": "desktop",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/insumos-desktop.png",
+    "extraShots": [],
+    "bodyTextLength": 695,
+    "interactiveCount": 12,
+    "visibleCards": 0,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/insumos",
+    "viewport": "mobile",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/insumos-mobile.png",
+    "extraShots": [],
+    "bodyTextLength": 292,
+    "interactiveCount": 8,
+    "visibleCards": 0,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/kardex",
+    "viewport": "desktop",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/kardex-desktop.png",
+    "extraShots": [],
+    "bodyTextLength": 753,
+    "interactiveCount": 15,
+    "visibleCards": 4,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/kardex",
+    "viewport": "mobile",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/kardex-mobile.png",
+    "extraShots": [],
+    "bodyTextLength": 350,
+    "interactiveCount": 11,
+    "visibleCards": 4,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/inventario",
+    "viewport": "desktop",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/inventario-desktop.png",
+    "extraShots": [],
+    "bodyTextLength": 926,
+    "interactiveCount": 10,
+    "visibleCards": 3,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/inventario",
+    "viewport": "mobile",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/inventario-mobile.png",
+    "extraShots": [],
+    "bodyTextLength": 523,
+    "interactiveCount": 6,
+    "visibleCards": 3,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/proveedores",
+    "viewport": "desktop",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/proveedores-desktop.png",
+    "extraShots": [
+      "interaction failed: locator.click: Error: strict mode violation: getByRole('button', { name: 'Nuevo Proveedor' }) resolved to 2 elements:\n    1) <button data-slot=\"button\" class=\"inline-flex min-w-0 shrink-0 items-center justify-center whitespace-nowrap text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow-ui-low min-h-10 px-4 py-2 has-[>svg]:px-3 h-11 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95 gap-2 font-semibold\">…</button> aka getByRole('button', { name: 'Nuevo Proveedor' }).first()\n    2) <button data-slot=\"button\" class=\"inline-flex min-w-0 shrink-0 items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow-ui-low min-h-10 px-4 py-2 has-[>svg]:px-3 h-10 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95\">…</button> aka locator('button').filter({ hasText: /^Nuevo Proveedor$/ })\n\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Nuevo Proveedor' })\u001b[22m\n"
+    ],
+    "bodyTextLength": 737,
+    "interactiveCount": 13,
+    "visibleCards": 3,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/proveedores",
+    "viewport": "mobile",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/proveedores-mobile.png",
+    "extraShots": [
+      "interaction failed: locator.click: Error: strict mode violation: getByRole('button', { name: 'Nuevo Proveedor' }) resolved to 2 elements:\n    1) <button data-slot=\"button\" class=\"inline-flex min-w-0 shrink-0 items-center justify-center whitespace-nowrap text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow-ui-low min-h-10 px-4 py-2 has-[>svg]:px-3 h-11 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95 gap-2 font-semibold\">…</button> aka getByRole('button', { name: 'Nuevo Proveedor' }).first()\n    2) <button data-slot=\"button\" class=\"inline-flex min-w-0 shrink-0 items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow-ui-low min-h-10 px-4 py-2 has-[>svg]:px-3 h-10 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95\">…</button> aka locator('button').filter({ hasText: /^Nuevo Proveedor$/ })\n\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Nuevo Proveedor' })\u001b[22m\n"
+    ],
+    "bodyTextLength": 334,
+    "interactiveCount": 9,
+    "visibleCards": 3,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/compras",
+    "viewport": "desktop",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/compras-desktop.png",
+    "extraShots": [
+      "interaction failed: locator.click: Error: strict mode violation: getByRole('button', { name: 'Nueva Compra' }) resolved to 2 elements:\n    1) <button data-slot=\"button\" class=\"inline-flex min-w-0 shrink-0 items-center justify-center whitespace-nowrap text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow-ui-low min-h-10 px-4 py-2 has-[>svg]:px-3 h-11 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95 gap-2 font-semibold\">…</button> aka getByRole('button', { name: 'Nueva Compra' }).first()\n    2) <button data-slot=\"button\" class=\"inline-flex min-w-0 shrink-0 items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow-ui-low min-h-10 px-4 py-2 has-[>svg]:px-3 h-10 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95\">…</button> aka locator('button').filter({ hasText: /^Nueva Compra$/ })\n\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Nueva Compra' })\u001b[22m\n"
+    ],
+    "bodyTextLength": 771,
+    "interactiveCount": 12,
+    "visibleCards": 3,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/compras",
+    "viewport": "mobile",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/compras-mobile.png",
+    "extraShots": [
+      "interaction failed: locator.click: Error: strict mode violation: getByRole('button', { name: 'Nueva Compra' }) resolved to 2 elements:\n    1) <button data-slot=\"button\" class=\"inline-flex min-w-0 shrink-0 items-center justify-center whitespace-nowrap text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow-ui-low min-h-10 px-4 py-2 has-[>svg]:px-3 h-11 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95 gap-2 font-semibold\">…</button> aka getByRole('button', { name: 'Nueva Compra' }).first()\n    2) <button data-slot=\"button\" class=\"inline-flex min-w-0 shrink-0 items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow-ui-low min-h-10 px-4 py-2 has-[>svg]:px-3 h-10 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95\">…</button> aka locator('button').filter({ hasText: /^Nueva Compra$/ })\n\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Nueva Compra' })\u001b[22m\n"
+    ],
+    "bodyTextLength": 368,
+    "interactiveCount": 8,
+    "visibleCards": 3,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/dashboard-gerencial",
+    "viewport": "desktop",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/dashboard-gerencial-desktop.png",
+    "extraShots": [],
+    "bodyTextLength": 1571,
+    "interactiveCount": 9,
+    "visibleCards": 8,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/dashboard-gerencial",
+    "viewport": "mobile",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/dashboard-gerencial-mobile.png",
+    "extraShots": [],
+    "bodyTextLength": 1168,
+    "interactiveCount": 5,
+    "visibleCards": 8,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/reportes",
+    "viewport": "desktop",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/reportes-desktop.png",
+    "extraShots": [],
+    "bodyTextLength": 1242,
+    "interactiveCount": 17,
+    "visibleCards": 7,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/reportes",
+    "viewport": "mobile",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/reportes-mobile.png",
+    "extraShots": [],
+    "bodyTextLength": 839,
+    "interactiveCount": 13,
+    "visibleCards": 7,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/clientes",
+    "viewport": "desktop",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/clientes-desktop.png",
+    "extraShots": [
+      "interaction failed: locator.click: Error: strict mode violation: getByRole('button', { name: 'Nuevo Cliente' }) resolved to 2 elements:\n    1) <button data-slot=\"button\" class=\"inline-flex min-w-0 shrink-0 items-center justify-center whitespace-nowrap text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow-ui-low min-h-10 px-4 py-2 has-[>svg]:px-3 h-11 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95 gap-2 font-semibold\">…</button> aka getByRole('button', { name: 'Nuevo Cliente' }).first()\n    2) <button data-slot=\"button\" class=\"inline-flex min-w-0 shrink-0 items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow-ui-low min-h-10 px-4 py-2 has-[>svg]:px-3 h-10 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95\">…</button> aka locator('button').filter({ hasText: /^Nuevo Cliente$/ })\n\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Nuevo Cliente' })\u001b[22m\n"
+    ],
+    "bodyTextLength": 802,
+    "interactiveCount": 14,
+    "visibleCards": 4,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/clientes",
+    "viewport": "mobile",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/clientes-mobile.png",
+    "extraShots": [
+      "interaction failed: locator.click: Error: strict mode violation: getByRole('button', { name: 'Nuevo Cliente' }) resolved to 2 elements:\n    1) <button data-slot=\"button\" class=\"inline-flex min-w-0 shrink-0 items-center justify-center whitespace-nowrap text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow-ui-low min-h-10 px-4 py-2 has-[>svg]:px-3 h-11 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95 gap-2 font-semibold\">…</button> aka getByRole('button', { name: 'Nuevo Cliente' }).first()\n    2) <button data-slot=\"button\" class=\"inline-flex min-w-0 shrink-0 items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow-ui-low min-h-10 px-4 py-2 has-[>svg]:px-3 h-10 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95\">…</button> aka locator('button').filter({ hasText: /^Nuevo Cliente$/ })\n\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Nuevo Cliente' })\u001b[22m\n"
+    ],
+    "bodyTextLength": 399,
+    "interactiveCount": 10,
+    "visibleCards": 4,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/ventas",
+    "viewport": "desktop",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/ventas-desktop.png",
+    "extraShots": [],
+    "bodyTextLength": 817,
+    "interactiveCount": 11,
+    "visibleCards": 4,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/ventas",
+    "viewport": "mobile",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/ventas-mobile.png",
+    "extraShots": [],
+    "bodyTextLength": 414,
+    "interactiveCount": 7,
+    "visibleCards": 4,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/empleados",
+    "viewport": "desktop",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/empleados-desktop.png",
+    "extraShots": [
+      "interaction failed: locator.click: Error: strict mode violation: getByRole('button', { name: 'Nuevo Empleado' }) resolved to 2 elements:\n    1) <button data-slot=\"button\" class=\"inline-flex min-w-0 shrink-0 items-center justify-center whitespace-nowrap text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow-ui-low min-h-10 px-4 py-2 has-[>svg]:px-3 h-11 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95 gap-2 font-semibold\">…</button> aka getByRole('button', { name: 'Nuevo Empleado' }).first()\n    2) <button data-slot=\"button\" class=\"inline-flex min-w-0 shrink-0 items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow-ui-low min-h-10 px-4 py-2 has-[>svg]:px-3 h-10 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95\">…</button> aka locator('button').filter({ hasText: /^Nuevo Empleado$/ })\n\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Nuevo Empleado' })\u001b[22m\n"
+    ],
+    "bodyTextLength": 815,
+    "interactiveCount": 14,
+    "visibleCards": 4,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/empleados",
+    "viewport": "mobile",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/empleados-mobile.png",
+    "extraShots": [
+      "interaction failed: locator.click: Error: strict mode violation: getByRole('button', { name: 'Nuevo Empleado' }) resolved to 2 elements:\n    1) <button data-slot=\"button\" class=\"inline-flex min-w-0 shrink-0 items-center justify-center whitespace-nowrap text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow-ui-low min-h-10 px-4 py-2 has-[>svg]:px-3 h-11 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95 gap-2 font-semibold\">…</button> aka getByRole('button', { name: 'Nuevo Empleado' }).first()\n    2) <button data-slot=\"button\" class=\"inline-flex min-w-0 shrink-0 items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow-ui-low min-h-10 px-4 py-2 has-[>svg]:px-3 h-10 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95\">…</button> aka locator('button').filter({ hasText: /^Nuevo Empleado$/ })\n\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Nuevo Empleado' })\u001b[22m\n"
+    ],
+    "bodyTextLength": 412,
+    "interactiveCount": 10,
+    "visibleCards": 4,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/roles",
+    "viewport": "desktop",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/roles-desktop.png",
+    "extraShots": [
+      "interaction failed: locator.click: Error: strict mode violation: getByRole('button', { name: 'Nuevo Rol' }) resolved to 2 elements:\n    1) <button data-slot=\"button\" class=\"inline-flex min-w-0 shrink-0 items-center justify-center whitespace-nowrap text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow-ui-low min-h-10 px-4 py-2 has-[>svg]:px-3 h-11 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95 gap-2 font-semibold\">…</button> aka getByRole('button', { name: 'Nuevo Rol' }).first()\n    2) <button data-slot=\"button\" class=\"inline-flex min-w-0 shrink-0 items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow-ui-low min-h-10 px-4 py-2 has-[>svg]:px-3 h-10 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95\">…</button> aka locator('button').filter({ hasText: /^Nuevo Rol$/ })\n\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Nuevo Rol' })\u001b[22m\n"
+    ],
+    "bodyTextLength": 750,
+    "interactiveCount": 11,
+    "visibleCards": 3,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/roles",
+    "viewport": "mobile",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/roles-mobile.png",
+    "extraShots": [
+      "interaction failed: locator.click: Error: strict mode violation: getByRole('button', { name: 'Nuevo Rol' }) resolved to 2 elements:\n    1) <button data-slot=\"button\" class=\"inline-flex min-w-0 shrink-0 items-center justify-center whitespace-nowrap text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow-ui-low min-h-10 px-4 py-2 has-[>svg]:px-3 h-11 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95 gap-2 font-semibold\">…</button> aka getByRole('button', { name: 'Nuevo Rol' }).first()\n    2) <button data-slot=\"button\" class=\"inline-flex min-w-0 shrink-0 items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow-ui-low min-h-10 px-4 py-2 has-[>svg]:px-3 h-10 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95\">…</button> aka locator('button').filter({ hasText: /^Nuevo Rol$/ })\n\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Nuevo Rol' })\u001b[22m\n"
+    ],
+    "bodyTextLength": 347,
+    "interactiveCount": 7,
+    "visibleCards": 3,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/metodos-pago",
+    "viewport": "desktop",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/metodos-pago-desktop.png",
+    "extraShots": [
+      "interaction failed: locator.click: Error: strict mode violation: getByRole('button', { name: 'Nuevo Método' }) resolved to 2 elements:\n    1) <button data-slot=\"button\" class=\"inline-flex min-w-0 shrink-0 items-center justify-center whitespace-nowrap text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow-ui-low min-h-10 px-4 py-2 has-[>svg]:px-3 h-11 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95 gap-2 font-semibold\">…</button> aka getByRole('button', { name: 'Nuevo Método' }).first()\n    2) <button data-slot=\"button\" class=\"inline-flex min-w-0 shrink-0 items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow-ui-low min-h-10 px-4 py-2 has-[>svg]:px-3 h-10 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95\">…</button> aka locator('button').filter({ hasText: /^Nuevo Método$/ })\n\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Nuevo Método' })\u001b[22m\n"
+    ],
+    "bodyTextLength": 761,
+    "interactiveCount": 11,
+    "visibleCards": 3,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/metodos-pago",
+    "viewport": "mobile",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/metodos-pago-mobile.png",
+    "extraShots": [
+      "interaction failed: locator.click: Error: strict mode violation: getByRole('button', { name: 'Nuevo Método' }) resolved to 2 elements:\n    1) <button data-slot=\"button\" class=\"inline-flex min-w-0 shrink-0 items-center justify-center whitespace-nowrap text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow-ui-low min-h-10 px-4 py-2 has-[>svg]:px-3 h-11 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95 gap-2 font-semibold\">…</button> aka getByRole('button', { name: 'Nuevo Método' }).first()\n    2) <button data-slot=\"button\" class=\"inline-flex min-w-0 shrink-0 items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow-ui-low min-h-10 px-4 py-2 has-[>svg]:px-3 h-10 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95\">…</button> aka locator('button').filter({ hasText: /^Nuevo Método$/ })\n\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Nuevo Método' })\u001b[22m\n"
+    ],
+    "bodyTextLength": 358,
+    "interactiveCount": 7,
+    "visibleCards": 3,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/perfil",
+    "viewport": "desktop",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/perfil-desktop.png",
+    "extraShots": [],
+    "bodyTextLength": 581,
+    "interactiveCount": 9,
+    "visibleCards": 1,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/perfil",
+    "viewport": "mobile",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/perfil-mobile.png",
+    "extraShots": [],
+    "bodyTextLength": 178,
+    "interactiveCount": 5,
+    "visibleCards": 1,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/auditoria",
+    "viewport": "desktop",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/auditoria-desktop.png",
+    "extraShots": [],
+    "bodyTextLength": 769,
+    "interactiveCount": 14,
+    "visibleCards": 4,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/auditoria",
+    "viewport": "mobile",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/auditoria-mobile.png",
+    "extraShots": [],
+    "bodyTextLength": 366,
+    "interactiveCount": 10,
+    "visibleCards": 4,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/seguridad",
+    "viewport": "desktop",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/seguridad-desktop.png",
+    "extraShots": [],
+    "bodyTextLength": 845,
+    "interactiveCount": 12,
+    "visibleCards": 4,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/seguridad",
+    "viewport": "mobile",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/seguridad-mobile.png",
+    "extraShots": [],
+    "bodyTextLength": 442,
+    "interactiveCount": 8,
+    "visibleCards": 4,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/configuracion",
+    "viewport": "desktop",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/configuracion-desktop.png",
+    "extraShots": [],
+    "bodyTextLength": 905,
+    "interactiveCount": 18,
+    "visibleCards": 1,
+    "title": "frontend",
+    "issues": []
+  },
+  {
+    "route": "/configuracion",
+    "viewport": "mobile",
+    "screenshotPath": "/home/Bruhxx/Documents/antigravity/sistema_restaurante/frontend/artifacts/playwright-visual/configuracion-mobile.png",
+    "extraShots": [],
+    "bodyTextLength": 502,
+    "interactiveCount": 14,
+    "visibleCards": 1,
+    "title": "frontend",
+    "issues": []
+  }
+]

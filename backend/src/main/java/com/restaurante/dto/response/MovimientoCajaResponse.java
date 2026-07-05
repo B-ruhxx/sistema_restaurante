@@ -9,6 +9,11 @@ public class MovimientoCajaResponse {
     private String tipo;
     private String concepto;
     private BigDecimal monto;
+    private String referenceType;
+    private Integer referenceId;
+    private String comprobante;
+    private Integer idEmpleado;
+    private String nombreEmpleado;
     private LocalDateTime fecha;
 
     public Integer getIdMovimiento() {
@@ -49,6 +54,46 @@ public class MovimientoCajaResponse {
 
     public void setMonto(BigDecimal monto) {
         this.monto = monto;
+    }
+
+    public String getReferenceType() {
+        return referenceType;
+    }
+
+    public void setReferenceType(String referenceType) {
+        this.referenceType = referenceType;
+    }
+
+    public Integer getReferenceId() {
+        return referenceId;
+    }
+
+    public void setReferenceId(Integer referenceId) {
+        this.referenceId = referenceId;
+    }
+
+    public String getComprobante() {
+        return comprobante;
+    }
+
+    public void setComprobante(String comprobante) {
+        this.comprobante = comprobante;
+    }
+
+    public Integer getIdEmpleado() {
+        return idEmpleado;
+    }
+
+    public void setIdEmpleado(Integer idEmpleado) {
+        this.idEmpleado = idEmpleado;
+    }
+
+    public String getNombreEmpleado() {
+        return nombreEmpleado;
+    }
+
+    public void setNombreEmpleado(String nombreEmpleado) {
+        this.nombreEmpleado = nombreEmpleado;
     }
 
     public LocalDateTime getFecha() {

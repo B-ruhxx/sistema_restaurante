@@ -14,7 +14,7 @@ public class CompraInsumo {
     @Column(name = "id_compra")
     private Integer idCompra;
 
-    @Column(name = "codigo_compra", unique = true, length = 50)
+    @Column(name = "numero_documento", length = 60, nullable = false)
     private String codigoCompra;
 
     @ManyToOne(optional = false)
@@ -39,7 +39,7 @@ public class CompraInsumo {
     private Estado estado = Estado.REGISTRADA;
 
     @CreationTimestamp
-    @Column(name = "fecha", nullable = false, updatable = false)
+    @Column(name = "fecha_compra", nullable = false, updatable = false)
     private LocalDateTime fecha;
 
     @Column(columnDefinition = "TEXT")

@@ -3,7 +3,6 @@ import api from './auth';
 export interface DetallePedidoRequest {
   idProducto?: number;
   idCombo?: number;
-  idVariante?: number;
   cantidad: number;
   observacion?: string;
   extrasIds?: number[];
@@ -17,6 +16,10 @@ export interface PedidoRequest {
 
 export interface AbrirPedidoMesaRequest {
   idCliente?: number | null;
+}
+
+export interface PedidoCancelacionRequest {
+  motivo: string;
 }
 
 export interface ExtraResponse {
@@ -46,24 +49,21 @@ export interface DetallePedido {
 }
 
 export type PedidoEstado =
-  | 'ABIERTO'
-  | 'ENVIADO_COCINA'
-  | 'EN_PREPARACION'
-  | 'LISTO'
-  | 'ENTREGADO'
-  | 'CUENTA_SOLICITADA'
-  | 'CUENTA_EMITIDA'
-  | 'PAGADO'
-  | 'CANCELADO'
-  // Compatibilidad temporal con estados antiguos.
-  | 'PENDIENTE'
+  | 'BORRADOR_ATENCION'
   | 'EN_COCINA'
-  | 'EN_PROCESO';
+  | 'LISTO'
+  | 'SERVIDO'
+  | 'CUENTA'
+  | 'CERRADO'
+  | 'CANCELADO'
+;
 
 export interface Pedido {
   idPedido: number;
   empleadoNombre: string;
   clienteNombre?: string;
+  clienteTipoDocumento?: 'DNI' | 'RUC' | 'CE';
+  clienteDocumentoIdentidad?: string;
   idCliente?: number;
   idMesa?: number;
   numeroMesa?: string;
@@ -122,9 +122,13 @@ export const pedidosApi = {
     const response = await api.post(`/pedidos/${idPedido}/enviar-cocina`);
     return response.data;
   },
+  cancelar: async (idPedido: number, data: PedidoCancelacionRequest): Promise<Pedido> => {
+    const response = await api.post(`/pedidos/${idPedido}/cancelar`, data);
+    return response.data;
+  },
 
-  solicitarCuenta: async (idPedido: number): Promise<Pedido> => {
-    const response = await api.post(`/pedidos/${idPedido}/solicitar-cuenta`);
+  reabrir: async (idPedido: number): Promise<Pedido> => {
+    const response = await api.post(`/pedidos/${idPedido}/reabrir`);
     return response.data;
   },
 

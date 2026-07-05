@@ -15,7 +15,6 @@ public class CategoriaMapper {
         response.setNombre(entity.getNombre());
         response.setDescripcion(entity.getDescripcion());
         response.setImagenUrl(entity.getImagenUrl());
-        response.setImg(entity.getImg());
         if (entity.getEstado() != null) {
             response.setEstado(entity.getEstado().name());
         }
@@ -28,7 +27,6 @@ public class CategoriaMapper {
         entity.setNombre(request.getNombre());
         entity.setDescripcion(request.getDescripcion());
         entity.setImagenUrl(request.getImagenUrl());
-        entity.setImg(request.getImg());
         if (request.getEstado() != null) {
             entity.setEstado(Categoria.Estado.valueOf(request.getEstado().toUpperCase()));
         }

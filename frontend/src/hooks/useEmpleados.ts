@@ -42,6 +42,9 @@ export const useEmpleados = ({ enabled = true }: PrivateQueryOptions = {}) => {
     },
   });
 
+  const getSesionesEmpleado = (id: number) => empleadosApi.getSesiones(id);
+  const getActividadEmpleado = (id: number) => empleadosApi.getActividad(id);
+
   return {
     empleados: empleadosQuery.data || [],
     roles: rolesQuery.data || [],
@@ -50,6 +53,8 @@ export const useEmpleados = ({ enabled = true }: PrivateQueryOptions = {}) => {
     createEmpleado: createMutation.mutateAsync,
     updateEmpleado: updateMutation.mutateAsync,
     deleteEmpleado: deleteMutation.mutateAsync,
+    getSesionesEmpleado,
+    getActividadEmpleado,
     isCreating: createMutation.isPending,
     isUpdating: updateMutation.isPending,
     isDeleting: deleteMutation.isPending,

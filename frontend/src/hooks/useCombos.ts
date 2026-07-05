@@ -1,8 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { combosApi, ComboRequest } from '../api/combos';
+import { Combo, combosApi, ComboRequest } from '../api/combos';
 import { PrivateQueryOptions, usePrivateQueryEnabled } from './usePrivateQuery';
 
-const EMPTY_ARRAY: any[] = [];
+const EMPTY_ARRAY: Combo[] = [];
 
 export const useCombos = ({ enabled = true }: PrivateQueryOptions = {}) => {
   const queryClient = useQueryClient();

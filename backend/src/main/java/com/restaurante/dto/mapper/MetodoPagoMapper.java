@@ -13,7 +13,8 @@ public class MetodoPagoMapper {
         MetodoPagoResponse response = new MetodoPagoResponse();
         response.setIdMetodoPago(entity.getIdMetodoPago());
         response.setNombre(entity.getNombre());
-        response.setRequiereOperacion(entity.getRequiereOperacion());
+        response.setCodigo(entity.getCodigo());
+        response.setRequiereReferencia(entity.getRequiereReferencia());
         if (entity.getEstado() != null) {
             response.setEstado(entity.getEstado().name());
         }
@@ -24,8 +25,9 @@ public class MetodoPagoMapper {
         if (request == null) return null;
         MetodoPago entity = new MetodoPago();
         entity.setNombre(request.getNombre());
-        if (request.getRequiereOperacion() != null) {
-            entity.setRequiereOperacion(request.getRequiereOperacion());
+        entity.setCodigo(request.getCodigo());
+        if (request.getRequiereReferencia() != null) {
+            entity.setRequiereReferencia(request.getRequiereReferencia());
         }
         if (request.getEstado() != null) {
             entity.setEstado(MetodoPago.Estado.valueOf(request.getEstado().toUpperCase()));

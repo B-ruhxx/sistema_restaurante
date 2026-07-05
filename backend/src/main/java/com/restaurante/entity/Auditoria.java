@@ -11,34 +11,40 @@ public class Auditoria {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id_auditoria")
-    private Integer idAuditoria;
+    private Long idAuditoria;
 
-    @Column(name = "tabla_afectada", length = 100)
-    private String tablaAfectada;
+    @Column(name = "entidad", length = 80, nullable = false)
+    private String entidad;
 
     @Enumerated(EnumType.STRING)
-    @Column(columnDefinition = "ENUM('INSERT', 'UPDATE', 'DELETE')")
+    @Column(name = "accion", columnDefinition = "ENUM('CREAR','ACTUALIZAR','ELIMINAR','ANULAR','LOGIN','LOGOUT','ERROR','OTRO')", nullable = false)
     private Accion accion;
 
-    @Column(name = "id_registro", length = 100)
+    @Column(name = "id_registro", length = 80, nullable = false)
     private String idRegistro;
 
     @ManyToOne
     @JoinColumn(name = "id_empleado")
     private Empleado empleado;
 
-    @Column(name = "datos_anteriores", columnDefinition = "json")
-    private String datosAnteriores;
+    @Column(name = "resumen", length = 255)
+    private String resumen;
 
-    @Column(name = "datos_nuevos", columnDefinition = "json")
-    private String datosNuevos;
+    @Column(name = "detalle", columnDefinition = "json")
+    private String detalle;
+
+    @Column(name = "ip", length = 45)
+    private String ip;
+
+    @Column(name = "user_agent", length = 255)
+    private String userAgent;
 
     @CreationTimestamp
-    @Column(name = "fecha_evento", nullable = false, updatable = false)
-    private LocalDateTime fechaEvento;
+    @Column(name = "fecha", nullable = false, updatable = false)
+    private LocalDateTime fecha;
 
     public enum Accion {
-        INSERT, UPDATE, DELETE
+        CREAR, ACTUALIZAR, ELIMINAR, ANULAR, LOGIN, LOGOUT, ERROR, OTRO
     }
 
     public Auditoria() {
@@ -46,20 +52,28 @@ public class Auditoria {
 
     // --- GETTERS Y SETTERS ---
 
-    public Integer getIdAuditoria() {
+    public Long getIdAuditoria() {
         return idAuditoria;
     }
 
-    public void setIdAuditoria(Integer idAuditoria) {
+    public void setIdAuditoria(Long idAuditoria) {
         this.idAuditoria = idAuditoria;
     }
 
     public String getTablaAfectada() {
-        return tablaAfectada;
+        return entidad;
     }
 
     public void setTablaAfectada(String tablaAfectada) {
-        this.tablaAfectada = tablaAfectada;
+        this.entidad = tablaAfectada;
+    }
+
+    public String getEntidad() {
+        return entidad;
+    }
+
+    public void setEntidad(String entidad) {
+        this.entidad = entidad;
     }
 
     public Accion getAccion() {
@@ -87,23 +101,77 @@ public class Auditoria {
     }
 
     public String getDatosAnteriores() {
-        return datosAnteriores;
+        return null;
     }
 
     public void setDatosAnteriores(String datosAnteriores) {
-        this.datosAnteriores = datosAnteriores;
+        mergeDetalle("anteriores", datosAnteriores);
     }
 
     public String getDatosNuevos() {
-        return datosNuevos;
+        return detalle;
     }
 
     public void setDatosNuevos(String datosNuevos) {
-        this.datosNuevos = datosNuevos;
+        mergeDetalle("nuevos", datosNuevos);
+    }
+
+    public String getResumen() {
+        return resumen;
+    }
+
+    public void setResumen(String resumen) {
+        this.resumen = resumen;
+    }
+
+    public String getDetalle() {
+        return detalle;
+    }
+
+    public void setDetalle(String detalle) {
+        this.detalle = detalle;
+    }
+
+    public String getIp() {
+        return ip;
+    }
+
+    public void setIp(String ip) {
+        this.ip = ip;
+    }
+
+    public String getUserAgent() {
+        return userAgent;
+    }
+
+    public void setUserAgent(String userAgent) {
+        this.userAgent = userAgent;
     }
 
     public LocalDateTime getFechaEvento() {
-        return fechaEvento;
+        return fecha;
+    }
+
+    public LocalDateTime getFecha() {
+        return fecha;
+    }
+
+    public void setFecha(LocalDateTime fecha) {
+        this.fecha = fecha;
+    }
+
+    private void mergeDetalle(String key, String value) {
+        if (value == null || value.isBlank()) {
+            return;
+        }
+        if (detalle == null || detalle.isBlank()) {
+            detalle = "{\"" + key + "\":" + value + "}";
+            return;
+        }
+        String body = detalle.trim();
+        if (body.endsWith("}")) {
+            detalle = body.substring(0, body.length() - 1) + ",\"" + key + "\":" + value + "}";
+        }
     }
 
     @Override

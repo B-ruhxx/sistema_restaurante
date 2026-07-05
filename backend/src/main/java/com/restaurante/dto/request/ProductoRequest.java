@@ -16,21 +16,22 @@ public class ProductoRequest {
     private String descripcion;
     private String imagenUrl;
 
-    @NotNull(message = "El precio es obligatorio")
     @DecimalMin(value = "0.0", inclusive = true, message = "El precio no puede ser negativo")
     private BigDecimal precio;
 
-    @NotBlank(message = "El tipo de producto es obligatorio")
     private String tipoProducto; // PREPARADO / INVENTARIO_DIRECTO
+
+    @Min(value = 1, message = "El tiempo de preparación debe ser mayor a 0")
+    private Integer tiempoPreparacionMinutos;
 
     private String estado; // ACTIVO / INACTIVO
     private Integer idCategoria;
-    
-    @Min(value = 0, message = "El stock inicial no puede ser negativo")
-    private Integer stockInicial;
+    private Integer idProductoPadre;
+    private String sku;
+    private Boolean esSku;
 
-    @Min(value = 0, message = "El stock mínimo no puede ser negativo")
-    private Integer stockMinimo;
+    @DecimalMin(value = "0.0", inclusive = true, message = "El stock mínimo no puede ser negativo")
+    private BigDecimal stockMinimo;
 
     private List<RecetaItemRequest> receta;
 
@@ -74,6 +75,14 @@ public class ProductoRequest {
         this.tipoProducto = tipoProducto;
     }
 
+    public Integer getTiempoPreparacionMinutos() {
+        return tiempoPreparacionMinutos;
+    }
+
+    public void setTiempoPreparacionMinutos(Integer tiempoPreparacionMinutos) {
+        this.tiempoPreparacionMinutos = tiempoPreparacionMinutos;
+    }
+
     public String getEstado() {
         return estado;
     }
@@ -90,19 +99,35 @@ public class ProductoRequest {
         this.idCategoria = idCategoria;
     }
 
-    public Integer getStockInicial() {
-        return stockInicial;
+    public Integer getIdProductoPadre() {
+        return idProductoPadre;
     }
 
-    public void setStockInicial(Integer stockInicial) {
-        this.stockInicial = stockInicial;
+    public void setIdProductoPadre(Integer idProductoPadre) {
+        this.idProductoPadre = idProductoPadre;
     }
 
-    public Integer getStockMinimo() {
+    public String getSku() {
+        return sku;
+    }
+
+    public void setSku(String sku) {
+        this.sku = sku;
+    }
+
+    public Boolean getEsSku() {
+        return esSku;
+    }
+
+    public void setEsSku(Boolean esSku) {
+        this.esSku = esSku;
+    }
+
+    public BigDecimal getStockMinimo() {
         return stockMinimo;
     }
 
-    public void setStockMinimo(Integer stockMinimo) {
+    public void setStockMinimo(BigDecimal stockMinimo) {
         this.stockMinimo = stockMinimo;
     }
 
@@ -122,9 +147,6 @@ public class ProductoRequest {
         @DecimalMin(value = "0.0", inclusive = false, message = "La cantidad debe ser mayor a 0")
         private BigDecimal cantidad;
 
-        @Min(value = 1, message = "El tiempo de preparación debe ser mayor a 0")
-        private Integer tiempoPreparacionMinutos = 1;
-
         public Integer getIdInsumo() {
             return idInsumo;
         }
@@ -141,12 +163,5 @@ public class ProductoRequest {
             this.cantidad = cantidad;
         }
 
-        public Integer getTiempoPreparacionMinutos() {
-            return tiempoPreparacionMinutos;
-        }
-
-        public void setTiempoPreparacionMinutos(Integer tiempoPreparacionMinutos) {
-            this.tiempoPreparacionMinutos = tiempoPreparacionMinutos;
-        }
     }
 }

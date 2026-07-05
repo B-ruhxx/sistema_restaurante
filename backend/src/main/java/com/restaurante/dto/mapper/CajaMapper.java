@@ -40,6 +40,13 @@ public class CajaMapper {
         }
         response.setConcepto(entity.getConcepto());
         response.setMonto(entity.getMonto());
+        response.setReferenceType(entity.getReferenceType());
+        response.setReferenceId(entity.getReferenceId());
+        response.setComprobante(entity.getComprobante());
+        if (entity.getEmpleado() != null) {
+            response.setIdEmpleado(entity.getEmpleado().getIdEmpleado());
+            response.setNombreEmpleado(entity.getEmpleado().getNombre() + " " + entity.getEmpleado().getApellido());
+        }
         response.setFecha(entity.getFecha());
         return response;
     }

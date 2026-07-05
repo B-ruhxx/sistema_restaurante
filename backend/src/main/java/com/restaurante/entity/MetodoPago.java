@@ -8,14 +8,17 @@ import java.util.Objects;
 public class MetodoPago {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id_metodo_pago")
+    @Column(name = "id_metodo")
     private Integer idMetodoPago;
 
-    @Column(length = 50)
+    @Column(nullable = false, length = 50)
     private String nombre;
 
-    @Column(name = "requiere_operacion", columnDefinition = "BOOLEAN DEFAULT FALSE")
-    private Boolean requiereOperacion = false;
+    @Column(nullable = false, length = 30)
+    private String codigo;
+
+    @Column(name = "requiere_referencia", nullable = false)
+    private Boolean requiereReferencia = false;
 
     @Enumerated(EnumType.STRING)
     @Column(columnDefinition = "ENUM('ACTIVO', 'INACTIVO') DEFAULT 'ACTIVO'")
@@ -44,12 +47,20 @@ public class MetodoPago {
         this.nombre = nombre;
     }
 
-    public Boolean getRequiereOperacion() {
-        return requiereOperacion;
+    public String getCodigo() {
+        return codigo;
     }
 
-    public void setRequiereOperacion(Boolean requiereOperacion) {
-        this.requiereOperacion = requiereOperacion;
+    public void setCodigo(String codigo) {
+        this.codigo = codigo;
+    }
+
+    public Boolean getRequiereReferencia() {
+        return requiereReferencia;
+    }
+
+    public void setRequiereReferencia(Boolean requiereReferencia) {
+        this.requiereReferencia = requiereReferencia;
     }
 
     public Estado getEstado() {

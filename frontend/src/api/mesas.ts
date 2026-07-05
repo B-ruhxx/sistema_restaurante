@@ -1,6 +1,6 @@
 import api from './auth';
 
-export type MesaEstado = 'LIBRE' | 'OCUPADA' | 'ESPERANDO_COCINA' | 'SERVIDO' | 'CUENTA_EMITIDA' | 'PAGADA';
+export type MesaEstado = 'DISPONIBLE' | 'ATENCION' | 'EN_COCINA' | 'SERVIDO' | 'CUENTA' | 'BLOQUEADA';
 
 export interface Mesa {
   idMesa: number;
@@ -38,14 +38,6 @@ export const mesasApi = {
   },
   update: async (id: number, data: MesaRequest): Promise<Mesa> => {
     const response = await api.put(`/mesas/${id}`, data);
-    return response.data;
-  },
-  updateEstado: async (id: number, estado: MesaEstado): Promise<Mesa> => {
-    const response = await api.patch(`/mesas/${id}/estado`, { estado });
-    return response.data;
-  },
-  liberar: async (id: number): Promise<Mesa> => {
-    const response = await api.post(`/mesas/${id}/liberar`);
     return response.data;
   },
 };

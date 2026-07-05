@@ -38,7 +38,7 @@ export function LoginForm() {
     };
 
     return (
-        <Card className="w-full border-0 bg-white rounded-[2rem] p-6 sm:p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+        <Card className="w-full border border-border bg-card rounded-[2rem] p-6 sm:p-8 shadow-ui-medium">
             <CardContent className="p-0">
                 {/* Renderizamos el Brand centrado aquí dentro en la cabecera */}
                 <LoginBrand />
@@ -47,13 +47,13 @@ export function LoginForm() {
                     <div>
                         <Label
                             htmlFor="username"
-                            className="text-[11px] font-bold tracking-wider text-zinc-400 uppercase block mb-1.5"
+                            className="text-[11px] font-bold tracking-wider text-muted-foreground uppercase block mb-1.5"
                         >
                             Usuario
                         </Label>
                         <Input
                             id="username"
-                            className="h-12 rounded-xl border-zinc-200 bg-white px-4 text-zinc-800 placeholder:text-zinc-400 focus-visible:ring-red-500"
+                            className="h-12 rounded-xl border-border bg-background px-4 text-foreground placeholder:text-muted-foreground focus-visible:ring-ring"
                             placeholder="Nombre de usuario"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
@@ -63,14 +63,14 @@ export function LoginForm() {
                     <div>
                         <Label
                             htmlFor="password"
-                            className="text-[11px] font-bold tracking-wider text-zinc-400 uppercase block mb-1.5"
+                            className="text-[11px] font-bold tracking-wider text-muted-foreground uppercase block mb-1.5"
                         >
                             Contraseña
                         </Label>
                         <div className="relative">
                             <Input
                                 id="password"
-                                className="h-12 rounded-xl border-zinc-200 bg-white px-4 pr-10 text-zinc-800 placeholder:text-zinc-400 focus-visible:ring-red-500"
+                                className="h-12 rounded-xl border-border bg-background px-4 pr-10 text-foreground placeholder:text-muted-foreground focus-visible:ring-ring"
                                 type={showPassword ? 'text' : 'password'}
                                 placeholder="Contraseña"
                                 value={password}
@@ -78,7 +78,7 @@ export function LoginForm() {
                             />
                             <button
                                 type="button"
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 transition-colors"
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                                 onClick={() => setShowPassword(!showPassword)}
                             >
                                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -87,7 +87,7 @@ export function LoginForm() {
                     </div>
 
                     {error && (
-                        <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-600">
+                        <div className="flex items-center gap-2 rounded-xl border ui-status-warning-soft p-3 text-sm">
                             <AlertCircle size={16} />
                             {error}
                         </div>
@@ -95,7 +95,7 @@ export function LoginForm() {
 
                     <Button
                         type="submit"
-                        className="h-12 w-full rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold transition-all shadow-md shadow-red-600/10 mt-2"
+                        className="h-12 w-full rounded-xl bg-[var(--action-primary)] hover:bg-[var(--action-primary-hover)] text-[var(--text-inverse)] font-semibold transition-all shadow-ui-low mt-2"
                         disabled={isLoading}
                     >
                         {isLoading ? 'Validando acceso...' : 'Iniciar Sesión'}

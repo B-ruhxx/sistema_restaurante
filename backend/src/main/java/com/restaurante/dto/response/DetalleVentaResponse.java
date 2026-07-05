@@ -20,6 +20,14 @@ public class DetalleVentaResponse {
         this.idDetalleVenta = idDetalleVenta;
     }
 
+    public Integer getIdDetalle() {
+        return idDetalleVenta;
+    }
+
+    public void setIdDetalle(Integer idDetalle) {
+        this.idDetalleVenta = idDetalle;
+    }
+
     public Integer getIdProducto() {
         return idProducto;
     }

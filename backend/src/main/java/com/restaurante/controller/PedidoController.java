@@ -3,6 +3,7 @@ package com.restaurante.controller;
 import com.restaurante.dto.PedidoEstadoRequest;
 import com.restaurante.dto.PedidoRequest;
 import com.restaurante.dto.DetallePedidoRequest;
+import com.restaurante.dto.PedidoCancelacionRequest;
 import com.restaurante.dto.request.AbrirPedidoMesaRequest;
 import com.restaurante.dto.response.DetallePedidoResponse;
 import com.restaurante.dto.response.PedidoResponse;
@@ -66,14 +67,6 @@ public class PedidoController {
         return ResponseEntity.ok(pedidoService.enviarACocina(id, empleado));
     }
 
-    @PostMapping("/{id}/solicitar-cuenta")
-    @PreAuthorize("hasAuthority('GESTION_PRECUENTA') or hasAuthority('GESTION_POS') or hasAuthority('ACCESO_TOTAL')")
-    public ResponseEntity<PedidoResponse> solicitarCuenta(@PathVariable Integer id,
-                                                           @AuthenticationPrincipal CustomUserDetails userDetails) {
-        Empleado empleado = userDetails.getEmpleado();
-        return ResponseEntity.ok(pedidoService.solicitarCuenta(id, empleado));
-    }
-
     @PutMapping("/{id}/estado")
     @PreAuthorize("hasAuthority('GESTION_POS') or hasAuthority('GESTION_COCINA') or hasAuthority('GESTION_CAJA') or hasAuthority('ACCESO_TOTAL')")
     public ResponseEntity<PedidoResponse> actualizarEstado(@PathVariable Integer id,
@@ -91,6 +84,15 @@ public class PedidoController {
                                                        @Valid @RequestBody PedidoEstadoRequest request,
                                                        @AuthenticationPrincipal CustomUserDetails userDetails) {
         return actualizarEstado(id, request, userDetails);
+    }
+
+    @PostMapping("/{id}/cancelar")
+    @PreAuthorize("hasAuthority('ACCESO_TOTAL') or hasRole('ADMINISTRADOR') or hasRole('SUPERVISOR')")
+    public ResponseEntity<PedidoResponse> cancelarPedido(@PathVariable Integer id,
+                                                          @Valid @RequestBody PedidoCancelacionRequest request,
+                                                          @AuthenticationPrincipal CustomUserDetails userDetails) {
+        Empleado empleado = userDetails.getEmpleado();
+        return ResponseEntity.ok(pedidoService.cancelarPedido(id, request.getMotivo(), empleado));
     }
 
     @GetMapping("/{id}/detalles")
@@ -122,9 +124,6 @@ public class PedidoController {
     }
 
     private Pedido.Estado parseEstado(String estado) {
-        String normalized = estado.toUpperCase();
-        if ("PENDIENTE".equals(normalized)) return Pedido.Estado.ABIERTO;
-        if ("EN_COCINA".equals(normalized)) return Pedido.Estado.ENVIADO_COCINA;
-        return Pedido.Estado.valueOf(normalized);
+        return Pedido.Estado.valueOf(estado.toUpperCase());
     }
 }

@@ -8,6 +8,7 @@ import com.restaurante.dto.response.VentaResponse;
 import com.restaurante.dto.mapper.VentaMapper;
 import com.restaurante.entity.*;
 import com.restaurante.repository.*;
+import com.restaurante.service.policy.VentaPolicy;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,9 +35,6 @@ public class VentaService {
     private InsumoRepository insumoRepository;
 
     @Autowired
-    private InventarioProductoRepository inventarioProductoRepository;
-
-    @Autowired
     private RecetaProductoRepository recetaProductoRepository;
 
     @Autowired
@@ -49,6 +47,15 @@ public class VentaService {
     private MovimientoInventarioRepository movimientoInventarioRepository;
 
     @Autowired
+    private LoteInsumoService loteInsumoService;
+
+    @Autowired
+    private LoteProductoService loteProductoService;
+
+    @Autowired
+    private LoteProductoRepository loteProductoRepository;
+
+    @Autowired
     private CajaService cajaService;
 
     @Autowired
@@ -59,6 +66,9 @@ public class VentaService {
 
     @Autowired
     private DetallePedidoRepository detallePedidoRepository;
+
+    @Autowired
+    private PedidoExtraRepository pedidoExtraRepository;
 
     @Autowired
     private MetodoPagoRepository metodoPagoRepository;
@@ -75,15 +85,17 @@ public class VentaService {
     @Autowired
     private VentaMapper ventaMapper;
 
+    @Autowired
+    private VentaPolicy ventaPolicy;
+
     public VentaResponse registrarVenta(VentaRequest request, Empleado empleado) {
         // 1. Verificar sesión de Caja abierta para el empleado
         CajaResponse cajaResponse = cajaService.obtenerCajaAbiertaParaEmpleado(empleado)
                 .orElseThrow(() -> new IllegalStateException(
                         "El empleado debe tener una caja abierta para realizar una venta."));
 
-        // Load the actual Caja entity to set on Venta
-        Caja caja = new Caja();
-        caja.setIdCaja(cajaResponse.getIdCaja());
+        Caja caja = cajaRepository.findById(cajaResponse.getIdCaja())
+                .orElseThrow(() -> new IllegalStateException("Caja activa no encontrada."));
 
         // Fetch IGV percentage from company configuration
         ConfiguracionEmpresa config = configuracionEmpresaRepository.findAll().stream().findFirst().orElse(null);
@@ -95,8 +107,7 @@ public class VentaService {
         venta.setCaja(caja);
         venta.setTipoComprobante(Venta.TipoComprobante.valueOf(request.getTipoComprobante().toUpperCase()));
         venta.setSerie(request.getSerie());
-        venta.setCorrelativo(request.getCorrelativo());
-        venta.setIgvPorcentaje(igvPorcentaje);
+        venta.setNumero(request.getNumero());
 
         if (request.getIdPedido() != null) {
             Pedido pedido = pedidoRepository.findById(request.getIdPedido())
@@ -112,11 +123,15 @@ public class VentaService {
                 DetalleVenta dv = new DetalleVenta();
                 dv.setProducto(dp.getProducto());
                 dv.setCombo(dp.getCombo());
+                dv.setDetallePedido(dp);
                 dv.setCantidad(dp.getCantidad());
                 dv.setPrecioUnitario(dp.getPrecioUnitario());
                 dv.setSubtotal(dp.getSubtotal());
                 detalles.add(dv);
             }
+        }
+        if (detalles.isEmpty()) {
+            throw new IllegalArgumentException("No se puede registrar una venta sin detalles.");
         }
 
         // Build VentaPago objects from request
@@ -126,10 +141,14 @@ public class VentaService {
                 VentaPago pago = new VentaPago();
                 MetodoPago metodoPago = metodoPagoRepository.findById(pagoReq.getIdMetodoPago())
                         .orElseThrow(() -> new IllegalArgumentException("Método de pago no encontrado."));
+                if (Boolean.TRUE.equals(metodoPago.getRequiereReferencia())
+                        && (pagoReq.getReferencia() == null || pagoReq.getReferencia().isBlank())) {
+                    throw new IllegalArgumentException("El método de pago requiere referencia: " + metodoPago.getNombre());
+                }
                 pago.setMetodoPago(metodoPago);
                 pago.setMonto(pagoReq.getMonto());
-                pago.setNumeroOperacion(pagoReq.getNumeroOperacion());
-                pago.setEstado(VentaPago.Estado.PENDIENTE);
+                pago.setReferencia(pagoReq.getReferencia());
+                pago.setEstado(VentaPago.Estado.APROBADO);
                 pagos.add(pago);
             }
         }
@@ -161,15 +180,14 @@ public class VentaService {
         // Asignación de totales basados en fórmulas contables
         venta.setTotal(totalCalculado);
 
-        BigDecimal cienMasIgv = BigDecimal.valueOf(100).add(venta.getIgvPorcentaje());
+        BigDecimal cienMasIgv = BigDecimal.valueOf(100).add(igvPorcentaje);
         BigDecimal subtotalGravado = totalCalculado.multiply(BigDecimal.valueOf(100))
                 .divide(cienMasIgv, 4, RoundingMode.HALF_UP);
         BigDecimal igv = totalCalculado.subtract(subtotalGravado).setScale(4, RoundingMode.HALF_UP);
 
         venta.setSubtotal(subtotalGravado.setScale(2, RoundingMode.HALF_UP));
-        venta.setSubtotalGravado(subtotalGravado.setScale(2, RoundingMode.HALF_UP));
         venta.setIgv(igv.setScale(2, RoundingMode.HALF_UP));
-        venta.setEstado(Venta.Estado.PENDIENTE);
+        venta.setEstado(Venta.Estado.EMITIDA);
 
         // Persistencia inicial de la venta
         Venta ventaGuardada = ventaRepository.save(venta);
@@ -194,6 +212,8 @@ public class VentaService {
     }
 
     public VentaResponse generarVentaPagadaDesdePedido(Integer idPedido, CobrarPedidoRequest request, Empleado empleado) {
+        ventaPolicy.validarPagosInformados(request.getPagos());
+
         CajaResponse cajaResponse = cajaService.obtenerCajaAbiertaParaEmpleado(empleado)
                 .orElseThrow(() -> new IllegalStateException(
                         "El empleado debe tener una caja abierta para cobrar un pedido."));
@@ -202,14 +222,8 @@ public class VentaService {
 
         Pedido pedido = pedidoRepository.findById(idPedido)
                 .orElseThrow(() -> new IllegalArgumentException("Pedido no encontrado."));
-        if (pedido.getEstado() != Pedido.Estado.CUENTA_EMITIDA && pedido.getEstado() != Pedido.Estado.ENTREGADO) {
-            throw new IllegalStateException("Solo se pueden cobrar pedidos con cuenta emitida o entregados.");
-        }
-        if (request.getTipoComprobante() != null
-                && "FACTURA".equalsIgnoreCase(request.getTipoComprobante())
-                && !clienteTieneRucValido(pedido.getCliente())) {
-            throw new IllegalArgumentException("Para emitir factura el cliente debe tener RUC válido.");
-        }
+        ventaPolicy.validarPedidoCobrable(pedido);
+        ventaPolicy.validarFactura(request.getTipoComprobante(), pedido.getCliente());
 
         List<DetallePedido> detallesPedido = detallePedidoRepository.findByPedidoIdPedido(idPedido);
         if (detallesPedido.isEmpty()) {
@@ -227,21 +241,17 @@ public class VentaService {
 
         BigDecimal totalPagos = BigDecimal.ZERO;
         for (VentaPagoRequest pagoReq : request.getPagos()) {
-            totalPagos = totalPagos.add(pagoReq.getMonto());
+            totalPagos = totalPagos.add(normalizarMonto(pagoReq.getMonto()));
         }
-        if (totalPagos.compareTo(totalCalculado) < 0) {
-            throw new IllegalArgumentException("El monto pagado es insuficiente.");
-        }
+        ventaPolicy.validarMontoPagado(totalPagos, totalCalculado);
 
         Venta venta = new Venta();
-        venta.setCodigoVenta("V-" + System.currentTimeMillis());
         venta.setEmpleado(empleado);
         venta.setCaja(caja);
         venta.setPedido(pedido);
         venta.setTipoComprobante(Venta.TipoComprobante.valueOf(request.getTipoComprobante().toUpperCase()));
         venta.setSerie(request.getSerie());
-        venta.setCorrelativo(request.getCorrelativo());
-        venta.setIgvPorcentaje(igvPorcentaje);
+        venta.setNumero(request.getNumero());
         venta.setTotal(totalCalculado);
 
         BigDecimal cienMasIgv = BigDecimal.valueOf(100).add(igvPorcentaje);
@@ -249,9 +259,8 @@ public class VentaService {
                 .divide(cienMasIgv, 4, RoundingMode.HALF_UP);
         BigDecimal igv = totalCalculado.subtract(subtotalGravado).setScale(4, RoundingMode.HALF_UP);
         venta.setSubtotal(subtotalGravado.setScale(2, RoundingMode.HALF_UP));
-        venta.setSubtotalGravado(subtotalGravado.setScale(2, RoundingMode.HALF_UP));
         venta.setIgv(igv.setScale(2, RoundingMode.HALF_UP));
-        venta.setEstado(Venta.Estado.PAGADA);
+        venta.setEstado(Venta.Estado.EMITIDA);
 
         Venta ventaGuardada = ventaRepository.save(venta);
         List<DetalleVenta> detallesVenta = new ArrayList<>();
@@ -260,6 +269,7 @@ public class VentaService {
             dv.setVenta(ventaGuardada);
             dv.setProducto(dp.getProducto());
             dv.setCombo(dp.getCombo());
+            dv.setDetallePedido(dp);
             dv.setCantidad(dp.getCantidad());
             dv.setPrecioUnitario(dp.getPrecioUnitario());
             dv.setSubtotal(dp.getSubtotal());
@@ -271,29 +281,20 @@ public class VentaService {
             descontarStockInventario(detalleVenta, empleado);
         }
 
-        for (VentaPagoRequest pagoReq : request.getPagos()) {
-            MetodoPago metodoPago = metodoPagoRepository.findById(pagoReq.getIdMetodoPago())
-                    .orElseThrow(() -> new IllegalArgumentException("Método de pago no encontrado."));
-            VentaPago pago = new VentaPago();
-            pago.setVenta(ventaGuardada);
-            pago.setMetodoPago(metodoPago);
-            pago.setMonto(pagoReq.getMonto());
-            pago.setNumeroOperacion(pagoReq.getNumeroOperacion());
-            pago.setEstado(VentaPago.Estado.APROBADO);
+        List<VentaPago> pagos = construirPagosAplicados(request.getPagos(), ventaGuardada, totalCalculado);
+        for (VentaPago pago : pagos) {
             ventaPagoRepository.save(pago);
-
-            String nombreMetodo = metodoPago.getNombre() != null ? metodoPago.getNombre() : "Método no especificado";
-            cajaService.registrarMovimiento(
-                    caja.getIdCaja(),
-                    MovimientoCaja.Tipo.INGRESO,
-                    "Cobro pedido #" + pedido.getIdPedido() + " - " + ventaGuardada.getCodigoVenta()
-                            + " [" + nombreMetodo + "]",
-                    pagoReq.getMonto());
         }
+        registrarMovimientosCajaPorPagos(
+                caja,
+                pagos,
+                "Cobro Pedido #" + pedido.getIdPedido() + " - " + ventaGuardada.getComprobante(),
+                ventaGuardada,
+                empleado);
 
-        pedido.setEstado(Pedido.Estado.PAGADO);
+        pedido.setEstado(Pedido.Estado.CERRADO);
         if (pedido.getMesa() != null) {
-            pedido.getMesa().setEstado(Mesa.Estado.LIBRE);
+            pedido.getMesa().setEstado(Mesa.Estado.DISPONIBLE);
         }
         pedidoRepository.save(pedido);
         precuentaService.marcarConvertida(pedido);
@@ -302,41 +303,21 @@ public class VentaService {
     }
 
     public VentaResponse pagarVenta(Integer idVenta, List<VentaPagoRequest> pagosReq) {
+        ventaPolicy.validarPagosInformados(pagosReq);
+
         Venta venta = ventaRepository.findById(idVenta)
                 .orElseThrow(() -> new IllegalArgumentException("Venta no encontrada."));
-
-        if (venta.getEstado() != Venta.Estado.PENDIENTE) {
-            throw new IllegalStateException("La venta no está en estado PENDIENTE.");
-        }
+        ventaPolicy.validarVentaPagable(venta);
 
         Caja caja = venta.getCaja();
-        if (caja == null || caja.getEstado() != Caja.Estado.ABIERTA) {
-            throw new IllegalStateException("La caja asociada a esta venta ya no se encuentra abierta.");
-        }
-
-        // Resolve VentaPago entities
-        List<VentaPago> pagos = new ArrayList<>();
-        for (VentaPagoRequest pagoReq : pagosReq) {
-            VentaPago pago = new VentaPago();
-            MetodoPago metodoPago = metodoPagoRepository.findById(pagoReq.getIdMetodoPago())
-                    .orElseThrow(() -> new IllegalArgumentException("Método de pago no encontrado con ID: " + pagoReq.getIdMetodoPago()));
-            pago.setVenta(venta);
-            pago.setMetodoPago(metodoPago);
-            pago.setMonto(pagoReq.getMonto());
-            pago.setNumeroOperacion(pagoReq.getNumeroOperacion());
-            pago.setEstado(VentaPago.Estado.APROBADO);
-            pagos.add(pago);
-        }
-
         BigDecimal totalPagos = BigDecimal.ZERO;
-        for (VentaPago pago : pagos) {
-            totalPagos = totalPagos.add(pago.getMonto());
+        for (VentaPagoRequest pagoReq : pagosReq) {
+            totalPagos = totalPagos.add(normalizarMonto(pagoReq.getMonto()));
         }
 
-        if (totalPagos.compareTo(venta.getTotal()) < 0) {
-            throw new IllegalArgumentException(
-                    "El monto pagado es insuficiente. Total: " + venta.getTotal() + ", Pagado: " + totalPagos);
-        }
+        ventaPolicy.validarMontoPagado(totalPagos, venta.getTotal());
+
+        List<VentaPago> pagos = construirPagosAplicados(pagosReq, venta, venta.getTotal());
 
         // 1. Deducción física de Stock en Inventarios
         List<DetalleVenta> detalles = detalleVentaRepository.findByVentaIdVenta(venta.getIdVenta());
@@ -344,27 +325,24 @@ public class VentaService {
             descontarStockInventario(det, venta.getEmpleado());
         }
 
-        // 2. Registro de movimientos de flujo de caja para pagos en Efectivo
         for (VentaPago pago : pagos) {
-            if (pago.getMetodoPago() != null && pago.getMetodoPago().getNombre().equalsIgnoreCase("Efectivo")) {
-                cajaService.registrarMovimiento(
-                        caja.getIdCaja(),
-                        MovimientoCaja.Tipo.INGRESO,
-                        "Venta de productos - Comprobante: " + venta.getCodigoVenta(),
-                        pago.getMonto());
-            }
-            // Save the payment update
             ventaPagoRepository.save(pago);
         }
+        registrarMovimientosCajaPorPagos(
+                caja,
+                pagos,
+                "Venta de productos - Comprobante: " + venta.getComprobante(),
+                venta,
+                venta.getEmpleado());
 
-        venta.setEstado(Venta.Estado.PAGADA);
+        venta.setEstado(Venta.Estado.EMITIDA);
 
         // Sincronización del estado del pedido vinculado si existe
         if (venta.getPedido() != null) {
             Pedido pedido = venta.getPedido();
-            pedido.setEstado(Pedido.Estado.PAGADO);
+            pedido.setEstado(Pedido.Estado.CERRADO);
             if (pedido.getMesa() != null) {
-                pedido.getMesa().setEstado(Mesa.Estado.LIBRE);
+                pedido.getMesa().setEstado(Mesa.Estado.DISPONIBLE);
             }
             pedidoRepository.save(pedido);
         }
@@ -373,37 +351,125 @@ public class VentaService {
         return mapToDetailedResponse(savedVenta);
     }
 
+    private List<VentaPago> construirPagosAplicados(List<VentaPagoRequest> pagosReq, Venta venta, BigDecimal totalVenta) {
+        ventaPolicy.validarPagosInformados(pagosReq);
+
+        List<VentaPago> pagos = new ArrayList<>();
+        BigDecimal saldoPendiente = totalVenta.setScale(2, RoundingMode.HALF_UP);
+
+        for (VentaPagoRequest pagoReq : pagosReq) {
+            if (saldoPendiente.compareTo(BigDecimal.ZERO) <= 0) {
+                break;
+            }
+
+            MetodoPago metodoPago = metodoPagoRepository.findById(pagoReq.getIdMetodoPago())
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "Método de pago no encontrado con ID: " + pagoReq.getIdMetodoPago()));
+            BigDecimal montoSolicitado = normalizarMonto(pagoReq.getMonto());
+
+            if (montoSolicitado.compareTo(BigDecimal.ZERO) <= 0) {
+                throw new IllegalArgumentException("El monto del pago debe ser mayor a 0.");
+            }
+            if (Boolean.TRUE.equals(metodoPago.getRequiereReferencia())
+                    && (pagoReq.getReferencia() == null || pagoReq.getReferencia().isBlank())) {
+                throw new IllegalArgumentException("El método de pago requiere referencia: " + metodoPago.getNombre());
+            }
+
+            BigDecimal montoAplicado = montoSolicitado
+                    .min(saldoPendiente)
+                    .setScale(2, RoundingMode.HALF_UP);
+
+            VentaPago pago = new VentaPago();
+            pago.setVenta(venta);
+            pago.setMetodoPago(metodoPago);
+            pago.setMonto(montoAplicado);
+            pago.setReferencia(pagoReq.getReferencia());
+            pago.setEstado(VentaPago.Estado.APROBADO);
+            pagos.add(pago);
+
+            saldoPendiente = saldoPendiente.subtract(montoAplicado);
+        }
+
+        if (saldoPendiente.compareTo(BigDecimal.ZERO) > 0) {
+            throw new IllegalArgumentException("El monto pagado es insuficiente. Saldo pendiente: " + saldoPendiente);
+        }
+
+        return pagos;
+    }
+
+    private void registrarMovimientosCajaPorPagos(Caja caja, List<VentaPago> pagos, String conceptoBase,
+            Venta venta, Empleado empleado) {
+        for (VentaPago pago : pagos) {
+            if (!metodoAfectaCaja(pago.getMetodoPago())) {
+                continue;
+            }
+
+            String nombreMetodo = pago.getMetodoPago() != null && pago.getMetodoPago().getNombre() != null
+                    ? pago.getMetodoPago().getNombre()
+                    : "Método no especificado";
+            cajaService.registrarMovimiento(
+                    caja.getIdCaja(),
+                    MovimientoCaja.Tipo.INGRESO,
+                    conceptoBase + " [" + nombreMetodo + "]",
+                    pago.getMonto(),
+                    empleado,
+                    "VENTA",
+                    venta.getIdVenta(),
+                    venta.getComprobante());
+        }
+    }
+
+    private BigDecimal normalizarMonto(BigDecimal monto) {
+        if (monto == null) {
+            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
+        return monto.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private boolean metodoAfectaCaja(MetodoPago metodoPago) {
+        return metodoPago != null;
+    }
+
     public VentaResponse anularVenta(Integer idVenta, String motivo, Empleado empleadoAnulacion) {
         Venta venta = ventaRepository.findById(idVenta)
                 .orElseThrow(() -> new IllegalArgumentException("Venta no encontrada."));
-
-        if (venta.getEstado() == Venta.Estado.ANULADA) {
-            throw new IllegalStateException("La venta ya está anulada.");
-        }
+        ventaPolicy.validarAnulable(venta, motivo);
 
         // 1. Reversión completa de stock al inventario
         List<DetalleVenta> detalles = detalleVentaRepository.findByVentaIdVenta(venta.getIdVenta());
         for (DetalleVenta det : detalles) {
             revertirDescuentoStock(det, empleadoAnulacion);
         }
+        revertirConsumosInsumosVenta(venta.getIdVenta(), empleadoAnulacion);
 
         // 2. Registro de contramovimiento (EGRESO) en la caja si ya estaba pagada
-        if (venta.getEstado() == Venta.Estado.PAGADA) {
+        if (venta.getEstado() == Venta.Estado.EMITIDA) {
             Caja caja = venta.getCaja();
             if (caja != null) {
-                cajaService.registrarMovimiento(
-                        caja.getIdCaja(),
-                        MovimientoCaja.Tipo.EGRESO,
-                        "ANULACIÓN de venta: " + venta.getCodigoVenta(),
-                        venta.getTotal());
+                BigDecimal montoCaja = ventaPagoRepository.findByVentaIdVenta(venta.getIdVenta()).stream()
+                        .filter(pago -> pago.getEstado() == VentaPago.Estado.APROBADO)
+                        .filter(pago -> metodoAfectaCaja(pago.getMetodoPago()))
+                        .map(VentaPago::getMonto)
+                        .filter(monto -> monto != null)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                if (montoCaja.compareTo(BigDecimal.ZERO) > 0) {
+                    cajaService.registrarMovimiento(
+                            caja.getIdCaja(),
+                            MovimientoCaja.Tipo.EGRESO,
+                            "Anulación Pedido/Venta #" + venta.getIdVenta() + " - Ref: " + venta.getComprobante(),
+                            montoCaja,
+                            empleadoAnulacion,
+                            "ANULACION_VENTA",
+                            venta.getIdVenta(),
+                            venta.getComprobante());
+                }
             }
         }
 
         venta.setEstado(Venta.Estado.ANULADA);
         venta.setFechaAnulacion(LocalDateTime.now());
         venta.setMotivoAnulacion(motivo);
-        venta.setEmpleadoAnulacion(empleadoAnulacion);
-
         if (venta.getPedido() != null) {
             Pedido pedido = venta.getPedido();
             pedido.setEstado(Pedido.Estado.CANCELADO);
@@ -431,14 +497,9 @@ public class VentaService {
         if (det.getProducto() != null) {
             Producto prod = det.getProducto();
             if (prod.getTipoProducto() == Producto.TipoProducto.INVENTARIO_DIRECTO) {
-                return inventarioProductoRepository.findByProductoIdProducto(prod.getIdProducto())
-                        .map(inv -> inv.getProducto().getPrecio().multiply(new BigDecimal("0.40")))
-                        .orElse(BigDecimal.ZERO);
+                return prod.getPrecio().multiply(new BigDecimal("0.40"));
             } else {
-                List<RecetaProducto> receta = recetaProductoRepository.findByProductoIdProducto(prod.getIdProducto());
-                for (RecetaProducto item : receta) {
-                    costo = costo.add(item.getCantidad().multiply(item.getInsumo().getCostoPromedio()));
-                }
+                costo = costo.add(calcularCostoReceta(obtenerRecetaVenta(prod)));
             }
         } else if (det.getCombo() != null) {
             List<ComboDetalle> comboItems = comboDetalleRepository.findByComboIdCombo(det.getCombo().getIdCombo());
@@ -447,64 +508,80 @@ public class VentaService {
                 if (item.getProducto().getTipoProducto() == Producto.TipoProducto.INVENTARIO_DIRECTO) {
                     prodCost = item.getProducto().getPrecio().multiply(new BigDecimal("0.40"));
                 } else {
-                    List<RecetaProducto> receta = recetaProductoRepository
-                            .findByProductoIdProducto(item.getProducto().getIdProducto());
-                    for (RecetaProducto rItem : receta) {
-                        prodCost = prodCost.add(rItem.getCantidad().multiply(rItem.getInsumo().getCostoPromedio()));
-                    }
+                    prodCost = prodCost.add(calcularCostoReceta(obtenerRecetaVenta(item.getProducto())));
                 }
                 costo = costo.add(prodCost.multiply(BigDecimal.valueOf(item.getCantidad())));
             }
         }
+        return costo.add(calcularCostoExtras(det));
+    }
+
+    private BigDecimal calcularCostoReceta(List<RecetaProducto> receta) {
+        BigDecimal costo = BigDecimal.ZERO;
+        for (RecetaProducto item : receta) {
+            costo = costo.add(item.getCantidad().multiply(item.getInsumo().getCostoPromedio()));
+        }
         return costo;
     }
 
-    private boolean clienteTieneRucValido(Cliente cliente) {
-        return cliente != null
-                && cliente.getTipoDocumento() == Cliente.TipoDocumento.RUC
-                && cliente.getDocumentoIdentidad() != null
-                && cliente.getDocumentoIdentidad().matches("\\d{11}");
+    private BigDecimal calcularCostoExtras(DetalleVenta det) {
+        if (det.getDetallePedido() == null) {
+            return BigDecimal.ZERO;
+        }
+        return pedidoExtraRepository.findByDetallePedidoIdDetallePedido(det.getDetallePedido().getIdDetallePedido()).stream()
+                .filter(pedidoExtra -> pedidoExtra.getExtra() != null
+                        && pedidoExtra.getExtra().getInsumo() != null
+                        && pedidoExtra.getExtra().getCantidadConsumida() != null)
+                .map(pedidoExtra -> pedidoExtra.getExtra().getCantidadConsumida()
+                        .multiply(pedidoExtra.getExtra().getInsumo().getCostoPromedio())
+                        .multiply(BigDecimal.valueOf(pedidoExtra.getCantidad() != null ? pedidoExtra.getCantidad() : 1)))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private List<RecetaProducto> obtenerRecetaVenta(Producto producto) {
+        return recetaProductoRepository.findByProductoIdProducto(producto.getIdProducto());
     }
 
     private void descontarStockInventario(DetalleVenta det, Empleado empleado) {
         int cantidadTotal = det.getCantidad();
         if (det.getProducto() != null) {
-            descontarProducto(det.getProducto(), cantidadTotal, det.getVenta(), empleado);
+            descontarProducto(det.getProducto(), cantidadTotal, det, empleado);
         } else if (det.getCombo() != null) {
             List<ComboDetalle> comboItems = comboDetalleRepository.findByComboIdCombo(det.getCombo().getIdCombo());
             for (ComboDetalle item : comboItems) {
-                descontarProducto(item.getProducto(), item.getCantidad() * cantidadTotal, det.getVenta(), empleado);
+                descontarProducto(item.getProducto(), item.getCantidad() * cantidadTotal, det, empleado);
             }
         }
+        descontarExtras(det, empleado);
     }
 
-    private void descontarProducto(Producto prod, int cantidad, Venta venta, Empleado empleado) {
+    private void descontarProducto(Producto prod, int cantidad, DetalleVenta det, Empleado empleado) {
+        Venta venta = det.getVenta();
         if (prod.getTipoProducto() == Producto.TipoProducto.INVENTARIO_DIRECTO) {
-            InventarioProducto inv = inventarioProductoRepository.findByProductoIdProducto(prod.getIdProducto())
-                    .orElseThrow(
-                            () -> new IllegalStateException("Inventario no configurado para: " + prod.getNombre()));
+            if (Boolean.FALSE.equals(prod.getEsSku())) {
+                throw new IllegalStateException("No se puede vender un producto padre como stock directo: " + prod.getNombre());
+            }
+            BigDecimal stockCursor = BigDecimal.valueOf(loteProductoRepository.sumDisponibleByProducto(prod.getIdProducto()));
+            List<LoteProductoService.DescuentoLoteProducto> descuentos = loteProductoService.descontarFifo(prod, cantidad);
 
-            if (inv.getStock() < cantidad) {
-                throw new IllegalStateException("Stock insuficiente para el producto directo: " + prod.getNombre()
-                        + ". Disponible: " + inv.getStock());
+            for (LoteProductoService.DescuentoLoteProducto descuento : descuentos) {
+                MovimientoInventario mov = new MovimientoInventario();
+                mov.setTipoRecurso(MovimientoInventario.TipoRecurso.PRODUCTO);
+                mov.setProducto(prod);
+                mov.setLoteProducto(descuento.lote());
+                mov.setTipoMovimiento(MovimientoInventario.TipoMovimiento.SALIDA_VENTA);
+                mov.setReferenceType("VENTA");
+                mov.setReferenceId(venta.getIdVenta());
+                mov.setCantidad(BigDecimal.valueOf(descuento.cantidad()));
+                aplicarSnapshotSalida(mov, stockCursor, BigDecimal.valueOf(descuento.cantidad()), descuento.lote().getCostoUnitario());
+                mov.setMotivo("Venta directa de SKU producto");
+                mov.setEmpleado(empleado);
+                movimientoInventarioRepository.save(mov);
+                stockCursor = mov.getStockNuevo();
             }
 
-            inv.setStock(inv.getStock() - cantidad);
-            inventarioProductoRepository.save(inv);
-
-            MovimientoInventario mov = new MovimientoInventario();
-            mov.setTipoRecurso(MovimientoInventario.TipoRecurso.PRODUCTO);
-            mov.setProducto(prod);
-            mov.setTipoMovimiento(MovimientoInventario.TipoMovimiento.CONSUMO);
-            mov.setOrigen(MovimientoInventario.Origen.VENTA);
-            mov.setReferenciaId(venta.getIdVenta());
-            mov.setCantidad(BigDecimal.valueOf(cantidad));
-            mov.setMotivo("Venta directa de producto");
-            mov.setEmpleado(empleado);
-            movimientoInventarioRepository.save(mov);
-
         } else {
-            List<RecetaProducto> receta = recetaProductoRepository.findByProductoIdProducto(prod.getIdProducto());
+            List<RecetaProducto> receta = obtenerRecetaVenta(prod);
             if (receta.isEmpty()) {
                 throw new IllegalStateException("El producto preparado no tiene receta definida: " + prod.getNombre());
             }
@@ -518,26 +595,97 @@ public class VentaService {
                             + " en la receta de: " + prod.getNombre() + ". Disponible: " + insumo.getStock());
                 }
 
+                List<LoteInsumoService.DescuentoLote> descuentos = loteInsumoService.descontarFifo(insumo, cantidadNecesaria);
+                BigDecimal stockCursor = insumo.getStock();
                 insumo.setStock(insumo.getStock().subtract(cantidadNecesaria));
                 insumoRepository.save(insumo);
 
+                for (LoteInsumoService.DescuentoLote descuento : descuentos) {
+                    ConsumoInsumoVenta consumo = new ConsumoInsumoVenta();
+                    consumo.setVenta(venta);
+                    consumo.setDetalleVenta(det);
+                    consumo.setInsumo(insumo);
+                    consumo.setLoteInsumo(descuento.lote());
+                    consumo.setCantidad(descuento.cantidad());
+                    consumo.setCostoUnitario(descuento.lote().getCostoUnitario());
+                    consumo.setCostoTotal(descuento.cantidad()
+                            .multiply(descuento.lote().getCostoUnitario())
+                            .setScale(2, RoundingMode.HALF_UP));
+                    consumoInsumoVentaRepository.save(consumo);
+
+                    MovimientoInventario mov = new MovimientoInventario();
+                    mov.setTipoRecurso(MovimientoInventario.TipoRecurso.INSUMO);
+                    mov.setInsumo(insumo);
+                    mov.setLoteInsumo(descuento.lote());
+                    mov.setTipoMovimiento(MovimientoInventario.TipoMovimiento.SALIDA_VENTA);
+                    mov.setReferenceType("VENTA");
+                    mov.setReferenceId(venta.getIdVenta());
+                    mov.setCantidad(descuento.cantidad());
+                    aplicarSnapshotSalida(mov, stockCursor, descuento.cantidad(), descuento.lote().getCostoUnitario());
+                    mov.setMotivo("Consumo en venta de " + prod.getNombre());
+                    mov.setEmpleado(empleado);
+                    movimientoInventarioRepository.save(mov);
+                    stockCursor = mov.getStockNuevo();
+                }
+            }
+        }
+    }
+
+    private void descontarExtras(DetalleVenta det, Empleado empleado) {
+        if (det.getDetallePedido() == null) {
+            return;
+        }
+
+        List<PedidoExtra> extras = pedidoExtraRepository
+                .findByDetallePedidoIdDetallePedido(det.getDetallePedido().getIdDetallePedido());
+        for (PedidoExtra pedidoExtra : extras) {
+            ExtraProducto extra = pedidoExtra.getExtra();
+            if (extra == null || extra.getInsumo() == null || extra.getCantidadConsumida() == null) {
+                throw new IllegalStateException("El extra no tiene insumo/cantidad de consumo configurados.");
+            }
+
+            Insumo insumo = extra.getInsumo();
+            int cantidadExtra = pedidoExtra.getCantidad() != null ? pedidoExtra.getCantidad() : 1;
+            BigDecimal cantidadNecesaria = extra.getCantidadConsumida()
+                    .multiply(BigDecimal.valueOf(det.getCantidad()))
+                    .multiply(BigDecimal.valueOf(cantidadExtra));
+
+            if (insumo.getStock().compareTo(cantidadNecesaria) < 0) {
+                throw new IllegalStateException("Stock insuficiente para el extra: " + extra.getNombre()
+                        + ". Insumo: " + insumo.getNombre() + ". Disponible: " + insumo.getStock());
+            }
+
+            List<LoteInsumoService.DescuentoLote> descuentos = loteInsumoService.descontarFifo(insumo, cantidadNecesaria);
+            BigDecimal stockCursor = insumo.getStock();
+            insumo.setStock(insumo.getStock().subtract(cantidadNecesaria));
+            insumoRepository.save(insumo);
+
+            for (LoteInsumoService.DescuentoLote descuento : descuentos) {
                 ConsumoInsumoVenta consumo = new ConsumoInsumoVenta();
-                consumo.setVenta(venta);
+                consumo.setVenta(det.getVenta());
+                consumo.setDetalleVenta(det);
                 consumo.setInsumo(insumo);
-                consumo.setCantidad(cantidadNecesaria);
-                consumo.setCostoUnitario(insumo.getCostoPromedio());
+                consumo.setLoteInsumo(descuento.lote());
+                consumo.setCantidad(descuento.cantidad());
+                consumo.setCostoUnitario(descuento.lote().getCostoUnitario());
+                consumo.setCostoTotal(descuento.cantidad()
+                        .multiply(descuento.lote().getCostoUnitario())
+                        .setScale(2, RoundingMode.HALF_UP));
                 consumoInsumoVentaRepository.save(consumo);
 
                 MovimientoInventario mov = new MovimientoInventario();
                 mov.setTipoRecurso(MovimientoInventario.TipoRecurso.INSUMO);
                 mov.setInsumo(insumo);
-                mov.setTipoMovimiento(MovimientoInventario.TipoMovimiento.CONSUMO);
-                mov.setOrigen(MovimientoInventario.Origen.VENTA);
-                mov.setReferenciaId(venta.getIdVenta());
-                mov.setCantidad(cantidadNecesaria);
-                mov.setMotivo("Consumo en venta de " + prod.getNombre());
+                mov.setLoteInsumo(descuento.lote());
+                mov.setTipoMovimiento(MovimientoInventario.TipoMovimiento.SALIDA_VENTA);
+                mov.setReferenceType("VENTA");
+                mov.setReferenceId(det.getVenta().getIdVenta());
+                mov.setCantidad(descuento.cantidad());
+                aplicarSnapshotSalida(mov, stockCursor, descuento.cantidad(), descuento.lote().getCostoUnitario());
+                mov.setMotivo("Consumo extra " + extra.getNombre() + " en venta");
                 mov.setEmpleado(empleado);
                 movimientoInventarioRepository.save(mov);
+                stockCursor = mov.getStockNuevo();
             }
         }
     }
@@ -557,44 +705,86 @@ public class VentaService {
 
     private void revertirProducto(Producto prod, int cantidad, Integer ventaId, Empleado empleado) {
         if (prod.getTipoProducto() == Producto.TipoProducto.INVENTARIO_DIRECTO) {
-            InventarioProducto inv = inventarioProductoRepository.findByProductoIdProducto(prod.getIdProducto())
-                    .orElse(null);
-            if (inv != null) {
-                inv.setStock(inv.getStock() + cantidad);
-                inventarioProductoRepository.save(inv);
+            List<MovimientoInventario> consumosProducto = movimientoInventarioRepository
+                    .findByReferenceIdAndReferenceTypeAndTipoRecurso(
+                            ventaId,
+                            "VENTA",
+                            MovimientoInventario.TipoRecurso.PRODUCTO)
+                    .stream()
+                    .filter(mov -> mov.getProducto() != null
+                            && prod.getIdProducto().equals(mov.getProducto().getIdProducto()))
+                    .collect(Collectors.toList());
+
+            for (MovimientoInventario consumo : consumosProducto) {
+                int cantidadDevuelta = consumo.getCantidad().intValue();
+                if (consumo.getLoteProducto() != null) {
+                    loteProductoService.devolverALote(consumo.getLoteProducto(), cantidadDevuelta);
+                }
 
                 MovimientoInventario mov = new MovimientoInventario();
                 mov.setTipoRecurso(MovimientoInventario.TipoRecurso.PRODUCTO);
                 mov.setProducto(prod);
+                mov.setLoteProducto(consumo.getLoteProducto());
                 mov.setTipoMovimiento(MovimientoInventario.TipoMovimiento.DEVOLUCION);
-                mov.setOrigen(MovimientoInventario.Origen.ANULACION);
-                mov.setReferenciaId(ventaId);
-                mov.setCantidad(BigDecimal.valueOf(cantidad));
+                mov.setReferenceType("ANULACION_VENTA");
+                mov.setReferenceId(ventaId);
+                mov.setCantidad(consumo.getCantidad());
+                aplicarSnapshotEntrada(mov, consumo.getStockNuevo(), consumo.getCantidad(), consumo.getCostoUnitario());
                 mov.setMotivo("Reversión por anulación de venta");
                 mov.setEmpleado(empleado);
                 movimientoInventarioRepository.save(mov);
             }
-        } else {
-            List<RecetaProducto> receta = recetaProductoRepository.findByProductoIdProducto(prod.getIdProducto());
-            for (RecetaProducto item : receta) {
-                Insumo insumo = item.getInsumo();
-                BigDecimal cantidadNecesaria = item.getCantidad().multiply(BigDecimal.valueOf(cantidad));
-
-                insumo.setStock(insumo.getStock().add(cantidadNecesaria));
-                insumoRepository.save(insumo);
-
-                MovimientoInventario mov = new MovimientoInventario();
-                mov.setTipoRecurso(MovimientoInventario.TipoRecurso.INSUMO);
-                mov.setInsumo(insumo);
-                mov.setTipoMovimiento(MovimientoInventario.TipoMovimiento.DEVOLUCION);
-                mov.setOrigen(MovimientoInventario.Origen.ANULACION);
-                mov.setReferenciaId(ventaId);
-                mov.setCantidad(cantidadNecesaria);
-                mov.setMotivo("Reversión por anulación de venta de " + prod.getNombre());
-                mov.setEmpleado(empleado);
-                movimientoInventarioRepository.save(mov);
-            }
         }
+    }
+
+    private void revertirConsumosInsumosVenta(Integer ventaId, Empleado empleado) {
+        List<ConsumoInsumoVenta> consumos = consumoInsumoVentaRepository.findByVentaIdVenta(ventaId);
+        for (ConsumoInsumoVenta consumo : consumos) {
+            Insumo insumo = consumo.getInsumo();
+            BigDecimal stockAnterior = insumo.getStock();
+            if (consumo.getLoteInsumo() != null) {
+                loteInsumoService.devolverALote(consumo.getLoteInsumo(), consumo.getCantidad());
+            }
+
+            insumo.setStock(insumo.getStock().add(consumo.getCantidad()));
+            insumoRepository.save(insumo);
+
+            MovimientoInventario mov = new MovimientoInventario();
+            mov.setTipoRecurso(MovimientoInventario.TipoRecurso.INSUMO);
+            mov.setInsumo(insumo);
+            mov.setLoteInsumo(consumo.getLoteInsumo());
+            mov.setTipoMovimiento(MovimientoInventario.TipoMovimiento.DEVOLUCION);
+            mov.setReferenceType("ANULACION_VENTA");
+            mov.setReferenceId(ventaId);
+            mov.setCantidad(consumo.getCantidad());
+            aplicarSnapshotEntrada(mov, stockAnterior, consumo.getCantidad(), consumo.getCostoUnitario());
+            mov.setMotivo("Reversión por anulación de venta");
+            mov.setEmpleado(empleado);
+            movimientoInventarioRepository.save(mov);
+        }
+    }
+
+    private void aplicarSnapshotSalida(MovimientoInventario movimiento, BigDecimal stockAnterior,
+            BigDecimal cantidad, BigDecimal costoUnitario) {
+        movimiento.setStockAnterior(stockAnterior);
+        movimiento.setStockNuevo(stockAnterior.subtract(cantidad));
+        movimiento.setCostoUnitario(costoUnitario);
+        movimiento.setSaldoValorizado(calcularSaldoValorizado(movimiento.getStockNuevo(), costoUnitario));
+    }
+
+    private void aplicarSnapshotEntrada(MovimientoInventario movimiento, BigDecimal stockAnterior,
+            BigDecimal cantidad, BigDecimal costoUnitario) {
+        movimiento.setStockAnterior(stockAnterior);
+        movimiento.setStockNuevo(stockAnterior.add(cantidad));
+        movimiento.setCostoUnitario(costoUnitario);
+        movimiento.setSaldoValorizado(calcularSaldoValorizado(movimiento.getStockNuevo(), costoUnitario));
+    }
+
+    private BigDecimal calcularSaldoValorizado(BigDecimal stock, BigDecimal costoUnitario) {
+        if (stock == null || costoUnitario == null) {
+            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
+        return stock.multiply(costoUnitario).setScale(2, RoundingMode.HALF_UP);
     }
 
     private VentaResponse mapToDetailedResponse(Venta venta) {

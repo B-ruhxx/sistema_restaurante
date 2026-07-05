@@ -8,7 +8,11 @@ public class MetodoPagoRequest {
     @Size(max = 50, message = "El nombre no puede exceder los 50 caracteres")
     private String nombre;
 
-    private Boolean requiereOperacion;
+    @NotBlank(message = "El código es obligatorio")
+    @Size(max = 30, message = "El código no puede exceder los 30 caracteres")
+    private String codigo;
+
+    private Boolean requiereReferencia;
     private String estado;
 
     public String getNombre() {
@@ -19,12 +23,20 @@ public class MetodoPagoRequest {
         this.nombre = nombre;
     }
 
-    public Boolean getRequiereOperacion() {
-        return requiereOperacion;
+    public String getCodigo() {
+        return codigo;
     }
 
-    public void setRequiereOperacion(Boolean requiereOperacion) {
-        this.requiereOperacion = requiereOperacion;
+    public void setCodigo(String codigo) {
+        this.codigo = codigo;
+    }
+
+    public Boolean getRequiereReferencia() {
+        return requiereReferencia;
+    }
+
+    public void setRequiereReferencia(Boolean requiereReferencia) {
+        this.requiereReferencia = requiereReferencia;
     }
 
     public String getEstado() {

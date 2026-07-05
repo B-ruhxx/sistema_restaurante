@@ -9,6 +9,7 @@ import com.restaurante.exception.ResourceNotFoundException;
 import com.restaurante.repository.DetallePedidoRepository;
 import com.restaurante.repository.PedidoExtraRepository;
 import com.restaurante.repository.PedidoRepository;
+import com.restaurante.service.policy.CocinaPolicy;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -21,8 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class CocinaService {
     private static final List<Pedido.Estado> ESTADOS_COCINA = List.of(
-            Pedido.Estado.ENVIADO_COCINA,
-            Pedido.Estado.EN_PREPARACION,
+            Pedido.Estado.EN_COCINA,
             Pedido.Estado.LISTO);
 
     @Autowired
@@ -34,6 +34,9 @@ public class CocinaService {
     @Autowired
     private PedidoExtraRepository pedidoExtraRepository;
 
+    @Autowired
+    private CocinaPolicy cocinaPolicy;
+
     @Transactional(readOnly = true)
     public List<ComandaResponse> listarComandas() {
         return pedidoRepository.findByEstadoIn(ESTADOS_COCINA).stream()
@@ -43,15 +46,15 @@ public class CocinaService {
 
     public ComandaResponse iniciarPreparacion(Integer idPedido) {
         Pedido pedido = getPedido(idPedido);
-        if (pedido.getEstado() != Pedido.Estado.ENVIADO_COCINA && pedido.getEstado() != Pedido.Estado.EN_PREPARACION) {
-            throw new IllegalStateException("Solo se puede iniciar un pedido enviado a cocina.");
-        }
+        cocinaPolicy.validarPedidoIniciable(pedido);
         LocalDateTime now = LocalDateTime.now();
-        if (pedido.getFechaInicioPreparacion() == null) {
-            pedido.setFechaInicioPreparacion(now);
+        if (pedido.getFechaEnvioCocina() == null) {
+            pedido.setFechaEnvioCocina(now);
         }
-        pedido.setEstado(Pedido.Estado.EN_PREPARACION);
-        detallePedidoRepository.findByPedidoIdPedido(idPedido).forEach(detalle -> {
+        pedido.setEstado(Pedido.Estado.EN_COCINA);
+        detallePedidoRepository.findByPedidoIdPedido(idPedido).stream()
+                .filter(detalle -> Boolean.TRUE.equals(detalle.getRequierePreparacion()))
+                .forEach(detalle -> {
             if (detalle.getEstadoCocina() == DetallePedido.EstadoCocina.PENDIENTE) {
                 detalle.setEstadoCocina(DetallePedido.EstadoCocina.EN_PREPARACION);
                 detalle.setFechaInicioPreparacion(now);
@@ -63,19 +66,22 @@ public class CocinaService {
 
     public ComandaResponse finalizarPreparacion(Integer idPedido) {
         Pedido pedido = getPedido(idPedido);
-        if (pedido.getEstado() != Pedido.Estado.EN_PREPARACION && pedido.getEstado() != Pedido.Estado.ENVIADO_COCINA) {
-            throw new IllegalStateException("Solo se puede finalizar un pedido en preparación.");
-        }
+        cocinaPolicy.validarPedidoFinalizable(pedido);
         LocalDateTime now = LocalDateTime.now();
-        if (pedido.getFechaInicioPreparacion() == null) {
-            pedido.setFechaInicioPreparacion(now);
+        if (pedido.getFechaEnvioCocina() == null) {
+            pedido.setFechaEnvioCocina(now);
         }
-        pedido.setFechaFinPreparacion(now);
-        pedido.setTiempoRealMinutos((int) Duration.between(pedido.getFechaInicioPreparacion(), now).toMinutes());
+        pedido.setFechaServicio(now);
+        pedido.setTiempoRealMinutos((int) Duration.between(pedido.getFechaEnvioCocina(), now).toMinutes());
         pedido.setEstado(Pedido.Estado.LISTO);
-        detallePedidoRepository.findByPedidoIdPedido(idPedido).forEach(detalle -> {
+        detallePedidoRepository.findByPedidoIdPedido(idPedido).stream()
+                .filter(detalle -> Boolean.TRUE.equals(detalle.getRequierePreparacion()))
+                .forEach(detalle -> {
+            if (cocinaPolicy.estaCongelado(detalle)) {
+                return;
+            }
             if (detalle.getFechaInicioPreparacion() == null) {
-                detalle.setFechaInicioPreparacion(pedido.getFechaInicioPreparacion());
+                detalle.setFechaInicioPreparacion(pedido.getFechaEnvioCocina());
             }
             detalle.setFechaFinPreparacion(now);
             detalle.setTiempoRealMinutos((int) Duration.between(detalle.getFechaInicioPreparacion(), now).toMinutes());
@@ -88,6 +94,10 @@ public class CocinaService {
     public ComandaDetalleResponse cambiarEstadoDetalle(Integer idDetalle, DetallePedido.EstadoCocina estado) {
         DetallePedido detalle = detallePedidoRepository.findById(idDetalle)
                 .orElseThrow(() -> new ResourceNotFoundException("Detalle de pedido no encontrado."));
+        cocinaPolicy.validarDetallePreparacion(detalle);
+        if (cocinaPolicy.estaCongelado(detalle)) {
+            return toDetalleResponse(detalle);
+        }
         LocalDateTime now = LocalDateTime.now();
         if (estado == DetallePedido.EstadoCocina.EN_PREPARACION && detalle.getFechaInicioPreparacion() == null) {
             detalle.setFechaInicioPreparacion(now);
@@ -113,8 +123,8 @@ public class CocinaService {
         response.setIdPedido(pedido.getIdPedido());
         response.setEstado(pedido.getEstado() != null ? pedido.getEstado().name() : null);
         response.setFechaEnvioCocina(pedido.getFechaEnvioCocina());
-        response.setFechaInicioPreparacion(pedido.getFechaInicioPreparacion());
-        response.setFechaFinPreparacion(pedido.getFechaFinPreparacion());
+        response.setFechaInicioPreparacion(pedido.getFechaEnvioCocina());
+        response.setFechaFinPreparacion(pedido.getFechaServicio());
         response.setTiempoEstimadoMinutos(pedido.getTiempoEstimadoMinutos());
         response.setTiempoRealMinutos(pedido.getTiempoRealMinutos());
         if (pedido.getMesa() != null) {
@@ -125,6 +135,7 @@ public class CocinaService {
             response.setClienteNombre((pedido.getCliente().getNombre() + " " + pedido.getCliente().getApellido()).trim());
         }
         response.setDetalles(detallePedidoRepository.findByPedidoIdPedido(pedido.getIdPedido()).stream()
+                .filter(detalle -> Boolean.TRUE.equals(detalle.getRequierePreparacion()))
                 .map(this::toDetalleResponse)
                 .collect(Collectors.toList()));
         return response;
@@ -145,9 +156,6 @@ public class CocinaService {
         }
         if (detalle.getCombo() != null) {
             response.setItemNombre(detalle.getCombo().getNombre());
-        }
-        if (detalle.getVariante() != null) {
-            response.setVarianteNombre(detalle.getVariante().getNombre());
         }
         List<String> extras = pedidoExtraRepository.findByDetallePedidoIdDetallePedido(detalle.getIdDetallePedido())
                 .stream()

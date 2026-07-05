@@ -1,16 +1,20 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { productosApi, ProductoRequest } from '../api/productos';
+import { Producto, productosApi, ProductoEstadoFiltro, ProductoRequest } from '../api/productos';
 import { PrivateQueryOptions, usePrivateQueryEnabled } from './usePrivateQuery';
 
-const EMPTY_ARRAY: any[] = [];
+const EMPTY_ARRAY: Producto[] = [];
 
-export const useProductos = ({ enabled = true }: PrivateQueryOptions = {}) => {
+type UseProductosOptions = PrivateQueryOptions & {
+  estado?: ProductoEstadoFiltro;
+};
+
+export const useProductos = ({ enabled = true, estado = 'ACTIVO' }: UseProductosOptions = {}) => {
   const queryClient = useQueryClient();
   const queryEnabled = usePrivateQueryEnabled(enabled);
 
   const productosQuery = useQuery({
-    queryKey: ['productos'],
-    queryFn: productosApi.getAll,
+    queryKey: ['productos', estado],
+    queryFn: () => productosApi.getAll(estado),
     enabled: queryEnabled,
     staleTime: 30_000,
   });
@@ -44,6 +48,14 @@ export const useProductos = ({ enabled = true }: PrivateQueryOptions = {}) => {
     },
   });
 
+  const updateEstadoMutation = useMutation({
+    mutationFn: ({ id, estado }: { id: number; estado: 'ACTIVO' | 'INACTIVO' }) =>
+      productosApi.updateEstado(id, estado),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['productos'] });
+    },
+  });
+
   return {
     productos: productosQuery.data || EMPTY_ARRAY,
     isLoading: productosQuery.isLoading,
@@ -52,8 +64,10 @@ export const useProductos = ({ enabled = true }: PrivateQueryOptions = {}) => {
     createProducto: createMutation.mutateAsync,
     updateProducto: updateMutation.mutateAsync,
     deleteProducto: deleteMutation.mutateAsync,
+    updateProductoEstado: updateEstadoMutation.mutateAsync,
     isCreating: createMutation.isPending,
     isUpdating: updateMutation.isPending,
     isDeleting: deleteMutation.isPending,
+    isUpdatingEstado: updateEstadoMutation.isPending,
   };
 };

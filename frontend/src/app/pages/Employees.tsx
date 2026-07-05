@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -33,7 +33,7 @@ import {
   UserCog,
   Plus,
   Search,
-  Edit,
+  Pencil,
   Trash2,
   Eye,
   Shield,
@@ -42,77 +42,15 @@ import {
   CheckCircle2,
   XCircle,
   Filter,
-  Download,
   Upload,
   Loader2,
 } from 'lucide-react';
 import { toast } from '../../lib/notifications';
 import { useEmpleados } from '../../hooks/useEmpleados';
 import authApi from '../../api/auth';
-
-interface EmployeeSession {
-  id: string;
-  fecha: string;
-  horaInicio: string;
-  horaFin?: string;
-  duracion: string;
-  actividades: number;
-}
-
-interface EmployeeActivity {
-  id: string;
-  accion: string;
-  modulo: string;
-  fecha: string;
-  detalles: string;
-}
-
-const mockSessions: Record<string, EmployeeSession[]> = {
-  '1': [
-    {
-      id: 'S1',
-      fecha: '2026-06-08',
-      horaInicio: '08:00',
-      horaFin: '14:30',
-      duracion: '6h 30m',
-      actividades: 45,
-    },
-    {
-      id: 'S2',
-      fecha: '2026-06-07',
-      horaInicio: '08:00',
-      horaFin: '17:00',
-      duracion: '9h',
-      actividades: 67,
-    },
-  ],
-};
-
-const mockActivities: Record<string, EmployeeActivity[]> = {
-  '1': [
-    {
-      id: 'A1',
-      accion: 'Creó producto',
-      modulo: 'Productos',
-      fecha: '2026-06-08 14:25',
-      detalles: 'Hamburguesa Premium',
-    },
-    {
-      id: 'A2',
-      accion: 'Editó proveedor',
-      modulo: 'Proveedores',
-      fecha: '2026-06-08 14:15',
-      detalles: 'Distribuidora Lima SAC',
-    },
-    {
-      id: 'A3',
-      accion: 'Cerró caja',
-      modulo: 'Caja',
-      fecha: '2026-06-08 14:00',
-      detalles: 'Caja #12 - S/ 2,450.00',
-    },
-  ],
-};
+import type { Empleado, EmpleadoRequest, EmpleadoRol } from '../../api/empleados';
+import { PageWrapper, ModuleHeader, KpiCard, FilterToolbar, EmptyState, SectionCard } from '../components/ui/erp-layout';
+import { cn } from '../components/ui/utils';
 
 export function Employees() {
   const {
@@ -122,6 +60,8 @@ export function Employees() {
     createEmpleado,
     updateEmpleado,
     deleteEmpleado,
+    getSesionesEmpleado,
+    getActividadEmpleado,
   } = useEmpleados();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -129,9 +69,25 @@ export function Employees() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
-  const [editingEmployee, setEditingEmployee] = useState<any | null>(null);
-  const [viewingEmployee, setViewingEmployee] = useState<any | null>(null);
+  const [editingEmployee, setEditingEmployee] = useState<Empleado | null>(null);
+  const [viewingEmployee, setViewingEmployee] = useState<Empleado | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const viewingEmployeeId = viewingEmployee?.idEmpleado ? Number(viewingEmployee.idEmpleado) : undefined;
+
+  const employeeSessionsQuery = useQuery({
+    queryKey: ['empleados', viewingEmployeeId, 'sesiones'],
+    queryFn: () => getSesionesEmpleado(viewingEmployeeId!),
+    enabled: profileDialogOpen && !!viewingEmployeeId,
+  });
+
+  const employeeActivityQuery = useQuery({
+    queryKey: ['empleados', viewingEmployeeId, 'actividad'],
+    queryFn: () => getActividadEmpleado(viewingEmployeeId!),
+    enabled: profileDialogOpen && !!viewingEmployeeId,
+  });
+
+  const employeeSessions = employeeSessionsQuery.data || [];
+  const employeeActivities = employeeActivityQuery.data || [];
 
   const [formData, setFormData] = useState({
     nombre: '',
@@ -145,7 +101,7 @@ export function Employees() {
     estado: 'ACTIVO' as 'ACTIVO' | 'INACTIVO',
   });
 
-  const filteredEmployees = empleados.filter((emp: any) => {
+  const filteredEmployees = empleados.filter((emp: Empleado) => {
     const fullName = `${emp.nombre} ${emp.apellido}`.toLowerCase();
     const matchesSearch =
       fullName.includes(searchTerm.toLowerCase()) ||
@@ -174,7 +130,7 @@ export function Employees() {
     setDialogOpen(true);
   };
 
-  const handleOpenEdit = (employee: any) => {
+  const handleOpenEdit = (employee: Empleado) => {
     setEditingEmployee(employee);
     setFormData({
       nombre: employee.nombre,
@@ -190,7 +146,7 @@ export function Employees() {
     setDialogOpen(true);
   };
 
-  const handleOpenProfile = (employee: any) => {
+  const handleOpenProfile = (employee: Empleado) => {
     setViewingEmployee(employee);
     setProfileDialogOpen(true);
   };
@@ -209,7 +165,6 @@ export function Employees() {
           'Content-Type': 'multipart/form-data',
         },
       });
-      // The API returns a relative public URL, e.g. /api/uploads/empleados/filename
       setFormData((prev) => ({ ...prev, avatarUrl: response.data.fileUrl || response.data.url || '' }));
       toast.success('Imagen subida con éxito');
     } catch (err) {
@@ -228,7 +183,7 @@ export function Employees() {
       return;
     }
 
-    const payload: any = {
+    const payload: EmpleadoRequest = {
       nombre: formData.nombre,
       apellido: formData.apellido,
       username: formData.usuario,
@@ -259,9 +214,14 @@ export function Employees() {
         toast.success('Empleado creado correctamente');
       }
       setDialogOpen(false);
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      toast.error(err.response?.data || 'Ocurrió un error al guardar');
+      const apiError = err as AppApiErrorLike;
+      const errorMessage =
+        typeof apiError.response?.data === 'string'
+          ? apiError.response.data
+          : apiError.response?.data?.message;
+      toast.error(errorMessage || 'Ocurrió un error al guardar');
     }
   };
 
@@ -279,12 +239,12 @@ export function Employees() {
 
   const getRoleColor = (rolName: string) => {
     const name = (rolName || '').toUpperCase();
-    if (name.includes('ADMIN')) return 'bg-red-500 text-white';
-    if (name.includes('GERENTE') || name.includes('MANAGER')) return 'bg-purple-500 text-white';
-    if (name.includes('CAJERO') || name.includes('CAJA')) return 'bg-blue-500 text-white';
-    if (name.includes('COCINERO') || name.includes('COCINA') || name.includes('PIZZERO')) return 'bg-orange-500 text-white';
-    if (name.includes('MESERO')) return 'bg-green-500 text-white';
-    return 'bg-gray-500 text-white';
+    if (name.includes('ADMIN')) return 'ui-status-danger-soft';
+    if (name.includes('GERENTE') || name.includes('MANAGER')) return 'ui-status-info-soft';
+    if (name.includes('CAJERO') || name.includes('CAJA')) return 'ui-status-info-soft';
+    if (name.includes('COCINERO') || name.includes('COCINA') || name.includes('PIZZERO')) return 'ui-status-warning-soft';
+    if (name.includes('MESERO')) return 'ui-status-success-soft';
+    return 'ui-surface-subtle';
   };
 
   const getFullAvatarUrl = (url: string) => {
@@ -293,251 +253,231 @@ export function Employees() {
     return `http://localhost:8080${url}`;
   };
 
-  const activeCount = empleados.filter((e: any) => e.estado === 'ACTIVO').length;
-  const inactiveCount = empleados.filter((e: any) => e.estado === 'INACTIVO').length;
+  const activeCount = empleados.filter((e: Empleado) => e.estado === 'ACTIVO').length;
+  const inactiveCount = empleados.filter((e: Empleado) => e.estado === 'INACTIVO').length;
 
   if (isLoading) {
     return (
-      <div className="h-[80vh] flex flex-col items-center justify-center gap-2">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="h-[80vh] flex flex-col items-center justify-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+          <Loader2 className="w-5 h-5 animate-spin text-primary" />
+        </div>
         <p className="text-sm text-muted-foreground">Cargando personal...</p>
       </div>
     );
   }
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div>
-        <div className="flex items-center gap-2 mb-2">
-          <UserCog className="w-6 h-6 text-primary" />
-          <h1 className="text-2xl font-semibold">Gestión de Empleados</h1>
-        </div>
-        <p className="text-sm text-muted-foreground">
-          Administra el personal, roles y monitorea la actividad del sistema
-        </p>
-      </div>
+    <PageWrapper>
+      <ModuleHeader
+        breadcrumbs={[
+          { label: 'Administración' },
+          { label: 'Empleados' },
+        ]}
+        icon={UserCog}
+        iconColor="blue"
+        title="Gestión de Personal"
+        subtitle="Administra las credenciales, perfiles, asignación de roles y audita la actividad del personal."
+        action={
+          <Button onClick={handleOpenCreate} className="h-11 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95 gap-2 font-semibold">
+            <Plus className="w-4 h-4" /> Nuevo Empleado
+          </Button>
+        }
+      />
 
-      {/* KPIs */}
+      {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardDescription>Total Empleados</CardDescription>
-            <CardTitle className="text-3xl">{empleados.length}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-xs text-muted-foreground">En toda la organización</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-3">
-            <CardDescription>Activos</CardDescription>
-            <CardTitle className="text-3xl text-green-600">{activeCount}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-xs text-muted-foreground">
-              {empleados.length > 0 ? ((activeCount / empleados.length) * 100).toFixed(1) : 0}% del total
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-3">
-            <CardDescription>Inactivos</CardDescription>
-            <CardTitle className="text-3xl text-red-600">{inactiveCount}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-xs text-muted-foreground">Usuarios deshabilitados</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-3">
-            <CardDescription>Roles Registrados</CardDescription>
-            <CardTitle className="text-3xl">{roles.length}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-xs text-muted-foreground">Niveles de acceso configurados</div>
-          </CardContent>
-        </Card>
+        <KpiCard icon={UserCog} label="Total Empleados" value={empleados.length} color="slate" />
+        <KpiCard icon={CheckCircle2} label="Personal Activo" value={activeCount} color="green" />
+        <KpiCard icon={XCircle} label="Deshabilitados" value={inactiveCount} color="red" />
+        <KpiCard icon={Shield} label="Roles Registrados" value={roles.length} color="blue" />
       </div>
 
-      {/* Filters and Actions */}
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div className="flex-1 flex gap-3">
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar por nombre, usuario o email..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-              <Select value={roleFilter} onValueChange={setRoleFilter}>
-                <SelectTrigger className="w-48">
-                  <Shield className="w-4 h-4 mr-2" />
-                  <SelectValue placeholder="Filtrar por Rol" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos los roles</SelectItem>
-                  {roles.map((r: any) => (
-                    <SelectItem key={r.idRol} value={String(r.idRol)}>
-                      {r.nombre}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-36">
-                  <Filter className="w-4 h-4 mr-2" />
-                  <SelectValue placeholder="Estado" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="ACTIVO">Activos</SelectItem>
-                  <SelectItem value="INACTIVO">Inactivos</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex gap-2">
-              <Button size="sm" onClick={handleOpenCreate}>
-                <Plus className="w-4 h-4 mr-2" />
-                Nuevo Empleado
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Empleado</TableHead>
-                <TableHead>Usuario</TableHead>
-                <TableHead>Rol</TableHead>
-                <TableHead>Contacto</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredEmployees.map((employee: any) => (
-                <TableRow key={employee.idEmpleado}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <Avatar>
-                        {employee.avatarUrl ? (
-                          <AvatarImage
-                            src={getFullAvatarUrl(employee.avatarUrl)}
-                            alt={employee.nombre}
-                            className="object-cover"
-                          />
-                        ) : null}
-                        <AvatarFallback className={getRoleColor(employee.nombreRol)}>
-                          {employee.nombre[0]}
-                          {employee.apellido?.[0] || ''}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <div className="font-medium">
-                          {employee.nombre} {employee.apellido}
-                        </div>
-                        <div className="text-xs text-muted-foreground">ID: {employee.idEmpleado}</div>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <code className="text-sm bg-muted px-2 py-1 rounded">{employee.username}</code>
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={getRoleColor(employee.nombreRol)}>
-                      {employee.nombreRol}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="space-y-0.5 text-sm">
-                      <div>{employee.email || <span className="text-muted-foreground italic">Sin correo</span>}</div>
-                      <div className="text-muted-foreground">{employee.telefono || 'Sin teléfono'}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {employee.estado === 'ACTIVO' ? (
-                      <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">
-                        <CheckCircle2 className="w-3 h-3 mr-1" />
-                        Activo
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20">
-                        <XCircle className="w-3 h-3 mr-1" />
-                        Inactivo
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => handleOpenProfile(employee)}
-                      >
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => handleOpenEdit(employee)}
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive hover:text-destructive"
-                        onClick={() => handleDelete(employee.idEmpleado)}
-                        disabled={employee.estado === 'INACTIVO'}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {filteredEmployees.length === 0 && (
+      {/* Filters */}
+      <FilterToolbar
+        search={{
+          value: searchTerm,
+          onChange: setSearchTerm,
+          placeholder: 'Buscar por nombre, usuario o email...',
+        }}
+        filters={
+          <>
+            <Select value={roleFilter} onValueChange={setRoleFilter}>
+              <SelectTrigger className="w-48 h-11 rounded-xl">
+                <Shield className="w-4 h-4 mr-2 text-muted-foreground" />
+                <SelectValue placeholder="Rol" />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl">
+                <SelectItem value="all" className="rounded-lg">Todos los roles</SelectItem>
+                {roles.map((r: EmpleadoRol) => (
+                  <SelectItem key={r.idRol} value={String(r.idRol)} className="rounded-lg">
+                    {r.nombre}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-36 h-11 rounded-xl">
+                <Filter className="w-4 h-4 mr-2 text-muted-foreground" />
+                <SelectValue placeholder="Estado" />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl">
+                <SelectItem value="all" className="rounded-lg">Todos</SelectItem>
+                <SelectItem value="ACTIVO" className="rounded-lg">Activos</SelectItem>
+                <SelectItem value="INACTIVO" className="rounded-lg">Inactivos</SelectItem>
+              </SelectContent>
+            </Select>
+          </>
+        }
+      />
+
+      {/* Table */}
+      {filteredEmployees.length === 0 ? (
+        <EmptyState
+          icon={UserCog}
+          title="Sin empleados encontrados"
+          description="Crea perfiles de personal para permitirles acceder al sistema de punto de venta, caja o cocina."
+          action={
+            <Button onClick={handleOpenCreate} className="h-10 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95">
+              <Plus className="w-4 h-4 mr-2" />
+              Nuevo Empleado
+            </Button>
+          }
+        />
+      ) : (
+        <SectionCard
+          title="Lista de Empleados"
+          description={`Gestionando ${filteredEmployees.length} empleados en total.`}
+          icon={UserCog}
+          iconColor="blue"
+        >
+          <div className="rounded-xl border border-border overflow-hidden">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                    No se encontraron empleados.
-                  </TableCell>
+                  <TableHead>Empleado</TableHead>
+                  <TableHead>Usuario</TableHead>
+                  <TableHead>Rol</TableHead>
+                  <TableHead>Contacto</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead className="w-12"></TableHead>
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+              </TableHeader>
+              <TableBody>
+                {filteredEmployees.map((employee: Empleado) => (
+                  <TableRow key={employee.idEmpleado}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Avatar className="w-9 h-9 border border-border">
+                          {employee.avatarUrl ? (
+                            <AvatarImage
+                              src={getFullAvatarUrl(employee.avatarUrl)}
+                              alt={employee.nombre}
+                              className="object-cover"
+                            />
+                          ) : null}
+                          <AvatarFallback className={cn('text-xs font-bold', getRoleColor(employee.nombreRol))}>
+                            {employee.nombre[0]}
+                            {employee.apellido?.[0] || ''}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <div className="font-bold text-foreground text-sm">
+                            {employee.nombre} {employee.apellido}
+                          </div>
+                          <div className="text-xs font-semibold text-muted-foreground">ID: {employee.idEmpleado}</div>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <code className="text-xs bg-muted font-bold font-mono px-2.5 py-1 rounded-lg text-foreground">{employee.username}</code>
+                    </TableCell>
+                    <TableCell>
+                      <span className={cn('text-[10px] px-2.5 py-1 rounded-lg font-bold shadow-2xs', getRoleColor(employee.nombreRol))}>
+                        {employee.nombreRol}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-0.5 text-xs font-semibold">
+                        <div className="text-foreground">{employee.email || <span className="text-muted-foreground italic not-italic font-medium">Sin correo</span>}</div>
+                        <div className="text-muted-foreground">{employee.telefono || 'Sin teléfono'}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {employee.estado === 'ACTIVO' ? (
+                        <Badge variant="success" className="shadow-2xs gap-1 px-2.5 font-bold h-6">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          Activo
+                        </Badge>
+                      ) : (
+                        <Badge variant="danger" className="shadow-2xs gap-1 px-2.5 font-bold h-6">
+                          <XCircle className="w-3.5 h-3.5" />
+                          Inactivo
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-lg"
+                          onClick={() => handleOpenProfile(employee)}
+                          title="Ver Perfil & Auditoría"
+                        >
+                          <Eye className="w-4 h-4 text-muted-foreground" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-lg"
+                          onClick={() => handleOpenEdit(employee)}
+                          title="Editar Datos"
+                        >
+                          <Pencil className="w-4 h-4 text-muted-foreground" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-lg ui-status-danger hover:bg-[var(--status-danger-surface)]"
+                          onClick={() => handleDelete(employee.idEmpleado)}
+                          disabled={employee.estado === 'INACTIVO'}
+                          title="Inactivar"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </SectionCard>
+      )}
 
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl rounded-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="text-lg font-bold">
               {editingEmployee ? 'Editar Empleado' : 'Nuevo Empleado'}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-xs">
               {editingEmployee
-                ? 'Actualiza la información del empleado'
-                : 'Completa los datos del nuevo empleado'}
+                ? 'Actualiza la información y credenciales de acceso del empleado.'
+                : 'Completa los datos para registrar un nuevo integrante del personal.'}
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmit}>
-            <div className="grid grid-cols-2 gap-4 py-4">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="grid grid-cols-2 gap-4 mt-2">
               {/* Foto de Perfil Upload */}
-              <div className="col-span-2 flex flex-col items-center gap-3 pb-4 border-b">
-                <Avatar className="w-20 h-20 border">
+              <div className="col-span-2 flex flex-col items-center gap-3 pb-4 border-b border-border/40">
+                <Avatar className="w-20 h-20 border border-border/60">
                   {formData.avatarUrl ? (
                     <AvatarImage src={getFullAvatarUrl(formData.avatarUrl)} className="object-cover" />
                   ) : null}
-                  <AvatarFallback className="text-lg">
+                  <AvatarFallback className="text-lg font-bold">
                     {formData.nombre?.[0] || 'U'}
                     {formData.apellido?.[0] || ''}
                   </AvatarFallback>
@@ -552,7 +492,7 @@ export function Employees() {
                   />
                   <Label
                     htmlFor="avatarFile"
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm font-medium cursor-pointer hover:bg-accent transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border text-xs font-semibold cursor-pointer hover:bg-muted transition-colors"
                   >
                     {isUploading ? (
                       <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
@@ -566,7 +506,7 @@ export function Employees() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="text-destructive text-xs"
+                      className="ui-status-danger rounded-xl hover:bg-[var(--status-danger-surface)] text-xs font-bold"
                       onClick={() => setFormData((prev) => ({ ...prev, avatarUrl: '' }))}
                     >
                       Remover
@@ -575,35 +515,38 @@ export function Employees() {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="nombre">Nombre *</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="nombre" className="text-sm font-semibold">Nombre *</Label>
                 <Input
                   id="nombre"
                   value={formData.nombre}
                   onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
                   required
+                  className="h-11 rounded-xl"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="apellido">Apellido *</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="apellido" className="text-sm font-semibold">Apellido *</Label>
                 <Input
                   id="apellido"
                   value={formData.apellido}
                   onChange={(e) => setFormData({ ...formData, apellido: e.target.value })}
                   required
+                  className="h-11 rounded-xl"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="usuario">Nombre de Usuario *</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="usuario" className="text-sm font-semibold">Nombre de Usuario *</Label>
                 <Input
                   id="usuario"
                   value={formData.usuario}
                   onChange={(e) => setFormData({ ...formData, usuario: e.target.value })}
                   required
+                  className="h-11 rounded-xl"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">
+              <div className="space-y-1.5">
+                <Label htmlFor="password" className="text-sm font-semibold">
                   Contraseña {editingEmployee ? '(dejar en blanco para mantener)' : '*'}
                 </Label>
                 <Input
@@ -612,51 +555,54 @@ export function Employees() {
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   required={!editingEmployee}
+                  className="h-11 rounded-xl"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="rol">Rol *</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="rol" className="text-sm font-semibold">Rol *</Label>
                 <Select
                   value={formData.idRol}
                   onValueChange={(value) => setFormData({ ...formData, idRol: value })}
                 >
-                  <SelectTrigger id="rol">
+                  <SelectTrigger id="rol" className="h-11 rounded-xl">
                     <SelectValue placeholder="Seleccione un Rol" />
                   </SelectTrigger>
-                  <SelectContent>
-                    {roles.map((r: any) => (
-                      <SelectItem key={r.idRol} value={String(r.idRol)}>
+                  <SelectContent className="rounded-xl">
+                    {roles.map((r: EmpleadoRol) => (
+                      <SelectItem key={r.idRol} value={String(r.idRol)} className="rounded-lg">
                         {r.nombre}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="email" className="text-sm font-semibold">Email</Label>
                 <Input
                   id="email"
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  className="h-11 rounded-xl"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="telefono">Teléfono</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="telefono" className="text-sm font-semibold">Teléfono</Label>
                 <Input
                   id="telefono"
                   value={formData.telefono}
                   onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
+                  className="h-11 rounded-xl"
                 />
               </div>
 
-              <div className="col-span-2 flex items-center justify-between p-4 border rounded-lg">
-                <div>
-                  <Label>Estado del Usuario</Label>
-                  <p className="text-sm text-muted-foreground">
+              <div className="col-span-2 flex items-center justify-between p-4 border border-border/60 rounded-xl mt-2 bg-muted/20">
+                <div className="space-y-0.5">
+                  <Label className="text-sm font-semibold">Estado del Usuario</Label>
+                  <p className="text-xs text-muted-foreground font-medium">
                     {formData.estado === 'ACTIVO'
-                      ? 'El empleado puede acceder al sistema'
-                      : 'El empleado no puede acceder al sistema'}
+                      ? 'El empleado tiene acceso permitido para loguearse y operar.'
+                      : 'El empleado está bloqueado temporalmente y no puede iniciar sesión.'}
                   </p>
                 </div>
                 <Switch
@@ -667,11 +613,11 @@ export function Employees() {
                 />
               </div>
             </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+            <DialogFooter className="gap-2 sm:gap-0 mt-5 pt-3 border-t border-border/40">
+              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} className="h-10 rounded-xl">
                 Cancelar
               </Button>
-              <Button type="submit">
+              <Button type="submit" className="h-10 rounded-xl font-semibold">
                 {editingEmployee ? 'Guardar Cambios' : 'Crear Empleado'}
               </Button>
             </DialogFooter>
@@ -681,73 +627,70 @@ export function Employees() {
 
       {/* Employee Profile Dialog */}
       <Dialog open={profileDialogOpen} onOpenChange={setProfileDialogOpen}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-5xl rounded-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Perfil de Empleado</DialogTitle>
+            <DialogTitle className="text-lg font-bold">Perfil de Empleado & Actividad</DialogTitle>
           </DialogHeader>
           {viewingEmployee && (
-            <div className="space-y-6">
+            <div className="space-y-6 mt-3">
               {/* Employee Info */}
-              <div className="flex items-start gap-4 p-4 border rounded-lg">
-                <Avatar className="w-16 h-16">
+              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 p-5 border border-border/60 bg-muted/10 rounded-2xl">
+                <Avatar className="w-16 h-16 border border-border/50">
                   {viewingEmployee.avatarUrl ? (
                     <AvatarImage src={getFullAvatarUrl(viewingEmployee.avatarUrl)} className="object-cover" />
                   ) : null}
-                  <AvatarFallback className={getRoleColor(viewingEmployee.nombreRol)}>
+                  <AvatarFallback className={cn('text-sm font-bold', getRoleColor(viewingEmployee.nombreRol))}>
                     {viewingEmployee.nombre[0]}
                     {viewingEmployee.apellido?.[0] || ''}
                   </AvatarFallback>
                 </Avatar>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <h3 className="text-xl font-semibold">
+                <div className="flex-1 text-center sm:text-left">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-1 justify-center sm:justify-start">
+                    <h3 className="text-lg font-bold text-foreground">
                       {viewingEmployee.nombre} {viewingEmployee.apellido}
                     </h3>
-                    <Badge className={getRoleColor(viewingEmployee.nombreRol)}>
-                      {viewingEmployee.nombreRol}
-                    </Badge>
-                    {viewingEmployee.estado === 'ACTIVO' ? (
-                      <Badge variant="outline" className="bg-green-500/10 text-green-600">
-                        Activo
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="bg-red-500/10 text-red-600">
-                        Inactivo
-                      </Badge>
-                    )}
+                    <div className="flex gap-1.5 justify-center sm:justify-start">
+                      <span className={cn('text-[10px] px-2 py-0.5 rounded-lg font-bold shadow-3xs', getRoleColor(viewingEmployee.nombreRol))}>
+                        {viewingEmployee.nombreRol}
+                      </span>
+                      {viewingEmployee.estado === 'ACTIVO' ? (
+                        <Badge variant="success" className="text-[9px] font-bold px-2 py-0">Activo</Badge>
+                      ) : (
+                        <Badge variant="danger" className="text-[9px] font-bold px-2 py-0">Inactivo</Badge>
+                      )}
+                    </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 text-sm mt-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs mt-3.5 font-semibold text-muted-foreground">
                     <div>
-                      <span className="text-muted-foreground">Usuario:</span>{' '}
-                      <code className="bg-muted px-2 py-0.5 rounded">
+                      <span className="text-muted-foreground">Nombre de Usuario:</span>{' '}
+                      <code className="bg-muted px-2 py-0.5 rounded-lg text-foreground font-mono font-bold">
                         {viewingEmployee.username}
                       </code>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Email:</span>{' '}
-                      {viewingEmployee.email || 'N/A'}
+                      <span className="text-foreground">{viewingEmployee.email || 'N/A'}</span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Teléfono:</span>{' '}
-                      {viewingEmployee.telefono || 'N/A'}
+                      <span className="text-foreground">{viewingEmployee.telefono || 'N/A'}</span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">ID de Rol:</span>{' '}
-                      {viewingEmployee.idRol}
+                      <span className="text-muted-foreground">Rol ID:</span>{' '}
+                      <span className="text-foreground">{viewingEmployee.idRol}</span>
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Sessions History */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Clock className="w-5 h-5" />
-                    Historial de Sesiones
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
+              <SectionCard
+                title="Historial de Sesiones"
+                description="Listado de ingresos y salidas del sistema en terminales."
+                icon={Clock}
+                iconColor="blue"
+              >
+                <div className="rounded-xl border border-border overflow-hidden">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -759,61 +702,87 @@ export function Employees() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {mockSessions['1'].map((session) => (
-                        <TableRow key={session.id}>
-                          <TableCell>{session.fecha}</TableCell>
-                          <TableCell>{session.horaInicio}</TableCell>
-                          <TableCell>{session.horaFin || '-'}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline">{session.duracion}</Badge>
+                      {employeeSessionsQuery.isLoading && (
+                        <TableRow>
+                          <TableCell colSpan={5} className="py-6 text-center text-xs font-semibold text-muted-foreground">
+                            <Loader2 className="w-4 h-4 mr-2 inline animate-spin" />
+                            Cargando sesiones...
                           </TableCell>
-                          <TableCell className="text-right">{session.actividades}</TableCell>
+                        </TableRow>
+                      )}
+                      {!employeeSessionsQuery.isLoading && employeeSessions.map((session) => (
+                        <TableRow key={session.id}>
+                          <TableCell className="text-xs font-bold text-foreground">{session.fecha}</TableCell>
+                          <TableCell className="text-xs font-semibold text-muted-foreground">{session.horaInicio}</TableCell>
+                          <TableCell className="text-xs font-semibold text-muted-foreground">{session.horaFin || '-'}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-[10px] font-bold">{session.duracion}</Badge>
+                          </TableCell>
+                          <TableCell className="text-right font-bold text-foreground text-xs">{session.actividades}</TableCell>
                         </TableRow>
                       ))}
+                      {!employeeSessionsQuery.isLoading && employeeSessions.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={5} className="py-8 text-center text-xs font-semibold text-muted-foreground">
+                            Este empleado aún no tiene sesiones registradas.
+                          </TableCell>
+                        </TableRow>
+                      )}
                     </TableBody>
                   </Table>
-                </CardContent>
-              </Card>
+                </div>
+              </SectionCard>
 
               {/* Recent Activity */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Activity className="w-5 h-5" />
-                    Actividad Reciente
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {mockActivities['1'].map((activity) => (
-                      <div
-                        key={activity.id}
-                        className="flex items-start gap-3 p-3 border rounded-lg"
-                      >
-                        <div className="w-2 h-2 rounded-full bg-primary mt-2" />
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between mb-1">
-                            <div className="font-medium">{activity.accion}</div>
-                            <Badge variant="outline" className="text-xs">
-                              {activity.modulo}
-                            </Badge>
-                          </div>
-                          <div className="text-sm text-muted-foreground mb-1">
-                            {activity.detalles}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {activity.fecha}
-                          </div>
+              <SectionCard
+                title="Actividad Reciente"
+                description="Auditoría de operaciones y transacciones críticas en el sistema."
+                icon={Activity}
+                iconColor="amber"
+              >
+                <div className="space-y-2.5">
+                  {employeeActivityQuery.isLoading && (
+                    <div className="flex items-center justify-center py-6 text-xs font-semibold text-muted-foreground">
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Cargando actividad...
+                    </div>
+                  )}
+                  {!employeeActivityQuery.isLoading && employeeActivities.map((activity) => (
+                    <div
+                      key={activity.id}
+                      className="flex items-start gap-3 p-3.5 rounded-xl border border-border bg-card hover:border-primary/25 transition-all"
+                    >
+                      <div className="w-2 h-2 rounded-full bg-primary mt-1.5 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-1.5 flex-wrap gap-1">
+                          <div className="font-bold text-foreground text-xs">{activity.accion}</div>
+                          <Badge variant="outline" className="text-[9px] font-bold px-2 h-5">
+                            {activity.modulo}
+                          </Badge>
+                        </div>
+                        <div className="text-xs text-muted-foreground font-semibold mb-1">
+                          {activity.detalles}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground/80 font-bold">
+                          {activity.fecha}
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+                    </div>
+                  ))}
+                  {!employeeActivityQuery.isLoading && employeeActivities.length === 0 && (
+                    <div className="py-8 text-center text-xs font-semibold text-muted-foreground border border-dashed rounded-xl">
+                      No hay actividad reciente registrada para este empleado.
+                    </div>
+                  )}
+                </div>
+              </SectionCard>
             </div>
           )}
+          <DialogFooter className="mt-4 pt-3 border-t border-border/40">
+            <Button variant="outline" onClick={() => setProfileDialogOpen(false)} className="h-10 rounded-xl">Cerrar</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageWrapper>
   );
 }

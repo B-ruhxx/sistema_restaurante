@@ -1,377 +1,482 @@
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { useMemo, useState } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import {
   Building2,
   Save,
-  Upload,
   MapPin,
   Phone,
   Mail,
   FileText,
   DollarSign,
   Loader2,
+  X,
+  BadgePercent,
+  Coins,
+  ImageIcon,
 } from 'lucide-react';
 import { toast } from '../../lib/notifications';
 import { useConfiguracion } from '../../hooks/useConfiguracion';
 import { ImageUploadZone } from '../components/ui/image-upload-zone';
+import { cn } from '../components/ui/utils';
+import { PageWrapper, ModuleHeader, SectionCard } from '../components/ui/erp-layout';
+
+const createDraftSetter = <T extends Record<string, string>>(
+  defaults: T,
+  setDraft: Dispatch<SetStateAction<Partial<T>>>
+) => (value: SetStateAction<T>) => {
+  setDraft((prev) => {
+    const current = { ...defaults, ...prev };
+    return typeof value === 'function' ? value(current) : value;
+  });
+};
+
+/* -------------------------------------------------------------------------- */
+/* Sub-components                                                              */
+/* -------------------------------------------------------------------------- */
+
+interface FormFooterProps {
+  onCancel: () => void;
+  isUpdating: boolean;
+}
+function FormFooter({ onCancel, isUpdating }: FormFooterProps) {
+  return (
+    <div className="flex items-center justify-end gap-3 w-full">
+      <Button type="button" variant="outline" onClick={onCancel} className="gap-2 h-11 rounded-xl">
+        <X className="w-4 h-4" />
+        Cancelar
+      </Button>
+      <Button type="submit" disabled={isUpdating} className="gap-2 min-w-[140px] h-11 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95">
+        {isUpdating ? (
+          <Loader2 className="w-4 h-4 animate-spin" />
+        ) : (
+          <Save className="w-4 h-4" />
+        )}
+        Guardar cambios
+      </Button>
+    </div>
+  );
+}
+
+interface FieldProps {
+  id: string;
+  label: string;
+  required?: boolean;
+  hint?: string;
+  children: React.ReactNode;
+  className?: string;
+}
+function Field({ id, label, required, hint, children, className }: FieldProps) {
+  return (
+    <div className={cn('flex flex-col gap-1.5', className)}>
+      <Label htmlFor={id} className="text-sm font-medium text-foreground">
+        {label}
+        {required && <span className="text-destructive ml-0.5">*</span>}
+      </Label>
+      {children}
+      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Main component                                                              */
+/* -------------------------------------------------------------------------- */
 
 export function CompanySettings() {
   const { configuracion, isLoading, updateConfiguracion, isUpdating } = useConfiguracion();
+  const [formError, setFormError] = useState('');
+  const [activeTab, setActiveTab] = useState('general');
 
-  const [generalData, setGeneralData] = useState({
-    nombreEmpresa: '',
-    razonSocial: '',
-    ruc: '',
-    logoUrl: '',
-  });
+  const defaultGeneralData = useMemo(() => ({
+    nombreEmpresa: configuracion?.nombreEmpresa || '',
+    razonSocial: configuracion?.razonSocial || '',
+    ruc: configuracion?.ruc || '',
+    logoUrl: configuracion?.logoUrl || '',
+  }), [configuracion]);
 
-  const [contactData, setContactData] = useState({
-    direccion: '',
-    telefono: '',
-    email: '',
-  });
+  const defaultContactData = useMemo(() => ({
+    direccion: configuracion?.direccion || '',
+    telefono: configuracion?.telefono || '',
+    email: configuracion?.email || '',
+  }), [configuracion]);
 
-  const [billingData, setBillingData] = useState({
-    serieBoleta: '',
-    serieFactura: '',
-    igv: '18',
-    moneda: 'PEN',
-  });
+  const defaultBillingData = useMemo(() => ({
+    serieBoleta: configuracion?.serieBoleta || 'B001',
+    serieFactura: configuracion?.serieFactura || 'F001',
+    igv: configuracion?.igv !== undefined ? String(configuracion.igv) : '18',
+    moneda: configuracion?.moneda || 'PEN',
+  }), [configuracion]);
 
-  // Populate form when data loads from backend
-  useEffect(() => {
-    if (configuracion) {
-      setGeneralData({
-        nombreEmpresa: configuracion.nombreEmpresa || '',
-        razonSocial: configuracion.razonSocial || '',
-        ruc: configuracion.ruc || '',
-        logoUrl: configuracion.logoUrl || '',
-      });
-      setContactData({
-        direccion: configuracion.direccion || '',
-        telefono: configuracion.telefono || '',
-        email: configuracion.email || '',
-      });
-      setBillingData({
-        serieBoleta: configuracion.serieBoleta || 'B001',
-        serieFactura: configuracion.serieFactura || 'F001',
-        igv: configuracion.igv !== undefined ? String(configuracion.igv) : '18',
-        moneda: configuracion.moneda || 'PEN',
-      });
-    }
-  }, [configuracion]);
+  const [generalDraft, setGeneralDraft] = useState<Partial<typeof defaultGeneralData>>({});
+  const [contactDraft, setContactDraft] = useState<Partial<typeof defaultContactData>>({});
+  const [billingDraft, setBillingDraft] = useState<Partial<typeof defaultBillingData>>({});
+
+  const generalData = { ...defaultGeneralData, ...generalDraft };
+  const contactData = { ...defaultContactData, ...contactDraft };
+  const billingData = { ...defaultBillingData, ...billingDraft };
+  const setGeneralData = createDraftSetter(defaultGeneralData, setGeneralDraft);
+  const setContactData = createDraftSetter(defaultContactData, setContactDraft);
+  const setBillingData = createDraftSetter(defaultBillingData, setBillingDraft);
 
   const buildPayload = () => ({
     ...generalData,
     ...contactData,
-    serieBoleta: billingData.serieBoleta,
-    serieFactura: billingData.serieFactura,
+    ruc: generalData.ruc.trim(),
+    serieBoleta: billingData.serieBoleta.trim().toUpperCase(),
+    serieFactura: billingData.serieFactura.trim().toUpperCase(),
     igv: parseFloat(billingData.igv) || 18,
     moneda: billingData.moneda,
   });
 
-  const handleSaveGeneral = async (e: React.FormEvent) => {
+  const validatePayload = () => {
+    const normalizedRuc = generalData.ruc.trim();
+    const normalizedEmail = contactData.email.trim();
+    const normalizedSerieBoleta = billingData.serieBoleta.trim().toUpperCase();
+    const normalizedSerieFactura = billingData.serieFactura.trim().toUpperCase();
+    const parsedIgv = parseFloat(billingData.igv);
+
+    if (!generalData.nombreEmpresa.trim()) return 'El nombre comercial es obligatorio.';
+    if (!normalizedRuc) return 'El RUC es obligatorio.';
+    if (!/^\d{11}$/.test(normalizedRuc)) return 'El RUC debe tener 11 dígitos numéricos.';
+    if (normalizedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      return 'El correo electrónico no tiene un formato válido.';
+    }
+    if (!normalizedSerieBoleta || normalizedSerieBoleta.length > 10) {
+      return 'La serie de boleta es obligatoria y no puede exceder 10 caracteres.';
+    }
+    if (!normalizedSerieFactura || normalizedSerieFactura.length > 10) {
+      return 'La serie de factura es obligatoria y no puede exceder 10 caracteres.';
+    }
+    if (!Number.isFinite(parsedIgv) || parsedIgv < 0 || parsedIgv > 100) {
+      return 'El IGV debe ser un número entre 0 y 100.';
+    }
+    return '';
+  };
+
+  const handleSave = async (e: React.FormEvent, successMsg: string) => {
     e.preventDefault();
+    const validationError = validatePayload();
+    if (validationError) {
+      setFormError(validationError);
+      toast.error(validationError);
+      return;
+    }
     try {
       await updateConfiguracion(buildPayload());
-      toast.success('Datos generales guardados correctamente');
-    } catch (err) {
-      toast.error('Error al guardar los datos generales');
+      setFormError('');
+      toast.success(successMsg);
+    } catch {
+      toast.error('Error al guardar la configuración');
     }
   };
 
-  const handleSaveContact = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      await updateConfiguracion(buildPayload());
-      toast.success('Datos de contacto guardados correctamente');
-    } catch (err) {
-      toast.error('Error al guardar los datos de contacto');
-    }
-  };
-
-  const handleSaveBilling = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      await updateConfiguracion(buildPayload());
-      toast.success('Configuración de facturación guardada correctamente');
-    } catch (err) {
-      toast.error('Error al guardar la configuración de facturación');
-    }
+  const handleCancel = () => {
+    setGeneralDraft({});
+    setContactDraft({});
+    setBillingDraft({});
+    setFormError('');
   };
 
   if (isLoading) {
     return (
-      <div className="h-[80vh] flex flex-col items-center justify-center gap-2">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="h-[80vh] flex flex-col items-center justify-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+          <Loader2 className="w-5 h-5 animate-spin text-primary" />
+        </div>
         <p className="text-sm text-muted-foreground">Cargando configuración...</p>
       </div>
     );
   }
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div>
-        <div className="flex items-center gap-2 mb-2">
-          <Building2 className="w-6 h-6 text-primary" />
-          <h1 className="text-2xl font-semibold">Configuración de Empresa</h1>
-        </div>
-        <p className="text-sm text-muted-foreground">
-          Administra la información de tu empresa y configuración de facturación
-        </p>
-      </div>
+    <PageWrapper>
+      <ModuleHeader
+        breadcrumbs={[
+          { label: 'Administración' },
+          { label: 'Configuración' },
+          { label: 'Empresa' },
+        ]}
+        icon={Building2}
+        iconColor="blue"
+        title="Configuración de Empresa"
+        subtitle="Administra la información comercial, datos de contacto y configuración de comprobantes de pago."
+      />
 
-      {/* Tabs */}
-      <Tabs defaultValue="general" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="general">Datos Generales</TabsTrigger>
-          <TabsTrigger value="contact">Contacto</TabsTrigger>
-          <TabsTrigger value="billing">Facturación</TabsTrigger>
+      {formError && (
+        <div className="flex items-start gap-2 rounded-xl border ui-status-warning-soft px-4 py-3 text-sm">
+          <X className="w-4 h-4 mt-0.5 flex-shrink-0" />
+          {formError}
+        </div>
+      )}
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        {/* ── Tab bar premium ── */}
+        <TabsList className="flex h-auto w-full rounded-none border-b border-border bg-transparent p-0 gap-0">
+          {[
+            { value: 'general', label: 'Datos generales', Icon: Building2 },
+            { value: 'contact', label: 'Contacto', Icon: Phone },
+            { value: 'billing', label: 'Facturación', Icon: FileText },
+          ].map(({ value, label, Icon }) => (
+            <TabsTrigger
+              key={value}
+              value={value}
+              className={cn(
+                'relative flex items-center gap-2 rounded-none border-b-2 border-transparent bg-transparent px-4 py-3 text-sm font-semibold text-muted-foreground transition-all',
+                'hover:text-foreground',
+                'data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none',
+              )}
+            >
+              <Icon className="w-4 h-4" />
+              {label}
+            </TabsTrigger>
+          ))}
         </TabsList>
 
-        {/* General Data Tab */}
+        {/* ── General Data ── */}
         <TabsContent value="general">
-          <Card>
-            <CardHeader>
-              <CardTitle>Información General</CardTitle>
-              <CardDescription>Datos básicos de tu empresa</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSaveGeneral} className="space-y-6">
-                <div className="flex flex-col md:flex-row items-start gap-6">
-                  <div className="w-full md:w-1/3 flex-shrink-0">
+          <SectionCard
+            title="Información general"
+            description="Datos básicos e identidad visual de tu empresa"
+            icon={Building2}
+            iconColor="blue"
+            footer={<FormFooter onCancel={handleCancel} isUpdating={isUpdating} />}
+          >
+            <form
+              onSubmit={(e) => handleSave(e, 'Datos generales guardados correctamente')}
+            >
+              <div className="flex flex-col lg:flex-row gap-8">
+                {/* Logo upload panel */}
+                <div className="w-full lg:w-72 flex-shrink-0">
+                  <div className="rounded-xl border border-dashed border-border bg-muted/20 p-4 flex flex-col gap-3">
+                    <div className="flex items-center gap-2">
+                      <ImageIcon className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">Logo de la empresa</span>
+                    </div>
                     <ImageUploadZone
-                      label="Logo de la Empresa"
                       value={generalData.logoUrl}
-                      onChange={(url) => setGeneralData(g => ({ ...g, logoUrl: url }))}
+                      onChange={(url) => setGeneralData((g) => ({ ...g, logoUrl: url }))}
                       module="empresa"
-                      description="Sube un logo o arrástralo desde tu equipo o internet."
+                      label=""
+                      ctaText="Subir logo"
+                      description="Arrastra o haz clic · PNG, JPG, SVG · Máx. 2 MB"
                     />
-                  </div>
-
-                  <div className="flex-1 space-y-4 w-full">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="nombreEmpresa">Nombre Comercial *</Label>
-                        <Input
-                          id="nombreEmpresa"
-                          value={generalData.nombreEmpresa}
-                          onChange={(e) =>
-                            setGeneralData({ ...generalData, nombreEmpresa: e.target.value })
-                          }
-                          required
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="ruc">RUC *</Label>
-                        <Input
-                          id="ruc"
-                          value={generalData.ruc}
-                          onChange={(e) => setGeneralData({ ...generalData, ruc: e.target.value })}
-                          maxLength={11}
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="razonSocial">Razón Social *</Label>
-                      <Input
-                        id="razonSocial"
-                        value={generalData.razonSocial}
-                        onChange={(e) =>
-                          setGeneralData({ ...generalData, razonSocial: e.target.value })
-                        }
-                        required
-                      />
-                    </div>
+                    <p className="text-xs text-muted-foreground text-center leading-snug">
+                      Aparece en el sidebar y en los comprobantes impresos
+                    </p>
                   </div>
                 </div>
 
-                <div className="flex justify-end gap-2">
-                  <Button type="submit" disabled={isUpdating}>
-                    {isUpdating ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <Save className="w-4 h-4 mr-2" />
-                    )}
-                    Guardar Cambios
-                  </Button>
+                {/* Fields */}
+                <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-5 content-start">
+                  <Field id="nombreEmpresa" label="Nombre comercial" required>
+                    <Input
+                      id="nombreEmpresa"
+                      value={generalData.nombreEmpresa}
+                      onChange={(e) => setGeneralData({ ...generalData, nombreEmpresa: e.target.value })}
+                      placeholder="Ej. RestaurantERP"
+                      required
+                      className="h-11 rounded-xl"
+                    />
+                  </Field>
+
+                  <Field id="ruc" label="RUC" required hint="11 dígitos numéricos">
+                    <Input
+                      id="ruc"
+                      value={generalData.ruc}
+                      onChange={(e) => setGeneralData({ ...generalData, ruc: e.target.value })}
+                      placeholder="20123456789"
+                      maxLength={11}
+                      required
+                      className="h-11 rounded-xl"
+                    />
+                  </Field>
+
+                  <Field id="razonSocial" label="Razón social" required className="sm:col-span-2">
+                    <Input
+                      id="razonSocial"
+                      value={generalData.razonSocial}
+                      onChange={(e) => setGeneralData({ ...generalData, razonSocial: e.target.value })}
+                      placeholder="Ej. RestaurantERP SAC"
+                      required
+                      className="h-11 rounded-xl"
+                    />
+                  </Field>
                 </div>
-              </form>
-            </CardContent>
-          </Card>
+              </div>
+            </form>
+          </SectionCard>
         </TabsContent>
 
-        {/* Contact Tab */}
+        {/* ── Contact ── */}
         <TabsContent value="contact">
-          <Card>
-            <CardHeader>
-              <CardTitle>Información de Contacto</CardTitle>
-              <CardDescription>Datos de ubicación y contacto</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSaveContact} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="direccion">
-                    <MapPin className="w-4 h-4 inline mr-2" />
-                    Dirección
-                  </Label>
+          <SectionCard
+            title="Información de contacto"
+            description="Dirección, teléfono y correo de la empresa"
+            icon={MapPin}
+            iconColor="blue"
+            footer={<FormFooter onCancel={handleCancel} isUpdating={isUpdating} />}
+          >
+            <form
+              onSubmit={(e) => handleSave(e, 'Datos de contacto guardados correctamente')}
+              className="grid grid-cols-1 sm:grid-cols-2 gap-5"
+            >
+              <Field id="direccion" label="Dirección" className="sm:col-span-2">
+                <div className="relative">
+                  <MapPin className="absolute left-3.5 top-3.5 w-4 h-4 text-muted-foreground pointer-events-none" />
                   <Textarea
                     id="direccion"
                     value={contactData.direccion}
                     onChange={(e) => setContactData({ ...contactData, direccion: e.target.value })}
+                    placeholder="Av. Ejemplo 123, Lima"
                     rows={2}
+                    className="pl-10 resize-none rounded-xl"
                   />
                 </div>
+              </Field>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="telefono">
-                      <Phone className="w-4 h-4 inline mr-2" />
-                      Teléfono
-                    </Label>
-                    <Input
-                      id="telefono"
-                      value={contactData.telefono}
-                      onChange={(e) =>
-                        setContactData({ ...contactData, telefono: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="email">
-                      <Mail className="w-4 h-4 inline mr-2" />
-                      Email
-                    </Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={contactData.email}
-                      onChange={(e) => setContactData({ ...contactData, email: e.target.value })}
-                    />
-                  </div>
+              <Field id="telefono" label="Teléfono">
+                <div className="relative">
+                  <Phone className="absolute left-3.5 top-3.5 w-4 h-4 text-muted-foreground pointer-events-none" />
+                  <Input
+                    id="telefono"
+                    value={contactData.telefono}
+                    onChange={(e) => setContactData({ ...contactData, telefono: e.target.value })}
+                    placeholder="000-000-000"
+                    className="pl-10 h-11 rounded-xl"
+                  />
                 </div>
+              </Field>
 
-                <div className="flex justify-end gap-2">
-                  <Button type="submit" disabled={isUpdating}>
-                    {isUpdating ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <Save className="w-4 h-4 mr-2" />
-                    )}
-                    Guardar Cambios
-                  </Button>
+              <Field id="email" label="Correo electrónico">
+                <div className="relative">
+                  <Mail className="absolute left-3.5 top-3.5 w-4 h-4 text-muted-foreground pointer-events-none" />
+                  <Input
+                    id="email"
+                    type="email"
+                    value={contactData.email}
+                    onChange={(e) => setContactData({ ...contactData, email: e.target.value })}
+                    placeholder="empresa@ejemplo.com"
+                    className="pl-10 h-11 rounded-xl"
+                  />
                 </div>
-              </form>
-            </CardContent>
-          </Card>
+              </Field>
+            </form>
+          </SectionCard>
         </TabsContent>
 
-        {/* Billing Tab */}
+        {/* ── Billing ── */}
         <TabsContent value="billing">
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>
-                  <FileText className="w-5 h-5 inline mr-2" />
-                  Series de Comprobantes
-                </CardTitle>
-                <CardDescription>Configuración de series para boletas y facturas</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSaveBilling} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="space-y-4 p-4 border rounded-lg">
-                      <h3 className="font-semibold">Boletas de Venta</h3>
-                      <div className="space-y-2">
-                        <Label htmlFor="serieBoleta">Serie *</Label>
-                        <Input
-                          id="serieBoleta"
-                          value={billingData.serieBoleta}
-                          onChange={(e) =>
-                            setBillingData({ ...billingData, serieBoleta: e.target.value })
-                          }
-                          maxLength={4}
-                          required
-                        />
-                      </div>
+          <SectionCard
+            title="Configuración de facturación"
+            description="Series de comprobantes, IGV y tipo de moneda base"
+            icon={FileText}
+            iconColor="blue"
+            footer={<FormFooter onCancel={handleCancel} isUpdating={isUpdating} />}
+          >
+            <form
+              onSubmit={(e) => handleSave(e, 'Configuración de facturación guardada correctamente')}
+              className="space-y-6"
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                {/* Boleta */}
+                <div className="rounded-2xl border border-border bg-muted/20 p-5 space-y-4 shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl ui-status-info-soft flex items-center justify-center">
+                      <FileText className="w-4 h-4" />
                     </div>
-
-                    <div className="space-y-4 p-4 border rounded-lg">
-                      <h3 className="font-semibold">Facturas</h3>
-                      <div className="space-y-2">
-                        <Label htmlFor="serieFactura">Serie *</Label>
-                        <Input
-                          id="serieFactura"
-                          value={billingData.serieFactura}
-                          onChange={(e) =>
-                            setBillingData({ ...billingData, serieFactura: e.target.value })
-                          }
-                          maxLength={4}
-                          required
-                        />
-                      </div>
-                    </div>
+                    <span className="text-sm font-semibold text-foreground">Boletas de Venta</span>
                   </div>
+                  <Field id="serieBoleta" label="Serie" required hint="Máximo 4 caracteres · Ej. B001">
+                    <Input
+                      id="serieBoleta"
+                      value={billingData.serieBoleta}
+                      onChange={(e) => setBillingData({ ...billingData, serieBoleta: e.target.value })}
+                      maxLength={4}
+                      required
+                      className="uppercase font-mono h-11 rounded-xl"
+                    />
+                  </Field>
+                </div>
 
-                  <Card className="p-4 border">
-                    <CardTitle className="text-sm mb-4">
-                      <DollarSign className="w-4 h-4 inline mr-2" />
-                      Configuración Tributaria
-                    </CardTitle>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="igv">IGV (%)</Label>
-                        <Input
-                          id="igv"
-                          type="number"
-                          value={billingData.igv}
-                          onChange={(e) =>
-                            setBillingData({ ...billingData, igv: e.target.value })
-                          }
-                        />
-                        <p className="text-xs text-muted-foreground">Impuesto General a las Ventas</p>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="moneda">Moneda Base</Label>
-                        <select
-                          id="moneda"
-                          value={billingData.moneda}
-                          onChange={(e) =>
-                            setBillingData({ ...billingData, moneda: e.target.value })
-                          }
-                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                        >
-                          <option value="PEN">Soles (S/)</option>
-                          <option value="USD">Dólares ($)</option>
-                        </select>
-                      </div>
+                {/* Factura */}
+                <div className="rounded-2xl border border-border bg-muted/20 p-5 space-y-4 shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+                      <FileText className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                     </div>
-                  </Card>
-
-                  <div className="flex justify-end gap-2">
-                    <Button type="submit" disabled={isUpdating}>
-                      {isUpdating ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <Save className="w-4 h-4 mr-2" />
-                      )}
-                      Guardar Cambios
-                    </Button>
+                    <span className="text-sm font-semibold text-foreground">Facturas</span>
                   </div>
-                </form>
-              </CardContent>
-            </Card>
-          </div>
+                  <Field id="serieFactura" label="Serie" required hint="Máximo 4 caracteres · Ej. F001">
+                    <Input
+                      id="serieFactura"
+                      value={billingData.serieFactura}
+                      onChange={(e) => setBillingData({ ...billingData, serieFactura: e.target.value })}
+                      maxLength={4}
+                      required
+                      className="uppercase font-mono h-11 rounded-xl"
+                    />
+                  </Field>
+                </div>
+              </div>
+
+              {/* Tributary config */}
+              <div className="rounded-2xl border border-border bg-muted/20 p-5 shadow-sm">
+                <div className="flex items-center gap-2 mb-4">
+                  <BadgePercent className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm font-semibold text-foreground">Configuración tributaria</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <Field id="igv" label="IGV (%)" hint="Impuesto General a las Ventas · Normalmente 18%">
+                    <div className="relative">
+                      <BadgePercent className="absolute left-3.5 top-3.5 w-4 h-4 text-muted-foreground pointer-events-none" />
+                      <Input
+                        id="igv"
+                        type="number"
+                        min={0}
+                        max={100}
+                        step={0.01}
+                        value={billingData.igv}
+                        onChange={(e) => setBillingData({ ...billingData, igv: e.target.value })}
+                        className="pl-10 h-11 rounded-xl"
+                      />
+                    </div>
+                  </Field>
+
+                  <Field id="moneda" label="Moneda base">
+                    <div className="relative">
+                      <Coins className="absolute left-3.5 top-3.5 w-4 h-4 text-muted-foreground pointer-events-none z-10" />
+                      <Select
+                        value={billingData.moneda}
+                        onValueChange={(value) => setBillingData({ ...billingData, moneda: value })}
+                      >
+                        <SelectTrigger id="moneda" className="pl-10 h-11 rounded-xl">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="PEN">Soles (S/)</SelectItem>
+                          <SelectItem value="USD">Dólares ($)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </Field>
+                </div>
+              </div>
+            </form>
+          </SectionCard>
         </TabsContent>
       </Tabs>
-    </div>
+    </PageWrapper>
   );
 }

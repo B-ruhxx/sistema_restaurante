@@ -13,7 +13,7 @@ public interface PedidoRepository extends JpaRepository<Pedido, Integer> {
     List<Pedido> findByEstado(Pedido.Estado estado);
     List<Pedido> findByMesaIdMesa(Integer idMesa);
     List<Pedido> findByMesaIdMesaAndEstadoIn(Integer idMesa, Collection<Pedido.Estado> estados);
-    Optional<Pedido> findFirstByMesaIdMesaAndEstadoInOrderByFechaDesc(Integer idMesa, Collection<Pedido.Estado> estados);
+    Optional<Pedido> findFirstByMesaIdMesaAndEstadoInOrderByFechaAperturaDesc(Integer idMesa, Collection<Pedido.Estado> estados);
     boolean existsByMesaIdMesaAndEstadoIn(Integer idMesa, Collection<Pedido.Estado> estados);
 
     @Query("""
@@ -24,7 +24,7 @@ public interface PedidoRepository extends JpaRepository<Pedido, Integer> {
               and (
                 lower(c.nombre) like lower(concat('%', :query, '%'))
                 or lower(c.apellido) like lower(concat('%', :query, '%'))
-                or c.documentoIdentidad like concat('%', :query, '%')
+                or c.numeroDocumento like concat('%', :query, '%')
                 or m.numero like concat('%', :query, '%')
               )
             """)

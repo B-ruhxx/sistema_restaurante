@@ -15,42 +15,49 @@ public class Pedido {
     private Integer idPedido;
 
     @ManyToOne(optional = false)
-    @JoinColumn(name = "id_empleado", nullable = false)
-    private Empleado empleado;
+    @JoinColumn(name = "id_empleado_apertura", nullable = false)
+    private Empleado empleadoApertura;
+
+    @ManyToOne
+    @JoinColumn(name = "id_empleado_cierre")
+    private Empleado empleadoCierre;
 
     @ManyToOne
     @JoinColumn(name = "id_cliente")
     private Cliente cliente;
 
-    @ManyToOne
-    @JoinColumn(name = "id_mesa")
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "id_mesa", nullable = false)
     private Mesa mesa;
 
     @Enumerated(EnumType.STRING)
-    @Column(columnDefinition = "ENUM('ABIERTO', 'ENVIADO_COCINA', 'EN_PREPARACION', 'LISTO', 'ENTREGADO', 'CUENTA_SOLICITADA', 'CUENTA_EMITIDA', 'PAGADO', 'CANCELADO') DEFAULT 'ABIERTO'")
-    private Estado estado = Estado.ABIERTO;
+    @Column(columnDefinition = "ENUM('BORRADOR_ATENCION','EN_COCINA','LISTO','SERVIDO','CUENTA','CERRADO','CANCELADO') DEFAULT 'BORRADOR_ATENCION'")
+    private Estado estado = Estado.BORRADOR_ATENCION;
 
     @CreationTimestamp
-    @Column(name = "fecha", nullable = false, updatable = false)
-    private LocalDateTime fecha;
+    @Column(name = "fecha_apertura", nullable = false, updatable = false)
+    private LocalDateTime fechaApertura;
 
-    @Column(precision = 10, scale = 2)
+    @Transient
     private BigDecimal subtotal = BigDecimal.ZERO;
 
-    @Column(precision = 10, scale = 2)
+    @Transient
     private BigDecimal igv = BigDecimal.ZERO;
 
-    @Column(precision = 10, scale = 2)
+    @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal total = BigDecimal.ZERO;
 
     @Column(name = "fecha_envio_cocina")
     private LocalDateTime fechaEnvioCocina;
 
-    @Column(name = "fecha_inicio_preparacion")
-    private LocalDateTime fechaInicioPreparacion;
+    @Column(name = "fecha_servicio")
+    private LocalDateTime fechaServicio;
 
-    @Column(name = "fecha_fin_preparacion")
-    private LocalDateTime fechaFinPreparacion;
+    @Column(name = "fecha_cuenta")
+    private LocalDateTime fechaCuenta;
+
+    @Column(name = "fecha_cierre")
+    private LocalDateTime fechaCierre;
 
     @Column(name = "tiempo_estimado_minutos")
     private Integer tiempoEstimadoMinutos;
@@ -58,11 +65,14 @@ public class Pedido {
     @Column(name = "tiempo_real_minutos")
     private Integer tiempoRealMinutos;
 
+    @Column(name = "motivo_cancelacion", length = 255)
+    private String motivoCancelacion;
+
     @Version
     private Long version = 0L;
 
     public enum Estado {
-        ABIERTO, ENVIADO_COCINA, EN_PREPARACION, LISTO, ENTREGADO, CUENTA_SOLICITADA, CUENTA_EMITIDA, PAGADO, CANCELADO
+        BORRADOR_ATENCION, EN_COCINA, LISTO, SERVIDO, CUENTA, CERRADO, CANCELADO
     }
 
     public Pedido() {
@@ -77,11 +87,27 @@ public class Pedido {
     }
 
     public Empleado getEmpleado() {
-        return empleado;
+        return empleadoApertura;
     }
 
     public void setEmpleado(Empleado empleado) {
-        this.empleado = empleado;
+        this.empleadoApertura = empleado;
+    }
+
+    public Empleado getEmpleadoApertura() {
+        return empleadoApertura;
+    }
+
+    public void setEmpleadoApertura(Empleado empleadoApertura) {
+        this.empleadoApertura = empleadoApertura;
+    }
+
+    public Empleado getEmpleadoCierre() {
+        return empleadoCierre;
+    }
+
+    public void setEmpleadoCierre(Empleado empleadoCierre) {
+        this.empleadoCierre = empleadoCierre;
     }
 
     public Cliente getCliente() {
@@ -109,7 +135,11 @@ public class Pedido {
     }
 
     public LocalDateTime getFecha() {
-        return fecha;
+        return fechaApertura;
+    }
+
+    public LocalDateTime getFechaApertura() {
+        return fechaApertura;
     }
 
     public BigDecimal getSubtotal() {
@@ -144,20 +174,28 @@ public class Pedido {
         this.fechaEnvioCocina = fechaEnvioCocina;
     }
 
-    public LocalDateTime getFechaInicioPreparacion() {
-        return fechaInicioPreparacion;
+    public LocalDateTime getFechaServicio() {
+        return fechaServicio;
     }
 
-    public void setFechaInicioPreparacion(LocalDateTime fechaInicioPreparacion) {
-        this.fechaInicioPreparacion = fechaInicioPreparacion;
+    public void setFechaServicio(LocalDateTime fechaServicio) {
+        this.fechaServicio = fechaServicio;
     }
 
-    public LocalDateTime getFechaFinPreparacion() {
-        return fechaFinPreparacion;
+    public LocalDateTime getFechaCuenta() {
+        return fechaCuenta;
     }
 
-    public void setFechaFinPreparacion(LocalDateTime fechaFinPreparacion) {
-        this.fechaFinPreparacion = fechaFinPreparacion;
+    public void setFechaCuenta(LocalDateTime fechaCuenta) {
+        this.fechaCuenta = fechaCuenta;
+    }
+
+    public LocalDateTime getFechaCierre() {
+        return fechaCierre;
+    }
+
+    public void setFechaCierre(LocalDateTime fechaCierre) {
+        this.fechaCierre = fechaCierre;
     }
 
     public Integer getTiempoEstimadoMinutos() {
@@ -174,6 +212,14 @@ public class Pedido {
 
     public void setTiempoRealMinutos(Integer tiempoRealMinutos) {
         this.tiempoRealMinutos = tiempoRealMinutos;
+    }
+
+    public String getMotivoCancelacion() {
+        return motivoCancelacion;
+    }
+
+    public void setMotivoCancelacion(String motivoCancelacion) {
+        this.motivoCancelacion = motivoCancelacion;
     }
 
     public Long getVersion() {

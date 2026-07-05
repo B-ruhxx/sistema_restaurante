@@ -45,8 +45,8 @@ public class MetodoPagoService {
         if (mp.getEstado() == null) {
             mp.setEstado(MetodoPago.Estado.ACTIVO);
         }
-        if (mp.getRequiereOperacion() == null) {
-            mp.setRequiereOperacion(false);
+        if (mp.getRequiereReferencia() == null) {
+            mp.setRequiereReferencia(false);
         }
         MetodoPago savedMp = metodoPagoRepository.save(mp);
         return metodoPagoMapper.toResponse(savedMp);
@@ -58,8 +58,9 @@ public class MetodoPagoService {
                 .orElseThrow(() -> new IllegalArgumentException("Método de pago no encontrado con ID: " + id));
 
         mp.setNombre(request.getNombre());
-        if (request.getRequiereOperacion() != null) {
-            mp.setRequiereOperacion(request.getRequiereOperacion());
+        mp.setCodigo(request.getCodigo());
+        if (request.getRequiereReferencia() != null) {
+            mp.setRequiereReferencia(request.getRequiereReferencia());
         }
         if (request.getEstado() != null) {
             mp.setEstado(MetodoPago.Estado.valueOf(request.getEstado().toUpperCase()));

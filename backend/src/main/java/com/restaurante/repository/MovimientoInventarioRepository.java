@@ -7,4 +7,8 @@ import java.util.List;
 public interface MovimientoInventarioRepository extends JpaRepository<MovimientoInventario, Integer> {
     List<MovimientoInventario> findByInsumoIdInsumo(Integer idInsumo);
     List<MovimientoInventario> findByProductoIdProducto(Integer idProducto);
+    List<MovimientoInventario> findByReferenceIdAndReferenceTypeAndTipoRecurso(
+            Integer referenceId,
+            String referenceType,
+            MovimientoInventario.TipoRecurso tipoRecurso);
 }

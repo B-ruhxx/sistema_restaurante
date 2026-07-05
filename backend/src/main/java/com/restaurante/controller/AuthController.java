@@ -4,6 +4,7 @@ import com.restaurante.dto.AuthResponse;
 import com.restaurante.dto.LoginRequest;
 import com.restaurante.entity.Empleado;
 import com.restaurante.security.CustomUserDetails;
+import com.restaurante.service.AlertaSeguridadService;
 import com.restaurante.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -25,6 +26,9 @@ public class AuthController {
     @Autowired
     private AuthService authService;
 
+    @Autowired
+    private AlertaSeguridadService alertaSeguridadService;
+
     @PostMapping("/login")
     public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest,
             HttpServletRequest request) {
@@ -35,6 +39,11 @@ public class AuthController {
                     request.getRemoteAddr());
             return ResponseEntity.ok(response);
         } catch (BadCredentialsException e) {
+            try {
+                alertaSeguridadService.registrarLoginFallido(loginRequest.getUsername(), request.getRemoteAddr());
+            } catch (Exception alertException) {
+                System.err.println("No se pudo registrar alerta de login fallido: " + alertException.getMessage());
+            }
             Map<String, String> err = new HashMap<>();
             err.put("message", "Usuario o contraseña incorrectos. Por favor, intente de nuevo.");
             return ResponseEntity.status(401).body(err);
@@ -50,7 +59,7 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<?> logoutUser() {
+    public ResponseEntity<?> logoutUser(HttpServletRequest request) {
         try {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             if (authentication != null && authentication.isAuthenticated()
@@ -58,7 +67,7 @@ public class AuthController {
                 if (authentication.getPrincipal() instanceof CustomUserDetails) {
                     CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
                     Empleado empleado = userDetails.getEmpleado();
-                    authService.logout(empleado);
+                    authService.logout(empleado, getJwtFromRequest(request));
                 } else {
                     System.err.println("Principal inesperado en logout: " + authentication.getPrincipal().getClass());
                 }
@@ -81,6 +90,14 @@ public class AuthController {
         Map<String, String> response = new HashMap<>();
         response.put("message", "Cierre de sesión exitoso.");
         return ResponseEntity.ok(response);
+    }
+
+    private String getJwtFromRequest(HttpServletRequest request) {
+        String bearerToken = request.getHeader("Authorization");
+        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
+            return bearerToken.substring(7);
+        }
+        return null;
     }
 
     @GetMapping("/me")

@@ -10,7 +10,6 @@ public class CategoriaRequest {
 
     private String descripcion;
     private String imagenUrl;
-    private String img;
     private String estado;
 
     public String getNombre() {
@@ -35,14 +34,6 @@ public class CategoriaRequest {
 
     public void setImagenUrl(String imagenUrl) {
         this.imagenUrl = imagenUrl;
-    }
-
-    public String getImg() {
-        return img;
-    }
-
-    public void setImg(String img) {
-        this.img = img;
     }
 
     public String getEstado() {

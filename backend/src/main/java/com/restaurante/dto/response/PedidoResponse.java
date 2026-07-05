@@ -7,6 +7,8 @@ public class PedidoResponse {
     private Integer idPedido;
     private String empleadoNombre;
     private String clienteNombre;
+    private String clienteTipoDocumento;
+    private String clienteDocumentoIdentidad;
     private Integer idCliente;
     private Integer idMesa;
     private String numeroMesa;
@@ -17,8 +19,7 @@ public class PedidoResponse {
     private BigDecimal igv;
     private BigDecimal total;
     private LocalDateTime fechaEnvioCocina;
-    private LocalDateTime fechaInicioPreparacion;
-    private LocalDateTime fechaFinPreparacion;
+    private LocalDateTime fechaServicio;
     private Integer tiempoEstimadoMinutos;
     private Integer tiempoRealMinutos;
     private java.util.List<DetallePedidoResponse> detalles;
@@ -45,6 +46,22 @@ public class PedidoResponse {
 
     public void setClienteNombre(String clienteNombre) {
         this.clienteNombre = clienteNombre;
+    }
+
+    public String getClienteTipoDocumento() {
+        return clienteTipoDocumento;
+    }
+
+    public void setClienteTipoDocumento(String clienteTipoDocumento) {
+        this.clienteTipoDocumento = clienteTipoDocumento;
+    }
+
+    public String getClienteDocumentoIdentidad() {
+        return clienteDocumentoIdentidad;
+    }
+
+    public void setClienteDocumentoIdentidad(String clienteDocumentoIdentidad) {
+        this.clienteDocumentoIdentidad = clienteDocumentoIdentidad;
     }
 
     public Integer getIdCliente() {
@@ -127,20 +144,12 @@ public class PedidoResponse {
         this.fechaEnvioCocina = fechaEnvioCocina;
     }
 
-    public LocalDateTime getFechaInicioPreparacion() {
-        return fechaInicioPreparacion;
+    public LocalDateTime getFechaServicio() {
+        return fechaServicio;
     }
 
-    public void setFechaInicioPreparacion(LocalDateTime fechaInicioPreparacion) {
-        this.fechaInicioPreparacion = fechaInicioPreparacion;
-    }
-
-    public LocalDateTime getFechaFinPreparacion() {
-        return fechaFinPreparacion;
-    }
-
-    public void setFechaFinPreparacion(LocalDateTime fechaFinPreparacion) {
-        this.fechaFinPreparacion = fechaFinPreparacion;
+    public void setFechaServicio(LocalDateTime fechaServicio) {
+        this.fechaServicio = fechaServicio;
     }
 
     public Integer getTiempoEstimadoMinutos() {

@@ -3,12 +3,11 @@ package com.restaurante.dto.response;
 public class ProveedorResponse {
     private Integer idProveedor;
     private String razonSocial;
-    private String nombreComercial;
     private String ruc;
     private String telefono;
     private String email;
     private String direccion;
-    private String contactoPrincipal;
+    private String contacto;
     private String estado;
 
     public Integer getIdProveedor() {
@@ -25,14 +24,6 @@ public class ProveedorResponse {
 
     public void setRazonSocial(String razonSocial) {
         this.razonSocial = razonSocial;
-    }
-
-    public String getNombreComercial() {
-        return nombreComercial;
-    }
-
-    public void setNombreComercial(String nombreComercial) {
-        this.nombreComercial = nombreComercial;
     }
 
     public String getRuc() {
@@ -67,12 +58,12 @@ public class ProveedorResponse {
         this.direccion = direccion;
     }
 
-    public String getContactoPrincipal() {
-        return contactoPrincipal;
+    public String getContacto() {
+        return contacto;
     }
 
-    public void setContactoPrincipal(String contactoPrincipal) {
-        this.contactoPrincipal = contactoPrincipal;
+    public void setContacto(String contacto) {
+        this.contacto = contacto;
     }
 
     public String getEstado() {

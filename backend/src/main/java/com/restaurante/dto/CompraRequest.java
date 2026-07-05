@@ -1,5 +1,6 @@
 package com.restaurante.dto;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
@@ -11,7 +12,8 @@ public class CompraRequest {
     @NotNull(message = "El proveedor es obligatorio.")
     private Integer idProveedor;
 
-    @NotEmpty(message = "La compra debe contener al menos un insumo.")
+    @NotEmpty(message = "La compra debe contener al menos un recurso.")
+    @Valid
     private List<DetalleCompraRequest> detalles;
 
     private String observacion;

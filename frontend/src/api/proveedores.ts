@@ -3,23 +3,21 @@ import api from './auth';
 export interface Proveedor {
   idProveedor: number;
   razonSocial: string;
-  nombreComercial?: string;
   ruc?: string;
   telefono?: string;
   email?: string;
   direccion?: string;
-  contactoPrincipal?: string;
+  contacto?: string;
   estado?: string;
 }
 
 export interface ProveedorRequest {
   razonSocial: string;
-  nombreComercial?: string;
   ruc?: string;
   telefono?: string;
   email?: string;
   direccion?: string;
-  contactoPrincipal?: string;
+  contacto?: string;
   estado?: string;
 }
 

@@ -6,7 +6,6 @@ import java.util.List;
 public class ComandaDetalleResponse {
     private Integer idDetallePedido;
     private String itemNombre;
-    private String varianteNombre;
     private Integer cantidad;
     private String observacion;
     private List<String> extras;
@@ -30,14 +29,6 @@ public class ComandaDetalleResponse {
 
     public void setItemNombre(String itemNombre) {
         this.itemNombre = itemNombre;
-    }
-
-    public String getVarianteNombre() {
-        return varianteNombre;
-    }
-
-    public void setVarianteNombre(String varianteNombre) {
-        this.varianteNombre = varianteNombre;
     }
 
     public Integer getCantidad() {

@@ -8,23 +8,20 @@ public class ProveedorRequest {
     @Size(max = 150, message = "La razón social no puede exceder los 150 caracteres")
     private String razonSocial;
 
-    @Size(max = 150, message = "El nombre comercial no puede exceder los 150 caracteres")
-    private String nombreComercial;
-
-    @Size(max = 20, message = "El RUC no puede exceder los 20 caracteres")
+    @Size(max = 11, message = "El RUC no puede exceder los 11 caracteres")
     private String ruc;
 
-    @Size(max = 20, message = "El teléfono no puede exceder los 20 caracteres")
+    @Size(max = 30, message = "El teléfono no puede exceder los 30 caracteres")
     private String telefono;
 
-    @Size(max = 100, message = "El email no puede exceder los 100 caracteres")
+    @Size(max = 120, message = "El email no puede exceder los 120 caracteres")
     private String email;
 
     @Size(max = 255, message = "La dirección no puede exceder los 255 caracteres")
     private String direccion;
 
-    @Size(max = 100, message = "El contacto principal no puede exceder los 100 caracteres")
-    private String contactoPrincipal;
+    @Size(max = 120, message = "El contacto no puede exceder los 120 caracteres")
+    private String contacto;
 
     private String estado;
 
@@ -34,14 +31,6 @@ public class ProveedorRequest {
 
     public void setRazonSocial(String razonSocial) {
         this.razonSocial = razonSocial;
-    }
-
-    public String getNombreComercial() {
-        return nombreComercial;
-    }
-
-    public void setNombreComercial(String nombreComercial) {
-        this.nombreComercial = nombreComercial;
     }
 
     public String getRuc() {
@@ -76,12 +65,12 @@ public class ProveedorRequest {
         this.direccion = direccion;
     }
 
-    public String getContactoPrincipal() {
-        return contactoPrincipal;
+    public String getContacto() {
+        return contacto;
     }
 
-    public void setContactoPrincipal(String contactoPrincipal) {
-        this.contactoPrincipal = contactoPrincipal;
+    public void setContacto(String contacto) {
+        this.contacto = contacto;
     }
 
     public String getEstado() {

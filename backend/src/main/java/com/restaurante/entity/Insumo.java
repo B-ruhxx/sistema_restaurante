@@ -5,6 +5,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Objects;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Formula;
 import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
@@ -18,10 +19,10 @@ public class Insumo {
     @Column(length = 100)
     private String nombre;
 
-    @Column(length = 20)
+    @Column(name = "unidad_medida", length = 20)
     private String unidad;
 
-    @Column(nullable = false, precision = 10, scale = 2)
+    @Formula("(select coalesce(sum(li.cantidad_disponible), 0) from lote_insumo li where li.id_insumo = id_insumo and li.estado = 'DISPONIBLE')")
     private BigDecimal stock = BigDecimal.ZERO;
 
     @Column(name = "stock_minimo", nullable = false, precision = 10, scale = 2)

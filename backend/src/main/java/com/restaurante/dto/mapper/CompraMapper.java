@@ -56,10 +56,19 @@ public class CompraMapper {
         dto.setCantidad(entity.getCantidad());
         dto.setPrecioUnitario(entity.getPrecioUnitario());
         dto.setSubtotal(entity.getSubtotal());
+        dto.setNumeroLote(entity.getNumeroLote());
+        dto.setFechaVencimiento(entity.getFechaVencimiento());
         if (entity.getInsumo() != null) {
+            dto.setTipoRecurso("INSUMO");
             dto.setIdInsumo(entity.getInsumo().getIdInsumo());
             dto.setNombreInsumo(entity.getInsumo().getNombre());
             dto.setUnidadInsumo(entity.getInsumo().getUnidad());
+        }
+        if (entity.getProducto() != null) {
+            dto.setTipoRecurso("PRODUCTO");
+            dto.setIdProducto(entity.getProducto().getIdProducto());
+            dto.setNombreProducto(entity.getProducto().getNombre());
+            dto.setSkuProducto(entity.getProducto().getSku());
         }
         return dto;
     }

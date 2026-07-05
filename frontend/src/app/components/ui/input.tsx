@@ -14,24 +14,14 @@ function Input({
       type={type}
       data-slot="input"
       className={cn(
-        // Base y Dimensiones
-        "flex h-10 w-full min-w-0 rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-xs transition-all duration-200 outline-none",
+        "flex min-h-10 w-full min-w-0 rounded-md border border-input bg-input-background px-3 py-2 text-sm text-foreground transition-colors outline-none",
         "placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground",
-
-        // Estados Interactivos (Hover & Focus)
-        "hover:border-accent-foreground/30",
+        "hover:border-[var(--border-strong)]",
         "focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-ring/20",
-
-        // Estilos para Input de Archivos (type="file")
-        "file:mr-2 file:inline-flex file:h-7 file:cursor-pointer file:items-center file:rounded-sm file:border-0 file:bg-muted file:px-2.5 file:text-xs file:font-medium file:text-foreground file:transition-colors hover:file:bg-muted/80",
-
-        // Estado Deshabilitado
+        "file:mr-2 file:inline-flex file:min-h-8 file:cursor-pointer file:items-center file:rounded-sm file:border-0 file:bg-muted file:px-2.5 file:text-xs file:font-medium file:text-foreground file:transition-colors hover:file:bg-muted/80",
         "disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50",
-
-        // Estados de Error de Validación (Aria Invalid)
-        "aria-invalid:border-destructive aria-invalid:ring-destructive/20",
-        "focus-visible:aria-invalid:border-destructive focus-visible:aria-invalid:ring-destructive/20",
-
+        "aria-invalid:border-[var(--status-warning)] aria-invalid:ring-[var(--status-warning)]/20",
+        "focus-visible:aria-invalid:border-[var(--status-warning)] focus-visible:aria-invalid:ring-[var(--status-warning)]/20",
         className,
       )}
       {...props}

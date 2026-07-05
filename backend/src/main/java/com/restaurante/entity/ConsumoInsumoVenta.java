@@ -19,14 +19,25 @@ public class ConsumoInsumoVenta {
     private Venta venta;
 
     @ManyToOne(optional = false)
+    @JoinColumn(name = "id_detalle_venta", nullable = false)
+    private DetalleVenta detalleVenta;
+
+    @ManyToOne(optional = false)
     @JoinColumn(name = "id_insumo", nullable = false)
     private Insumo insumo;
 
-    @Column(nullable = false, precision = 10, scale = 2)
+    @ManyToOne
+    @JoinColumn(name = "id_lote_insumo")
+    private LoteInsumo loteInsumo;
+
+    @Column(nullable = false, precision = 12, scale = 3)
     private BigDecimal cantidad;
 
-    @Column(name = "costo_unitario", nullable = false, precision = 10, scale = 2)
+    @Column(name = "costo_unitario", nullable = false, precision = 10, scale = 4)
     private BigDecimal costoUnitario = BigDecimal.ZERO;
+
+    @Column(name = "costo_total", nullable = false, precision = 10, scale = 2)
+    private BigDecimal costoTotal = BigDecimal.ZERO;
 
     @CreationTimestamp
     @Column(name = "fecha", nullable = false, updatable = false)
@@ -51,12 +62,28 @@ public class ConsumoInsumoVenta {
         this.venta = venta;
     }
 
+    public DetalleVenta getDetalleVenta() {
+        return detalleVenta;
+    }
+
+    public void setDetalleVenta(DetalleVenta detalleVenta) {
+        this.detalleVenta = detalleVenta;
+    }
+
     public Insumo getInsumo() {
         return insumo;
     }
 
     public void setInsumo(Insumo insumo) {
         this.insumo = insumo;
+    }
+
+    public LoteInsumo getLoteInsumo() {
+        return loteInsumo;
+    }
+
+    public void setLoteInsumo(LoteInsumo loteInsumo) {
+        this.loteInsumo = loteInsumo;
     }
 
     public BigDecimal getCantidad() {
@@ -73,6 +100,14 @@ public class ConsumoInsumoVenta {
 
     public void setCostoUnitario(BigDecimal costoUnitario) {
         this.costoUnitario = costoUnitario;
+    }
+
+    public BigDecimal getCostoTotal() {
+        return costoTotal;
+    }
+
+    public void setCostoTotal(BigDecimal costoTotal) {
+        this.costoTotal = costoTotal;
     }
 
     public LocalDateTime getFecha() {

@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 public class ComboRequest {
@@ -15,6 +16,8 @@ public class ComboRequest {
 
     private String descripcion;
     private String imagenUrl;
+    private String etiqueta;
+    private LocalDate validoHasta;
 
     @NotNull(message = "El precio es obligatorio")
     @PositiveOrZero(message = "El precio no puede ser negativo")
@@ -28,6 +31,22 @@ public class ComboRequest {
 
     public void setImagenUrl(String imagenUrl) {
         this.imagenUrl = imagenUrl;
+    }
+
+    public String getEtiqueta() {
+        return etiqueta;
+    }
+
+    public void setEtiqueta(String etiqueta) {
+        this.etiqueta = etiqueta;
+    }
+
+    public LocalDate getValidoHasta() {
+        return validoHasta;
+    }
+
+    public void setValidoHasta(LocalDate validoHasta) {
+        this.validoHasta = validoHasta;
     }
 
     private List<ComboDetalleRequest> detalles;

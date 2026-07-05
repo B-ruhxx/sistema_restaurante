@@ -22,12 +22,16 @@ public class PedidoMapper {
         if (entity == null) return null;
         PedidoResponse dto = new PedidoResponse();
         dto.setIdPedido(entity.getIdPedido());
-        if (entity.getEmpleado() != null) {
-            dto.setEmpleadoNombre(entity.getEmpleado().getNombre() + " " + entity.getEmpleado().getApellido());
+        if (entity.getEmpleadoApertura() != null) {
+            dto.setEmpleadoNombre(entity.getEmpleadoApertura().getNombre() + " " + entity.getEmpleadoApertura().getApellido());
         }
         if (entity.getCliente() != null) {
             dto.setClienteNombre(entity.getCliente().getNombre() + " " + entity.getCliente().getApellido());
             dto.setIdCliente(entity.getCliente().getIdCliente());
+            dto.setClienteTipoDocumento(entity.getCliente().getTipoDocumento() != null
+                    ? entity.getCliente().getTipoDocumento().name()
+                    : null);
+            dto.setClienteDocumentoIdentidad(entity.getCliente().getDocumentoIdentidad());
         }
         if (entity.getMesa() != null) {
             dto.setIdMesa(entity.getMesa().getIdMesa());
@@ -37,13 +41,12 @@ public class PedidoMapper {
         if (entity.getEstado() != null) {
             dto.setEstado(entity.getEstado().name());
         }
-        dto.setFecha(entity.getFecha());
+        dto.setFecha(entity.getFechaApertura());
         dto.setSubtotal(entity.getSubtotal());
         dto.setIgv(entity.getIgv());
         dto.setTotal(entity.getTotal());
         dto.setFechaEnvioCocina(entity.getFechaEnvioCocina());
-        dto.setFechaInicioPreparacion(entity.getFechaInicioPreparacion());
-        dto.setFechaFinPreparacion(entity.getFechaFinPreparacion());
+        dto.setFechaServicio(entity.getFechaServicio());
         dto.setTiempoEstimadoMinutos(entity.getTiempoEstimadoMinutos());
         dto.setTiempoRealMinutos(entity.getTiempoRealMinutos());
         return dto;
@@ -76,10 +79,6 @@ public class PedidoMapper {
         if (entity.getCombo() != null) {
             dto.setIdCombo(entity.getCombo().getIdCombo());
             dto.setNombreCombo(entity.getCombo().getNombre());
-        }
-        if (entity.getVariante() != null) {
-            dto.setIdVariante(entity.getVariante().getIdVariante());
-            dto.setNombreVariante(entity.getVariante().getNombre());
         }
         if (extras != null) {
             dto.setExtras(extras.stream()

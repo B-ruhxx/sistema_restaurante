@@ -25,10 +25,6 @@ public class DetallePedido {
     @JoinColumn(name = "id_combo")
     private ComboProducto combo;
 
-    @ManyToOne
-    @JoinColumn(name = "id_variante")
-    private VarianteProducto variante;
-
     @Column(nullable = false)
     private Integer cantidad;
 
@@ -40,6 +36,9 @@ public class DetallePedido {
 
     @Column(columnDefinition = "TEXT")
     private String observacion;
+
+    @Column(name = "requiere_preparacion", nullable = false)
+    private Boolean requierePreparacion = false;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "estado_cocina", columnDefinition = "ENUM('PENDIENTE','EN_PREPARACION','LISTO','CANCELADO') DEFAULT 'PENDIENTE'")
@@ -75,9 +74,6 @@ public class DetallePedido {
     public ComboProducto getCombo() { return combo; }
     public void setCombo(ComboProducto combo) { this.combo = combo; }
 
-    public VarianteProducto getVariante() { return variante; }
-    public void setVariante(VarianteProducto variante) { this.variante = variante; }
-
     public Integer getCantidad() { return cantidad; }
     public void setCantidad(Integer cantidad) { this.cantidad = cantidad; }
 
@@ -89,6 +85,9 @@ public class DetallePedido {
 
     public String getObservacion() { return observacion; }
     public void setObservacion(String observacion) { this.observacion = observacion; }
+
+    public Boolean getRequierePreparacion() { return requierePreparacion; }
+    public void setRequierePreparacion(Boolean requierePreparacion) { this.requierePreparacion = requierePreparacion; }
 
     public EstadoCocina getEstadoCocina() { return estadoCocina; }
     public void setEstadoCocina(EstadoCocina estadoCocina) { this.estadoCocina = estadoCocina; }

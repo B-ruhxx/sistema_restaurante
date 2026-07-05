@@ -1,9 +1,10 @@
-import { useState } from 'react';
-import { Plus, Trash2, Search, FlaskConical, TrendingUp, DollarSign, ChefHat, X, Loader2 } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router';
+import { Plus, Search, FlaskConical, ChefHat, X, Loader2, DollarSign, TrendingUp, Clock, AlertTriangle } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Label } from '../components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Separator } from '../components/ui/separator';
 import { Badge } from '../components/ui/badge';
 import {
@@ -16,35 +17,35 @@ import {
 import { useProductos } from '../../hooks/useProductos';
 import { useInsumos } from '../../hooks/useInsumos';
 import { useCategorias } from '../../hooks/useCategorias';
-import { Producto, RecetaProducto, RecetaItemRequest } from '../../api/productos';
+import { Producto, RecetaItemRequest, RecetaProducto } from '../../api/productos';
+import { PageWrapper, ModuleHeader, KpiCard, EmptyState, SectionCard } from '../components/ui/erp-layout';
+import { cn } from '../components/ui/utils';
 
 interface RecipeItem {
   supplyId: number;
   supplyName: string;
   unit: string;
   quantity: number;
-  timeMinutes: number;
   costPerUnit: number;
   totalCost: number;
 }
 
-interface LocalRecipe {
-  productoId: number;
-  productName: string;
-  categoryName: string;
-  salePrice: number;
-  items: RecipeItem[];
-  /** original receta from backend for dirty check */
-  originalReceta: RecetaProducto[];
-}
-
 export function RecipeBuilder() {
-  const { productos, isLoading: loadingProductos, updateProducto, isUpdating } = useProductos();
+  const [searchParams] = useSearchParams();
+  const {
+    productos,
+    isLoading: loadingProductos,
+    updateProducto,
+    isUpdating,
+    createProducto,
+    isCreating,
+    getProductoDetail,
+  } = useProductos();
   const { insumos, isLoading: loadingInsumos } = useInsumos();
   const { categorias } = useCategorias();
 
   // Only PREPARADO products have recipes
-  const preparados = productos.filter(p => p.tipoProducto === 'PREPARADO');
+  const preparados = productos.filter(p => p.tipoProducto === 'PREPARADO' && p.esSku === false);
 
   // Local recipe state (editable copy)
   const [activeId, setActiveId] = useState<number | null>(null);
@@ -52,56 +53,113 @@ export function RecipeBuilder() {
   const [searchSupply, setSearchSupply] = useState('');
   const [addSupplyId, setAddSupplyId] = useState<number | null>(null);
   const [addQty, setAddQty] = useState('');
+  const [recipeTime, setRecipeTime] = useState('10');
+  const [recipeTarget, setRecipeTarget] = useState('base');
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const autoSelectedIdRef = useRef<number | null>(null);
 
   // Create product state
   const [newProductName, setNewProductName] = useState('');
   const [newSalePrice, setNewSalePrice] = useState('');
   const [newCategoryId, setNewCategoryId] = useState('');
-  const { createProducto, isCreating } = useProductos();
 
   const activeProduct = preparados.find(p => p.idProducto === activeId) ?? null;
+  const activeVariants = productos.filter(p =>
+    p.tipoProducto === 'PREPARADO' &&
+    p.esSku !== false &&
+    p.idProductoPadre === activeId
+  );
+  const activeVariant = recipeTarget !== 'base'
+    ? activeVariants.find(v => String(v.idProducto) === recipeTarget) ?? null
+    : null;
+  const activeSalePrice = activeVariant?.precio ?? activeProduct?.precio ?? 0;
 
   const totalCost = localItems.reduce((sum, i) => sum + i.totalCost, 0);
-  const margin = activeProduct ? activeProduct.precio - totalCost : 0;
-  const marginPct = activeProduct && activeProduct.precio > 0 ? (margin / activeProduct.precio) * 100 : 0;
+  const margin = activeProduct ? activeSalePrice - totalCost : 0;
+  const marginPct = activeSalePrice > 0 ? (margin / activeSalePrice) * 100 : 0;
 
   const filteredSupplies = insumos.filter(s =>
     s.nombre.toLowerCase().includes(searchSupply.toLowerCase()) &&
     !localItems.some(i => i.supplyId === s.idInsumo)
   );
 
+  const buildRecipeItems = useCallback((receta: RecetaProducto[] = []): RecipeItem[] => receta.map(r => ({
+    supplyId: r.idInsumo,
+    supplyName: r.nombreInsumo,
+    unit: r.unidadMedidaInsumo,
+    quantity: r.cantidad,
+    costPerUnit: insumos.find(i => i.idInsumo === r.idInsumo)?.costoPromedio ?? 0,
+    totalCost: r.cantidad * (insumos.find(i => i.idInsumo === r.idInsumo)?.costoPromedio ?? 0),
+  })), [insumos]);
+
   // Select recipe to edit — load current receta from backend detail
-  const selectRecipe = async (producto: Producto) => {
+  const selectRecipe = useCallback(async (producto: Producto) => {
+    try {
+      const detail = await getProductoDetail(producto.idProducto);
+      const fallbackTime = Math.max(0, ...(detail.receta || []).map(r => r.tiempoPreparacionMinutos || 0));
+      setSaved(false);
+      setSaveError('');
+      setSearchSupply('');
+      setAddSupplyId(null);
+      setAddQty('');
+      setActiveId(producto.idProducto);
+      setRecipeTarget('base');
+      setRecipeTime(String(detail.producto.tiempoPreparacionMinutos || producto.tiempoPreparacionMinutos || fallbackTime || 10));
+      setLocalItems(buildRecipeItems(detail.receta || []));
+    } catch {
+      setSaved(false);
+      setSaveError('');
+      setSearchSupply('');
+      setAddSupplyId(null);
+      setAddQty('');
+      setActiveId(producto.idProducto);
+      setRecipeTarget('base');
+      setRecipeTime(String(producto.tiempoPreparacionMinutos || 10));
+      setLocalItems([]);
+    }
+  }, [buildRecipeItems, getProductoDetail]);
+
+  useEffect(() => {
+    const productoId = Number(searchParams.get('producto'));
+    if (!productoId || productoId === activeId || autoSelectedIdRef.current === productoId || preparados.length === 0) return;
+    const producto = preparados.find(p => p.idProducto === productoId);
+    if (producto) {
+      autoSelectedIdRef.current = productoId;
+      const timer = window.setTimeout(() => {
+        selectRecipe(producto);
+      }, 0);
+      return () => window.clearTimeout(timer);
+    }
+  }, [activeId, preparados, searchParams, selectRecipe]);
+
+  const handleRecipeTargetChange = async (target: string) => {
+    if (!activeProduct) return;
+    setRecipeTarget(target);
     setSaved(false);
     setSaveError('');
     setSearchSupply('');
     setAddSupplyId(null);
     setAddQty('');
-    setActiveId(producto.idProducto);
-    // Fetch detail to get current receta
+
     try {
-      const { getProductoDetail } = useProductosRef;
-      const detail = await getProductoDetail(producto.idProducto);
-      const items: RecipeItem[] = (detail.receta || []).map(r => ({
-        supplyId: r.idInsumo,
-        supplyName: r.nombreInsumo,
-        unit: r.unidadMedidaInsumo,
-        quantity: r.cantidad,
-        timeMinutes: r.tiempoPreparacionMinutos || 1,
-        costPerUnit: insumos.find(i => i.idInsumo === r.idInsumo)?.costoPromedio ?? 0,
-        totalCost: r.cantidad * (insumos.find(i => i.idInsumo === r.idInsumo)?.costoPromedio ?? 0),
-      }));
-      setLocalItems(items);
+      if (target === 'base') {
+        const detail = await getProductoDetail(activeProduct.idProducto);
+        const fallbackTime = Math.max(0, ...(detail.receta || []).map(r => r.tiempoPreparacionMinutos || 0));
+        setRecipeTime(String(detail.producto.tiempoPreparacionMinutos || activeProduct.tiempoPreparacionMinutos || fallbackTime || 10));
+        setLocalItems(buildRecipeItems(detail.receta || []));
+        return;
+      }
+
+      const detail = await getProductoDetail(Number(target));
+      const fallbackTime = Math.max(0, ...(detail.receta || []).map(r => r.tiempoPreparacionMinutos || 0));
+      setRecipeTime(String(detail.producto.tiempoPreparacionMinutos || fallbackTime || activeProduct.tiempoPreparacionMinutos || 10));
+      setLocalItems(buildRecipeItems(detail.receta || []));
     } catch {
+      setSaveError('No se pudo cargar la receta seleccionada.');
       setLocalItems([]);
     }
   };
-
-  // We need a ref-like access for the hook inside async callback
-  const { getProductoDetail } = useProductos();
-  const useProductosRef = { getProductoDetail };
 
   const addItem = () => {
     const supply = insumos.find(s => s.idInsumo === addSupplyId);
@@ -112,7 +170,6 @@ export function RecipeBuilder() {
       supplyName: supply.nombre,
       unit: supply.unidad,
       quantity: qty,
-      timeMinutes: 5,
       costPerUnit: supply.costoPromedio,
       totalCost: qty * supply.costoPromedio,
     };
@@ -136,36 +193,49 @@ export function RecipeBuilder() {
     setSaved(false);
   };
 
-  const updateTime = (supplyId: number, timeMinutes: number) => {
-    setLocalItems(prev => prev.map(i => i.supplyId === supplyId
-      ? { ...i, timeMinutes }
-      : i
-    ));
-    setSaved(false);
-  };
-
   const handleSaveRecipe = async () => {
     if (!activeProduct) return;
     setSaveError('');
     const receta: RecetaItemRequest[] = localItems.map(i => ({
       idInsumo: i.supplyId,
       cantidad: i.quantity,
-      tiempoPreparacionMinutos: i.timeMinutes,
     }));
+    const tiempoPreparacionMinutos = Math.max(1, parseInt(recipeTime, 10) || 1);
     try {
+      if (activeVariant) {
+        await updateProducto({
+          id: activeVariant.idProducto,
+          data: {
+            nombre: activeVariant.nombre,
+            precio: activeVariant.precio,
+            tipoProducto: 'PREPARADO',
+            tiempoPreparacionMinutos,
+            estado: activeVariant.estado,
+            idCategoria: activeVariant.idCategoria,
+            idProductoPadre: activeVariant.idProductoPadre,
+            sku: activeVariant.sku,
+            esSku: activeVariant.esSku,
+            receta,
+          },
+        });
+        setSaved(true);
+        return;
+      }
+
       await updateProducto({
         id: activeProduct.idProducto,
         data: {
           nombre: activeProduct.nombre,
           precio: activeProduct.precio,
           tipoProducto: 'PREPARADO',
+          tiempoPreparacionMinutos,
           estado: activeProduct.estado,
           idCategoria: activeProduct.idCategoria,
           receta,
         },
       });
       setSaved(true);
-    } catch (e: any) {
+    } catch {
       setSaveError('Error al guardar. Intenta de nuevo.');
     }
   };
@@ -177,6 +247,7 @@ export function RecipeBuilder() {
         nombre: newProductName,
         precio: parseFloat(newSalePrice),
         tipoProducto: 'PREPARADO',
+        tiempoPreparacionMinutos: 10,
         estado: 'ACTIVO',
         idCategoria: newCategoryId ? parseInt(newCategoryId) : undefined,
         receta: [],
@@ -184,10 +255,11 @@ export function RecipeBuilder() {
       setNewProductName('');
       setNewSalePrice('');
       setNewCategoryId('');
-      // Select the newly created product
       if (result.producto) {
         setActiveId(result.producto.idProducto);
+        setRecipeTarget('base');
         setLocalItems([]);
+        setRecipeTime(String(result.producto.tiempoPreparacionMinutos || 10));
       }
     } catch {
       // handled by react-query
@@ -197,281 +269,330 @@ export function RecipeBuilder() {
   const isLoading = loadingProductos || loadingInsumos;
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Constructor de Recetas</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Define los insumos y costos de cada producto elaborado</p>
-        </div>
-        {isLoading && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="w-4 h-4 animate-spin" /> Cargando datos...
-          </div>
-        )}
-      </div>
+    <PageWrapper>
+      <ModuleHeader
+        breadcrumbs={[
+          { label: 'Catálogo' },
+          { label: 'Recetas' },
+        ]}
+        icon={FlaskConical}
+        iconColor="blue"
+        title="Constructor de Recetas"
+        subtitle="Define la receta, ingredientes requeridos, mermas y calcula la rentabilidad por plato."
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Sidebar: Recipe List */}
-        <div className="lg:col-span-1 space-y-3">
-          <div className="space-y-1.5">
-            <Input
-              placeholder="Nuevo producto elaborado..."
-              value={newProductName}
-              onChange={e => setNewProductName(e.target.value)}
-            />
-            <Input
-              placeholder="Precio venta S/"
-              type="number"
-              value={newSalePrice}
-              onChange={e => setNewSalePrice(e.target.value)}
-            />
-            <Select value={newCategoryId} onValueChange={setNewCategoryId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Categoría (opcional)" />
-              </SelectTrigger>
-              <SelectContent>
-                {categorias.map(c => (
-                  <SelectItem key={c.idCategoria} value={String(c.idCategoria)}>{c.nombre}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              className="w-full"
-              size="sm"
-              onClick={handleCreateProducto}
-              disabled={!newProductName || !newSalePrice || isCreating}
-            >
-              {isCreating ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Plus className="w-4 h-4 mr-1" />}
-              Nueva Receta
-            </Button>
-          </div>
-          <Separator />
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Recetas guardadas ({preparados.length})</p>
-          <div className="space-y-1">
-            {preparados.map(p => (
-              <button
-                key={p.idProducto}
-                onClick={() => selectRecipe(p)}
-                className={`w-full text-left p-3 rounded-lg border transition-colors ${activeId === p.idProducto
-                  ? 'border-primary bg-primary/5'
-                  : 'border-border hover:bg-accent/50'
-                  }`}
+        {/* Sidebar: List */}
+        <div className="lg:col-span-1 space-y-4">
+          <SectionCard
+            title="Nueva Receta"
+            description="Crea un plato preparado rápido"
+            icon={Plus}
+            iconColor="blue"
+          >
+            <div className="space-y-3 mt-1.5">
+              <Input
+                placeholder="Nombre del plato..."
+                value={newProductName}
+                onChange={e => setNewProductName(e.target.value)}
+                className="h-10 rounded-xl"
+              />
+              <Input
+                placeholder="Precio de venta (S/)"
+                type="number"
+                value={newSalePrice}
+                onChange={e => setNewSalePrice(e.target.value)}
+                className="h-10 rounded-xl"
+              />
+              <Select value={newCategoryId} onValueChange={setNewCategoryId}>
+                <SelectTrigger className="h-10 rounded-xl">
+                  <SelectValue placeholder="Categoría (opcional)" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  {categorias.map(c => (
+                    <SelectItem key={c.idCategoria} value={String(c.idCategoria)} className="rounded-lg">{c.nombre}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                className="w-full h-10 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95 font-semibold gap-1.5"
+                onClick={handleCreateProducto}
+                disabled={!newProductName || !newSalePrice || isCreating}
               >
-                <p className="text-sm font-medium truncate">{p.nombre}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  S/ {p.precio.toFixed(2)}
-                  {p.nombreCategoria && <span className="ml-2 opacity-60">· {p.nombreCategoria}</span>}
-                </p>
-              </button>
-            ))}
-            {!isLoading && preparados.length === 0 && (
-              <p className="text-xs text-muted-foreground text-center py-4">Sin productos elaborados aún</p>
-            )}
-          </div>
+                {isCreating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                Crear Plato
+              </Button>
+            </div>
+          </SectionCard>
+
+          <Card className="border border-border bg-card text-card-foreground shadow-sm rounded-2xl overflow-hidden">
+            <div className="px-5 py-4 border-b border-border/60 bg-muted/15">
+              <h2 className="text-sm font-bold text-foreground uppercase tracking-wider">Carta Elaborada ({preparados.length})</h2>
+            </div>
+            <CardContent className="p-3 space-y-1.5 max-h-[50vh] overflow-y-auto pr-1">
+              {preparados.map(p => (
+                <button
+                  key={p.idProducto}
+                  onClick={() => selectRecipe(p)}
+                  className={cn(
+                    'w-full text-left p-3.5 rounded-xl border transition-all flex flex-col gap-1',
+                    activeId === p.idProducto
+                      ? 'border-primary bg-primary/10 text-primary-foreground font-semibold shadow-2xs'
+                      : 'border-border bg-card hover:bg-accent/60'
+                  )}
+                >
+                  <p className="text-sm font-bold text-foreground leading-snug">{p.nombre}</p>
+                  <div className="flex justify-between items-center text-xs text-muted-foreground font-semibold mt-0.5">
+                    <span className="ui-tabular">S/ {p.precio.toFixed(2)}</span>
+                    {p.nombreCategoria && <span className="text-[10px] bg-muted/65 border border-border/40 px-1.5 py-0.5 rounded-md font-bold">{p.nombreCategoria}</span>}
+                  </div>
+                </button>
+              ))}
+              {!isLoading && preparados.length === 0 && (
+                <p className="text-xs text-muted-foreground text-center py-6 font-semibold">Sin platos elaborados aún</p>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         {/* Main: Recipe Editor */}
         <div className="lg:col-span-2 space-y-4">
           {activeProduct ? (
             <>
-              <Card>
-                <CardHeader className="pb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center">
-                      <ChefHat className="w-5 h-5 text-orange-600" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-base">{activeProduct.nombre}</CardTitle>
-                      <p className="text-sm text-muted-foreground">Precio de venta: S/ {activeProduct.precio.toFixed(2)}</p>
+              <SectionCard
+                title={activeProduct.nombre}
+                description={activeVariant ? `Variante SKU: ${activeVariant.nombre}` : 'Receta base de producto'}
+                icon={ChefHat}
+                iconColor="blue"
+              >
+                <div className="space-y-4 mt-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {activeVariants.length > 0 && (
+                      <div className="space-y-1.5">
+                        <Label htmlFor="recipe-target" className="text-xs font-bold text-foreground">Configurar variante específica</Label>
+                        <select
+                          id="recipe-target"
+                          value={recipeTarget}
+                          onChange={event => handleRecipeTargetChange(event.target.value)}
+                          className="h-10 w-full rounded-xl border border-border bg-background px-3 text-xs focus:outline-none focus:ring-2 focus:ring-ring font-semibold text-foreground"
+                        >
+                          <option value="base">Producto base</option>
+                          {activeVariants.map(variant => (
+                            <option key={variant.idProducto} value={String(variant.idProducto)}>
+                              {variant.nombre} - S/ {variant.precio.toFixed(2)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                    <div className="space-y-1.5">
+                      <Label htmlFor="recipe-time" className="text-xs font-bold text-foreground">Tiempo de cocción / preparación</Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          id="recipe-time"
+                          type="number"
+                          min={1}
+                          value={recipeTime}
+                          onChange={e => {
+                            setRecipeTime(String(Math.max(1, parseInt(e.target.value, 10) || 1)));
+                            setSaved(false);
+                          }}
+                          className="w-24 h-10 rounded-xl"
+                        />
+                        <span className="text-xs text-muted-foreground font-semibold">minutos</span>
+                      </div>
                     </div>
                   </div>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Insumo</TableHead>
-                        <TableHead className="w-24">Cantidad</TableHead>
-                        <TableHead className="w-28">Tiempo min</TableHead>
-                        <TableHead className="hidden sm:table-cell">Unidad</TableHead>
-                        <TableHead>Costo</TableHead>
-                        <TableHead className="w-10"></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {localItems.map(item => (
-                        <TableRow key={item.supplyId}>
-                          <TableCell className="text-sm font-medium">{item.supplyName}</TableCell>
-                          <TableCell>
-                            <Input
-                              type="number"
-                              value={item.quantity}
-                              onChange={e => updateQty(item.supplyId, parseFloat(e.target.value) || 0)}
-                              className="h-7 w-20 text-sm"
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Input
-                              type="number"
-                              min={1}
-                              value={item.timeMinutes}
-                              onChange={e => updateTime(item.supplyId, Math.max(1, parseInt(e.target.value, 10) || 1))}
-                              className="h-7 w-20 text-sm"
-                            />
-                          </TableCell>
-                          <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">{item.unit}</TableCell>
-                          <TableCell className="text-sm">S/ {item.totalCost.toFixed(2)}</TableCell>
-                          <TableCell>
-                            <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => removeItem(item.supplyId)}>
-                              <X className="w-3.5 h-3.5" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                      {localItems.length === 0 && (
+
+                  <div className="rounded-xl border border-border overflow-hidden mt-3">
+                    <Table>
+                      <TableHeader>
                         <TableRow>
-                          <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                            <FlaskConical className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                            <p className="text-sm">Sin insumos. Agrega desde el panel de búsqueda.</p>
-                          </TableCell>
+                          <TableHead>Ingrediente / Insumo</TableHead>
+                          <TableHead className="w-24">Cantidad</TableHead>
+                          <TableHead className="hidden sm:table-cell">Medida</TableHead>
+                          <TableHead>Costo teo.</TableHead>
+                          <TableHead className="w-10"></TableHead>
                         </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
+                      </TableHeader>
+                      <TableBody>
+                        {localItems.map(item => (
+                          <TableRow key={item.supplyId}>
+                            <TableCell className="text-xs font-bold text-foreground">{item.supplyName}</TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                step="0.001"
+                                value={item.quantity}
+                                onChange={e => updateQty(item.supplyId, parseFloat(e.target.value) || 0)}
+                                className="h-8 w-20 text-xs rounded-lg font-bold"
+                              />
+                            </TableCell>
+                            <TableCell className="hidden sm:table-cell text-xs text-muted-foreground font-semibold">{item.unit}</TableCell>
+                            <TableCell className="text-xs font-bold text-foreground ui-tabular">S/ {item.totalCost.toFixed(2)}</TableCell>
+                            <TableCell>
+                              <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg ui-status-danger hover:bg-[var(--status-danger-surface)]" onClick={() => removeItem(item.supplyId)}>
+                                <X className="w-4 h-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        {localItems.length === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={5} className="text-center text-muted-foreground py-10 font-semibold">
+                              <FlaskConical className="w-8 h-8 mx-auto mb-2 opacity-40 text-primary" />
+                              <p className="text-xs">Esta receta no tiene ingredientes. Agrega insumos utilizando el buscador inferior.</p>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              </SectionCard>
 
               {/* Add supply */}
-              <Card>
-                <CardContent className="p-4 space-y-3">
-                  <p className="text-sm font-medium">Agregar insumo</p>
+              <Card className="border border-border bg-card text-card-foreground shadow-sm rounded-2xl overflow-hidden">
+                <CardContent className="p-5 space-y-3.5">
+                  <p className="text-sm font-bold text-foreground">Buscar e incluir ingredientes</p>
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                     <Input
-                      placeholder="Buscar insumo..."
-                      className="pl-9"
+                      placeholder="Escribe nombre de insumo a buscar..."
+                      className="pl-10 h-10 rounded-xl"
                       value={searchSupply}
                       onChange={e => { setSearchSupply(e.target.value); setAddSupplyId(null); }}
                     />
                   </div>
                   {searchSupply && (
-                    <div className="border border-border rounded-lg divide-y divide-border max-h-40 overflow-y-auto">
+                    <div className="border border-border rounded-xl divide-y divide-border/60 max-h-40 overflow-y-auto pr-1">
                       {filteredSupplies.length === 0 ? (
-                        <p className="text-sm text-muted-foreground px-3 py-2">Sin resultados</p>
+                        <p className="text-xs text-muted-foreground px-3.5 py-2.5 font-semibold">Sin ingredientes coincidentes disponibles</p>
                       ) : filteredSupplies.map(s => (
                         <button
                           key={s.idInsumo}
                           onClick={() => { setAddSupplyId(s.idInsumo); setSearchSupply(s.nombre); }}
-                          className={`w-full text-left px-3 py-2 text-sm hover:bg-accent/50 transition-colors ${addSupplyId === s.idInsumo ? 'bg-accent' : ''}`}
+                          className={cn(
+                            'w-full text-left px-3.5 py-2.5 text-xs hover:bg-accent/65 transition-colors font-medium flex justify-between items-center',
+                            addSupplyId === s.idInsumo && 'bg-accent font-semibold text-primary'
+                          )}
                         >
-                          <span className="font-medium">{s.nombre}</span>
-                          <span className="text-muted-foreground ml-2">S/ {s.costoPromedio.toFixed(3)}/{s.unidad}</span>
+                          <span>{s.nombre}</span>
+                          <span className="text-[10px] text-muted-foreground font-bold">S/ {s.costoPromedio.toFixed(3)} / {s.unidad}</span>
                         </button>
                       ))}
                     </div>
                   )}
                   <div className="flex gap-2">
                     <Input
-                      placeholder="Cantidad"
+                      placeholder="Cantidad porción"
                       type="number"
-                      className="w-32"
+                      step="0.001"
+                      className="w-32 h-10 rounded-xl font-bold"
                       value={addQty}
                       onChange={e => setAddQty(e.target.value)}
                     />
-                    <Button onClick={addItem} disabled={!addSupplyId || !addQty} className="flex-1">
-                      <Plus className="w-4 h-4 mr-1" /> Agregar
+                    <Button onClick={addItem} disabled={!addSupplyId || !addQty} className="flex-1 h-10 rounded-xl font-semibold gap-1.5">
+                      <Plus className="w-4 h-4" /> Agregar ingrediente
                     </Button>
                   </div>
                 </CardContent>
               </Card>
             </>
           ) : (
-            <div className="flex items-center justify-center h-64 text-muted-foreground">
-              <div className="text-center">
-                <FlaskConical className="w-12 h-12 mx-auto mb-3 opacity-40" />
-                <p className="text-sm">Selecciona o crea una receta</p>
-              </div>
-            </div>
+            <EmptyState
+              icon={FlaskConical}
+              title="Sin receta seleccionada"
+              description="Selecciona un plato de la carta elaborada a la izquierda o crea uno nuevo para empezar a detallar sus ingredientes."
+            />
           )}
         </div>
 
         {/* Right Panel: Cost Summary */}
         <div className="lg:col-span-1 space-y-4">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Resumen de Costos</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Costo total receta</span>
-                  <span className="text-sm font-semibold">S/ {totalCost.toFixed(2)}</span>
+          <Card className="border border-border bg-card text-card-foreground shadow-sm rounded-2xl overflow-hidden">
+            <div className="px-5 py-4 border-b border-border/60 bg-muted/15">
+              <h2 className="text-sm font-bold text-foreground uppercase tracking-wider">Margen y Costeo</h2>
+            </div>
+            <CardContent className="p-5 space-y-4">
+              <div className="space-y-3 font-semibold text-xs leading-normal">
+                <div className="flex justify-between items-center text-muted-foreground">
+                  <span>Costo ingredientes</span>
+                  <span className="text-foreground ui-tabular">S/ {totalCost.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Precio de venta</span>
-                  <span className="text-sm font-semibold">S/ {activeProduct?.precio.toFixed(2) || '0.00'}</span>
+                <div className="flex justify-between items-center text-muted-foreground">
+                  <span>Precio de venta</span>
+                  <span className="text-foreground ui-tabular">S/ {activeSalePrice.toFixed(2)}</span>
                 </div>
-                <Separator />
+                <Separator className="my-1.5" />
                 <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">Ganancia</span>
-                  <span className={`text-sm font-bold ${margin >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  <span className="text-sm font-bold text-foreground">Utilidad bruta</span>
+                  <span className={cn('text-sm font-bold ui-tabular', margin >= 0 ? 'ui-status-success' : 'ui-status-danger')}>
                     S/ {margin.toFixed(2)}
                   </span>
                 </div>
               </div>
 
-              {/* Margin indicator */}
-              <div className="space-y-2">
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Margen</span>
-                  <span>{marginPct.toFixed(1)}%</span>
+              {/* Margin indicator progress bar */}
+              <div className="space-y-2 pt-2 border-t border-border/40">
+                <div className="flex justify-between text-xs text-muted-foreground font-bold">
+                  <span>Margen bruto</span>
+                  <span className="text-foreground">{marginPct.toFixed(1)}%</span>
                 </div>
                 <div className="h-2 rounded-full bg-muted overflow-hidden">
                   <div
-                    className={`h-full rounded-full transition-all ${marginPct >= 60 ? 'bg-green-500' : marginPct >= 40 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                    className={cn(
+                      'h-full rounded-full transition-all',
+                      marginPct >= 65 ? 'bg-[var(--status-success)]' : marginPct >= 45 ? 'bg-[var(--status-warning)]' : 'bg-[var(--status-danger)]'
+                    )}
                     style={{ width: `${Math.min(Math.max(marginPct, 0), 100)}%` }}
                   />
                 </div>
-                <Badge variant={marginPct >= 60 ? 'default' : 'secondary'} className="text-xs w-full justify-center">
-                  {marginPct >= 60 ? 'Excelente rentabilidad' : marginPct >= 40 ? 'Rentabilidad aceptable' : 'Revisar costos'}
+                <Badge variant={marginPct >= 65 ? 'success' : marginPct >= 45 ? 'warning' : 'danger'} className="text-[10px] w-full justify-center py-1 font-bold shadow-2xs">
+                  {marginPct >= 65 ? 'Excelente rentabilidad' : marginPct >= 45 ? 'Margen ajustado' : 'Costo elevado / Pérdida'}
                 </Badge>
               </div>
 
-              <Separator />
+              <Separator className="my-2" />
 
-              {/* KPIs */}
+              {/* Stats lists */}
               <div className="space-y-2">
                 {[
-                  { label: 'Insumos', value: localItems.length, suffix: 'items' },
-                  { label: 'Costo/venta', value: activeProduct?.precio ? ((totalCost / activeProduct.precio) * 100).toFixed(1) : '0', suffix: '%' },
+                  { label: 'Total ingredientes', value: localItems.length, suffix: 'insumos' },
+                  { label: 'Tiempo de preparación', value: Math.max(1, parseInt(recipeTime, 10) || 1), suffix: 'minutos' },
+                  { label: 'Porcentaje costo/venta', value: activeSalePrice ? ((totalCost / activeSalePrice) * 100).toFixed(1) : '0', suffix: '%' },
                 ].map(k => (
-                  <div key={k.label} className="flex justify-between items-center p-2 rounded-lg bg-muted/50">
-                    <span className="text-xs text-muted-foreground">{k.label}</span>
-                    <span className="text-sm font-medium">{k.value} {k.suffix}</span>
+                  <div key={k.label} className="flex justify-between items-center p-2.5 rounded-xl border border-border/40 bg-muted/20 text-xs font-semibold text-muted-foreground">
+                    <span>{k.label}</span>
+                    <span className="text-foreground">{k.value} {k.suffix}</span>
                   </div>
                 ))}
               </div>
 
               {saveError && (
-                <p className="text-xs text-destructive">{saveError}</p>
+                <div className="rounded-xl border ui-status-warning-soft px-3.5 py-2.5 text-xs font-semibold flex items-center gap-1.5">
+                  <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                  {saveError}
+                </div>
               )}
               {saved && (
-                <p className="text-xs text-green-600">✓ Receta guardada correctamente</p>
+                <div className="rounded-xl border ui-status-success-soft px-3.5 py-2.5 text-xs font-bold text-center">
+                  ✓ Receta guardada en el servidor
+                </div>
               )}
 
               <Button
-                className="w-full"
-                size="sm"
+                className="w-full h-11 rounded-xl font-semibold gap-1.5 mt-2 bg-primary text-primary-foreground hover:bg-primary/95"
                 onClick={handleSaveRecipe}
                 disabled={!activeProduct || isUpdating}
               >
-                {isUpdating ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : null}
+                {isUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                 Guardar Receta
               </Button>
             </CardContent>
           </Card>
         </div>
       </div>
-    </div>
+    </PageWrapper>
   );
 }

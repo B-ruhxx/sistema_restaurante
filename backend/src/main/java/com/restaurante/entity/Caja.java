@@ -8,13 +8,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.Generated;
-import org.hibernate.generator.EventType;
 
 @Entity
-@Table(name = "caja", uniqueConstraints = {
-        @UniqueConstraint(name = "uk_empleado_caja_abierta", columnNames = { "id_empleado", "caja_abierta" })
-})
+@Table(name = "caja")
 public class Caja {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -22,24 +18,24 @@ public class Caja {
     private Integer idCaja;
 
     @ManyToOne(optional = false)
-    @JoinColumn(name = "id_empleado", nullable = false)
+    @JoinColumn(name = "id_empleado_apertura", nullable = false)
     private Empleado empleado;
+
+    @ManyToOne
+    @JoinColumn(name = "id_empleado_cierre")
+    private Empleado empleadoCierre;
 
     @Enumerated(EnumType.STRING)
     @Column(columnDefinition = "ENUM('ABIERTA', 'CERRADA') DEFAULT 'ABIERTA'")
     private Estado estado = Estado.ABIERTA;
 
-    @Generated(event = { EventType.INSERT, EventType.UPDATE })
-    @Column(name = "caja_abierta", insertable = false, updatable = false)
-    private Boolean cajaAbierta;
-
-    @Column(name = "monto_apertura", precision = 10, scale = 2)
+    @Column(name = "monto_inicial", precision = 10, scale = 2)
     private BigDecimal montoApertura;
 
-    @Column(name = "monto_cierre", precision = 10, scale = 2)
+    @Column(name = "monto_final", precision = 10, scale = 2)
     private BigDecimal montoCierre;
 
-    @Column(name = "monto_sistema", precision = 10, scale = 2)
+    @Column(name = "saldo_esperado", precision = 10, scale = 2)
     private BigDecimal montoSistema = BigDecimal.ZERO;
 
     @Column(precision = 10, scale = 2)
@@ -60,9 +56,6 @@ public class Caja {
     @JsonIgnore
     @OneToMany(mappedBy = "caja", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Venta> ventas = new ArrayList<>();
-
-    @Version
-    private Long version = 0L;
 
     public enum Estado {
         ABIERTA, CERRADA
@@ -97,6 +90,14 @@ public class Caja {
         this.empleado = empleado;
     }
 
+    public Empleado getEmpleadoCierre() {
+        return empleadoCierre;
+    }
+
+    public void setEmpleadoCierre(Empleado empleadoCierre) {
+        this.empleadoCierre = empleadoCierre;
+    }
+
     public Estado getEstado() {
         return estado;
     }
@@ -106,7 +107,7 @@ public class Caja {
     }
 
     public Boolean getCajaAbierta() {
-        return cajaAbierta;
+        return estado == Estado.ABIERTA;
     }
 
     public BigDecimal getMontoApertura() {
@@ -159,14 +160,6 @@ public class Caja {
 
     public void setFechaCierre(LocalDateTime fechaCierre) {
         this.fechaCierre = fechaCierre;
-    }
-
-    public Long getVersion() {
-        return version;
-    }
-
-    public void setVersion(Long version) {
-        this.version = version;
     }
 
     @Override

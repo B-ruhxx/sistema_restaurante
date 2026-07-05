@@ -1,8 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { clientesApi, ClienteRequest } from '../api/clientes';
+import { clientesApi, Cliente, ClienteRequest } from '../api/clientes';
 import { PrivateQueryOptions, usePrivateQueryEnabled } from './usePrivateQuery';
 
-const EMPTY_ARRAY: any[] = [];
+const EMPTY_ARRAY: Cliente[] = [];
 
 export const useClientes = ({ enabled = true }: PrivateQueryOptions = {}) => {
   const queryClient = useQueryClient();

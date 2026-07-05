@@ -1,14 +1,16 @@
 import { useState } from 'react';
 import {
-  Plus, Search, Pencil, Trash2, MoreHorizontal, Building2, Phone, Mail, Loader2,
+  Plus, Pencil, Trash2, MoreHorizontal, Building2, Phone, Mail, Loader2, RotateCcw,
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Badge } from '../components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '../components/ui/dialog';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '../components/ui/select';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '../components/ui/dropdown-menu';
@@ -19,12 +21,12 @@ import {
 import { toast } from '../../lib/notifications';
 import { useProveedores } from '../../hooks/useProveedores';
 import type { Proveedor, ProveedorRequest } from '../../api/proveedores';
+import { PageWrapper, ModuleHeader, KpiCard, FilterToolbar, EmptyState, SectionCard } from '../components/ui/erp-layout';
 
 const emptyForm: ProveedorRequest = {
   razonSocial: '',
-  nombreComercial: '',
   ruc: '',
-  contactoPrincipal: '',
+  contacto: '',
   email: '',
   telefono: '',
   direccion: '',
@@ -41,6 +43,7 @@ export function Suppliers() {
   } = useProveedores();
 
   const [search, setSearch] = useState('');
+  const [estadoFilter, setEstadoFilter] = useState<'ACTIVO' | 'INACTIVO' | 'TODOS'>('ACTIVO');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editing, setEditing] = useState<Proveedor | null>(null);
@@ -48,14 +51,16 @@ export function Suppliers() {
   const [form, setForm] = useState<ProveedorRequest>(emptyForm);
 
   const filtered = proveedores.filter((s: Proveedor) => {
-    if (s.estado === 'INACTIVO') return false;
     const q = search.toLowerCase();
-    return (
+    const estado = (s.estado || 'ACTIVO') as 'ACTIVO' | 'INACTIVO';
+    const matchesEstado = estadoFilter === 'TODOS' || estado === estadoFilter;
+    const matchesSearch = (
       s.razonSocial.toLowerCase().includes(q) ||
       (s.ruc && s.ruc.includes(q)) ||
-      (s.contactoPrincipal && s.contactoPrincipal.toLowerCase().includes(q)) ||
+      (s.contacto && s.contacto.toLowerCase().includes(q)) ||
       (s.email && s.email.toLowerCase().includes(q))
     );
+    return matchesEstado && matchesSearch;
   });
 
   const openCreate = () => {
@@ -68,9 +73,8 @@ export function Suppliers() {
     setEditing(s);
     setForm({
       razonSocial: s.razonSocial,
-      nombreComercial: s.nombreComercial || '',
       ruc: s.ruc || '',
-      contactoPrincipal: s.contactoPrincipal || '',
+      contacto: s.contacto || '',
       email: s.email || '',
       telefono: s.telefono || '',
       direccion: s.direccion || '',
@@ -80,22 +84,41 @@ export function Suppliers() {
   };
 
   const handleSave = async () => {
-    if (!form.razonSocial.trim()) {
+    const payload: ProveedorRequest = {
+      razonSocial: form.razonSocial.trim(),
+      ruc: form.ruc?.trim() || undefined,
+      contacto: form.contacto?.trim() || undefined,
+      email: form.email?.trim() || undefined,
+      telefono: form.telefono?.trim() || undefined,
+      direccion: form.direccion?.trim() || undefined,
+      estado: form.estado,
+    };
+
+    if (!payload.razonSocial) {
       toast.error('La razón social es obligatoria');
+      return;
+    }
+    if (payload.ruc && payload.ruc.length !== 11) {
+      toast.error('El RUC debe tener 11 dígitos');
       return;
     }
     try {
       if (editing) {
-        await updateProveedor({ id: editing.idProveedor, data: form });
+        await updateProveedor({ id: editing.idProveedor, data: payload });
         toast.success('Proveedor actualizado correctamente');
       } else {
-        await createProveedor(form);
+        await createProveedor(payload);
         toast.success('Proveedor creado correctamente');
       }
       setDialogOpen(false);
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      toast.error(err.response?.data || 'Error al guardar proveedor');
+      const apiError = err as AppApiErrorLike;
+      const errorMessage =
+        typeof apiError.response?.data === 'string'
+          ? apiError.response.data
+          : apiError.response?.data?.message;
+      toast.error(errorMessage || 'Error al guardar proveedor');
     }
   };
 
@@ -103,11 +126,37 @@ export function Suppliers() {
     if (!deleting) return;
     try {
       await deleteProveedor(deleting.idProveedor);
-      toast.success('Proveedor eliminado correctamente');
+      toast.success('Proveedor inactivado correctamente');
       setDeleteOpen(false);
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      toast.error(err.response?.data || 'Error al eliminar proveedor');
+      const apiError = err as AppApiErrorLike;
+      const errorMessage =
+        typeof apiError.response?.data === 'string'
+          ? apiError.response.data
+          : apiError.response?.data?.message;
+      toast.error(errorMessage || 'Error al inactivar proveedor');
+    }
+  };
+
+  const handleReactivate = async (proveedor: Proveedor) => {
+    try {
+      await updateProveedor({
+        id: proveedor.idProveedor,
+        data: {
+          razonSocial: proveedor.razonSocial,
+          ruc: proveedor.ruc,
+          contacto: proveedor.contacto,
+          email: proveedor.email,
+          telefono: proveedor.telefono,
+          direccion: proveedor.direccion,
+          estado: 'ACTIVO',
+        },
+      });
+      toast.success('Proveedor reactivado correctamente');
+    } catch (err) {
+      console.error(err);
+      toast.error('Error al reactivar proveedor');
     }
   };
 
@@ -115,249 +164,244 @@ export function Suppliers() {
 
   if (isLoading) {
     return (
-      <div className="h-[80vh] flex flex-col items-center justify-center gap-2">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="h-[80vh] flex flex-col items-center justify-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+          <Loader2 className="w-5 h-5 animate-spin text-primary" />
+        </div>
         <p className="text-sm text-muted-foreground">Cargando proveedores...</p>
       </div>
     );
   }
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <Building2 className="w-6 h-6 text-primary" />
-            <h1 className="text-2xl font-semibold">Proveedores</h1>
-          </div>
-          <p className="text-sm text-muted-foreground">{activos} proveedores activos</p>
-        </div>
-        <Button onClick={openCreate}>
-          <Plus className="w-4 h-4 mr-2" />
-          Nuevo Proveedor
-        </Button>
-      </div>
+    <PageWrapper>
+      <ModuleHeader
+        breadcrumbs={[
+          { label: 'Inventario' },
+          { label: 'Proveedores' },
+        ]}
+        icon={Building2}
+        iconColor="blue"
+        title="Proveedores"
+        subtitle="Directorio de proveedores para compras, abastecimiento y control de contratos."
+        action={
+          <Button onClick={openCreate} className="h-11 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95 gap-2 font-semibold">
+            <Plus className="w-4 h-4" /> Nuevo Proveedor
+          </Button>
+        }
+      />
 
-      {/* Stats */}
+      {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardDescription>Total Proveedores</CardDescription>
-            <CardTitle className="text-3xl">{proveedores.length}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-xs text-muted-foreground">En la base de datos</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-3">
-            <CardDescription>Activos</CardDescription>
-            <CardTitle className="text-3xl text-green-600">{activos}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-xs text-muted-foreground">Disponibles para compras</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-3">
-            <CardDescription>Inactivos</CardDescription>
-            <CardTitle className="text-3xl text-red-600">
-              {proveedores.length - activos}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-xs text-muted-foreground">Suspendidos temporalmente</div>
-          </CardContent>
-        </Card>
+        <KpiCard icon={Building2} label="Total Proveedores" value={proveedores.length} color="slate" />
+        <KpiCard icon={Building2} label="Activos" value={activos} color="green" />
+        <KpiCard icon={Building2} label="Inactivos" value={proveedores.length - activos} color="red" />
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder="Buscar proveedor, RUC, contacto..."
-          className="pl-9"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-      </div>
+      {/* Filters */}
+      <FilterToolbar
+        search={{
+          value: search,
+          onChange: setSearch,
+          placeholder: 'Buscar proveedor, RUC, contacto...',
+        }}
+        filters={
+          <Select value={estadoFilter} onValueChange={(value) => setEstadoFilter(value as 'ACTIVO' | 'INACTIVO' | 'TODOS')}>
+            <SelectTrigger className="w-44 h-11 rounded-xl">
+              <SelectValue placeholder="Estado" />
+            </SelectTrigger>
+            <SelectContent className="rounded-xl">
+              <SelectItem value="ACTIVO" className="rounded-lg">Activos</SelectItem>
+              <SelectItem value="INACTIVO" className="rounded-lg">Inactivos</SelectItem>
+              <SelectItem value="TODOS" className="rounded-lg">Todos</SelectItem>
+            </SelectContent>
+          </Select>
+        }
+      />
 
       {/* Table */}
-      <Card>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Razón Social</TableHead>
-              <TableHead className="hidden md:table-cell">RUC</TableHead>
-              <TableHead className="hidden lg:table-cell">Contacto</TableHead>
-              <TableHead className="hidden sm:table-cell">Email / Teléfono</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead className="w-12"></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.map((s: Proveedor) => (
-              <TableRow key={s.idProveedor}>
-                <TableCell>
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      <Building2 className="w-4 h-4 text-primary" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-sm">{s.razonSocial}</p>
-                      {s.nombreComercial && (
-                        <p className="text-xs text-muted-foreground">{s.nombreComercial}</p>
-                      )}
-                      {s.direccion && (
-                        <p className="text-xs text-muted-foreground">{s.direccion}</p>
-                      )}
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell className="hidden md:table-cell text-sm font-mono">
-                  {s.ruc || <span className="text-muted-foreground italic text-xs">Sin RUC</span>}
-                </TableCell>
-                <TableCell className="hidden lg:table-cell text-sm">
-                  {s.contactoPrincipal || <span className="text-muted-foreground italic text-xs">Sin contacto</span>}
-                </TableCell>
-                <TableCell className="hidden sm:table-cell">
-                  <div className="text-xs space-y-0.5">
-                    {s.email && (
-                      <div className="flex items-center gap-1 text-muted-foreground">
-                        <Mail className="w-3 h-3" />
-                        {s.email}
+      {filtered.length === 0 ? (
+        <EmptyState
+          icon={Building2}
+          title="Sin proveedores encontrados"
+          description="Registra tus proveedores para poder asociarlos a órdenes de compra y abastecimiento."
+          action={
+            <Button onClick={openCreate} className="h-10 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95">
+              <Plus className="w-4 h-4 mr-2" />
+              Nuevo Proveedor
+            </Button>
+          }
+        />
+      ) : (
+        <SectionCard
+          title="Directorio de Proveedores"
+          description={`Listando ${filtered.length} proveedores.`}
+          icon={Building2}
+          iconColor="blue"
+        >
+          <div className="rounded-xl border border-border overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Razón Social</TableHead>
+                  <TableHead className="hidden md:table-cell">RUC</TableHead>
+                  <TableHead className="hidden lg:table-cell">Contacto</TableHead>
+                  <TableHead className="hidden sm:table-cell">Email / Teléfono</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead className="w-12"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.map((s: Proveedor) => (
+                  <TableRow key={s.idProveedor}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                          <Building2 className="w-4 h-4 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-foreground text-sm">{s.razonSocial}</p>
+                          {s.direccion && (
+                            <p className="text-xs text-muted-foreground font-medium">{s.direccion}</p>
+                          )}
+                        </div>
                       </div>
-                    )}
-                    {s.telefono && (
-                      <div className="flex items-center gap-1 text-muted-foreground">
-                        <Phone className="w-3 h-3" />
-                        {s.telefono}
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell font-mono text-xs font-bold text-foreground">
+                      {s.ruc || <span className="text-muted-foreground italic not-italic font-medium">Sin RUC</span>}
+                    </TableCell>
+                    <TableCell className="hidden lg:table-cell text-xs font-semibold text-muted-foreground">
+                      {s.contacto || <span className="italic not-italic font-medium">Sin contacto</span>}
+                    </TableCell>
+                    <TableCell className="hidden sm:table-cell">
+                      <div className="text-xs space-y-1">
+                        {s.email && (
+                          <div className="flex items-center gap-1.5 text-muted-foreground font-medium">
+                            <Mail className="w-3 h-3" />
+                            {s.email}
+                          </div>
+                        )}
+                        {s.telefono && (
+                          <div className="flex items-center gap-1.5 text-muted-foreground font-medium">
+                            <Phone className="w-3 h-3" />
+                            {s.telefono}
+                          </div>
+                        )}
+                        {!s.email && !s.telefono && (
+                          <span className="italic font-medium not-italic text-muted-foreground">Sin contacto</span>
+                        )}
                       </div>
-                    )}
-                    {!s.email && !s.telefono && (
-                      <span className="italic text-muted-foreground">Sin contacto</span>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  {s.estado !== 'INACTIVO' ? (
-                    <Badge variant="default">Activo</Badge>
-                  ) : (
-                    <Badge variant="secondary">Inactivo</Badge>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button size="icon" variant="ghost" className="h-8 w-8">
-                        <MoreHorizontal className="w-4 h-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => openEdit(s)}>
-                        <Pencil className="w-4 h-4 mr-2" /> Editar
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        className="text-destructive"
-                        onClick={() => { setDeleting(s); setDeleteOpen(true); }}
-                      >
-                        <Trash2 className="w-4 h-4 mr-2" /> Eliminar
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
-            ))}
-            {filtered.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                  No se encontraron proveedores.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </Card>
+                    </TableCell>
+                    <TableCell>
+                      {s.estado !== 'INACTIVO' ? (
+                        <Badge variant="success" className="shadow-2xs">Activo</Badge>
+                      ) : (
+                        <Badge variant="danger" className="shadow-2xs">Inactivo</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg">
+                            <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="rounded-xl">
+                          <DropdownMenuItem onClick={() => openEdit(s)} className="rounded-lg">
+                            <Pencil className="w-4 h-4 mr-2 text-muted-foreground" /> Editar
+                          </DropdownMenuItem>
+                          {s.estado === 'INACTIVO' && (
+                            <DropdownMenuItem onClick={() => handleReactivate(s)} className="rounded-lg">
+                              <RotateCcw className="w-4 h-4 mr-2 text-muted-foreground" /> Reactivar
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem
+                            className="ui-status-danger rounded-lg focus:bg-[var(--status-danger-surface)]"
+                            onClick={() => { setDeleting(s); setDeleteOpen(true); }}
+                            disabled={s.estado === 'INACTIVO'}
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" /> Inactivar
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </SectionCard>
+      )}
 
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg rounded-2xl">
           <DialogHeader>
-            <DialogTitle>{editing ? 'Editar Proveedor' : 'Nuevo Proveedor'}</DialogTitle>
+            <DialogTitle className="text-lg font-bold">{editing ? 'Editar Proveedor' : 'Nuevo Proveedor'}</DialogTitle>
           </DialogHeader>
-          <div className="grid grid-cols-2 gap-4 py-2">
-            <div className="col-span-2">
-              <Label>Razón Social *</Label>
+          <div className="grid grid-cols-2 gap-4 py-2 mt-1">
+            <div className="col-span-2 space-y-1.5">
+              <Label className="text-sm font-semibold">Razón Social *</Label>
               <Input
                 placeholder="Ej: Distribuidora El Sol S.A.C."
                 value={form.razonSocial}
                 onChange={(e) => setForm((f) => ({ ...f, razonSocial: e.target.value }))}
-                className="mt-1"
+                className="h-11 rounded-xl"
               />
             </div>
-            <div>
-              <Label>Nombre Comercial</Label>
-              <Input
-                placeholder="Nombre que usa normalmente"
-                value={form.nombreComercial}
-                onChange={(e) => setForm((f) => ({ ...f, nombreComercial: e.target.value }))}
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label>RUC</Label>
+            <div className="space-y-1.5">
+              <Label className="text-sm font-semibold">RUC</Label>
               <Input
                 placeholder="20512345678"
                 value={form.ruc}
                 onChange={(e) => setForm((f) => ({ ...f, ruc: e.target.value }))}
-                className="mt-1"
+                className="h-11 rounded-xl font-mono"
                 maxLength={11}
               />
             </div>
-            <div>
-              <Label>Persona de contacto</Label>
+            <div className="space-y-1.5">
+              <Label className="text-sm font-semibold">Persona de contacto</Label>
               <Input
                 placeholder="Nombre completo"
-                value={form.contactoPrincipal}
-                onChange={(e) => setForm((f) => ({ ...f, contactoPrincipal: e.target.value }))}
-                className="mt-1"
+                value={form.contacto}
+                onChange={(e) => setForm((f) => ({ ...f, contacto: e.target.value }))}
+                className="h-11 rounded-xl"
               />
             </div>
-            <div>
-              <Label>Teléfono</Label>
+            <div className="space-y-1.5">
+              <Label className="text-sm font-semibold">Teléfono</Label>
               <Input
                 placeholder="01-234-5678"
                 value={form.telefono}
                 onChange={(e) => setForm((f) => ({ ...f, telefono: e.target.value }))}
-                className="mt-1"
+                className="h-11 rounded-xl"
               />
             </div>
-            <div className="col-span-2">
-              <Label>Correo electrónico</Label>
+            <div className="space-y-1.5">
+              <Label className="text-sm font-semibold">Correo electrónico</Label>
               <Input
                 type="email"
                 placeholder="contacto@empresa.pe"
                 value={form.email}
                 onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                className="mt-1"
+                className="h-11 rounded-xl"
               />
             </div>
-            <div className="col-span-2">
-              <Label>Dirección</Label>
+            <div className="col-span-2 space-y-1.5">
+              <Label className="text-sm font-semibold">Dirección</Label>
               <Input
                 placeholder="Calle, número, distrito"
                 value={form.direccion}
                 onChange={(e) => setForm((f) => ({ ...f, direccion: e.target.value }))}
-                className="mt-1"
+                className="h-11 rounded-xl"
               />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+          <DialogFooter className="gap-2 sm:gap-0 mt-5 pt-3 border-t border-border/40">
+            <Button variant="outline" onClick={() => setDialogOpen(false)} className="h-10 rounded-xl">
               Cancelar
             </Button>
-            <Button onClick={handleSave} disabled={!form.razonSocial.trim()}>
+            <Button onClick={handleSave} disabled={!form.razonSocial.trim()} className="h-10 rounded-xl font-semibold">
               {editing ? 'Guardar cambios' : 'Crear proveedor'}
             </Button>
           </DialogFooter>
@@ -366,24 +410,23 @@ export function Suppliers() {
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent className="sm:max-w-sm rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Eliminar proveedor</DialogTitle>
+            <DialogTitle className="text-lg font-bold">Inactivar proveedor</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            ¿Estás seguro de que deseas eliminar a{' '}
-            <strong>{deleting?.razonSocial}</strong>? Esta acción no se puede deshacer.
+          <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+            ¿Estás seguro de que deseas inactivar a <strong>{deleting?.razonSocial}</strong>? No podrá ser seleccionado en futuras compras.
           </p>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteOpen(false)}>
+          <DialogFooter className="gap-2 sm:gap-0 mt-4">
+            <Button variant="outline" onClick={() => setDeleteOpen(false)} className="h-10 rounded-xl">
               Cancelar
             </Button>
-            <Button variant="destructive" onClick={handleDelete}>
-              Eliminar
+            <Button variant="destructive" onClick={handleDelete} className="h-10 rounded-xl font-semibold">
+              Inactivar
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageWrapper>
   );
 }

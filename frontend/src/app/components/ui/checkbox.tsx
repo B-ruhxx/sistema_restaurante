@@ -6,9 +6,7 @@ import { CheckIcon } from "lucide-react";
 
 import { cn } from "./utils";
 
-// Exponemos la interfaz para mejorar DX y permitir extensiones del sistema de diseño
-export interface CheckboxProps
-  extends React.ComponentPropsWithoutRef<typeof CheckboxPrimitive.Root> { }
+type CheckboxProps = React.ComponentPropsWithoutRef<typeof CheckboxPrimitive.Root>;
 
 function Checkbox({ className, ...props }: CheckboxProps) {
   return (

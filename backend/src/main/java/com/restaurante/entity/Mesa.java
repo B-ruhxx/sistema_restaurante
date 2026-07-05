@@ -17,9 +17,6 @@ public class Mesa {
     @Column(nullable = false, unique = true, length = 20)
     private String numero;
 
-    @Column(length = 80)
-    private String nombre;
-
     @Column(nullable = false)
     private Integer capacidad = 4;
 
@@ -27,8 +24,8 @@ public class Mesa {
     private String ubicacion;
 
     @Enumerated(EnumType.STRING)
-    @Column(columnDefinition = "ENUM('LIBRE','OCUPADA','ESPERANDO_COCINA','SERVIDO','CUENTA_EMITIDA','PAGADA') DEFAULT 'LIBRE'")
-    private Estado estado = Estado.LIBRE;
+    @Column(columnDefinition = "ENUM('DISPONIBLE','ATENCION','EN_COCINA','SERVIDO','CUENTA','BLOQUEADA') DEFAULT 'DISPONIBLE'")
+    private Estado estado = Estado.DISPONIBLE;
 
     @Version
     private Long version = 0L;
@@ -42,7 +39,7 @@ public class Mesa {
     private LocalDateTime updatedAt;
 
     public enum Estado {
-        LIBRE, OCUPADA, ESPERANDO_COCINA, SERVIDO, CUENTA_EMITIDA, PAGADA
+        DISPONIBLE, ATENCION, EN_COCINA, SERVIDO, CUENTA, BLOQUEADA
     }
 
     public Integer getIdMesa() {
@@ -59,14 +56,6 @@ public class Mesa {
 
     public void setNumero(String numero) {
         this.numero = numero;
-    }
-
-    public String getNombre() {
-        return nombre;
-    }
-
-    public void setNombre(String nombre) {
-        this.nombre = nombre;
     }
 
     public Integer getCapacidad() {

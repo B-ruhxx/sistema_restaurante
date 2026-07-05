@@ -6,6 +6,10 @@ public class ExtraProductoResponse {
     private Integer idExtra;
     private String nombre;
     private BigDecimal precio;
+    private Integer idInsumo;
+    private String nombreInsumo;
+    private String unidadMedidaInsumo;
+    private BigDecimal cantidadConsumida;
     private String estado;
 
     public Integer getIdExtra() {
@@ -30,6 +34,38 @@ public class ExtraProductoResponse {
 
     public void setPrecio(BigDecimal precio) {
         this.precio = precio;
+    }
+
+    public Integer getIdInsumo() {
+        return idInsumo;
+    }
+
+    public void setIdInsumo(Integer idInsumo) {
+        this.idInsumo = idInsumo;
+    }
+
+    public String getNombreInsumo() {
+        return nombreInsumo;
+    }
+
+    public void setNombreInsumo(String nombreInsumo) {
+        this.nombreInsumo = nombreInsumo;
+    }
+
+    public String getUnidadMedidaInsumo() {
+        return unidadMedidaInsumo;
+    }
+
+    public void setUnidadMedidaInsumo(String unidadMedidaInsumo) {
+        this.unidadMedidaInsumo = unidadMedidaInsumo;
+    }
+
+    public BigDecimal getCantidadConsumida() {
+        return cantidadConsumida;
+    }
+
+    public void setCantidadConsumida(BigDecimal cantidadConsumida) {
+        this.cantidadConsumida = cantidadConsumida;
     }
 
     public String getEstado() {

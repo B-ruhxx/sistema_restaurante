@@ -1,52 +1,43 @@
 import api from './auth';
+import type { ApiSchemas } from './generated/openapi-types';
 
-export interface VentaPagoRequest {
+export interface VentaPagoRequest extends Omit<ApiSchemas.VentaPagoRequest, 'idMetodoPago' | 'monto' | 'referencia'> {
   idMetodoPago: number;
   monto: number;
-  numeroOperacion?: string;
+  referencia?: string;
 }
 
-export interface VentaRequest {
-  idPedido?: number;
-  tipoComprobante: 'BOLETA' | 'FACTURA';
-  serie?: string;
-  correlativo?: string;
+export interface VentaRequest extends Omit<ApiSchemas.VentaRequest, 'tipoComprobante' | 'pagos'> {
+  tipoComprobante: 'BOLETA' | 'FACTURA' | 'TICKET';
   pagos: VentaPagoRequest[];
 }
 
-export interface DetalleVenta {
+export interface DetalleVenta extends Omit<ApiSchemas.DetalleVentaResponse, 'idDetalle' | 'cantidad' | 'precioUnitario' | 'subtotal'> {
   idDetalle: number;
-  idProducto?: number;
-  nombreProducto?: string;
-  idCombo?: number;
-  nombreCombo?: string;
   cantidad: number;
   precioUnitario: number;
   subtotal: number;
 }
 
-export interface VentaPago {
-  idPago: number;
-  metodoPagoNombre: string;
+export interface VentaPago extends Omit<ApiSchemas.VentaPagoResponse, 'idVentaPago' | 'nombreMetodoPago' | 'monto' | 'estado' | 'referencia'> {
+  idVentaPago: number;
+  nombreMetodoPago: string;
   monto: number;
-  numeroOperacion?: string;
+  referencia?: string;
   estado: string;
 }
 
-export interface Venta {
+export interface Venta extends Omit<ApiSchemas.VentaResponse, 'idVenta' | 'comprobante' | 'fecha' | 'subtotal' | 'igv' | 'total' | 'tipoComprobante' | 'estado' | 'cajeroNombre' | 'idCaja' | 'detalles' | 'pagos'> {
   idVenta: number;
-  codigoVenta: string;
+  comprobante?: string;
   fecha: string;
   subtotal: number;
-  subtotalGravado: number;
   igv: number;
-  igvPorcentaje: number;
   total: number;
-  tipoComprobante: 'BOLETA' | 'FACTURA';
+  tipoComprobante: 'BOLETA' | 'FACTURA' | 'TICKET';
   serie?: string;
-  correlativo?: string;
-  estado: 'PENDIENTE' | 'PAGADA' | 'ANULADA';
-  idPedido?: number;
+  numero?: string;
+  estado: 'EMITIDA' | 'ANULADA';
   cajeroNombre: string;
   idCaja: number;
   detalles?: DetalleVenta[];

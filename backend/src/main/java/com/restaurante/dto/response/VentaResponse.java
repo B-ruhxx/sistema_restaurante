@@ -5,16 +5,14 @@ import java.time.LocalDateTime;
 
 public class VentaResponse {
     private Integer idVenta;
-    private String codigoVenta;
+    private String comprobante;
     private LocalDateTime fecha;
     private BigDecimal subtotal;
-    private BigDecimal subtotalGravado;
     private BigDecimal igv;
-    private BigDecimal igvPorcentaje;
     private BigDecimal total;
     private String tipoComprobante;
     private String serie;
-    private String correlativo;
+    private String numero;
     private String estado;
     private Integer idPedido;
     private String cajeroNombre;
@@ -28,12 +26,12 @@ public class VentaResponse {
         this.idVenta = idVenta;
     }
 
-    public String getCodigoVenta() {
-        return codigoVenta;
+    public String getComprobante() {
+        return comprobante;
     }
 
-    public void setCodigoVenta(String codigoVenta) {
-        this.codigoVenta = codigoVenta;
+    public void setComprobante(String comprobante) {
+        this.comprobante = comprobante;
     }
 
     public LocalDateTime getFecha() {
@@ -52,28 +50,12 @@ public class VentaResponse {
         this.subtotal = subtotal;
     }
 
-    public BigDecimal getSubtotalGravado() {
-        return subtotalGravado;
-    }
-
-    public void setSubtotalGravado(BigDecimal subtotalGravado) {
-        this.subtotalGravado = subtotalGravado;
-    }
-
-    public BigDecimal getigv() {
+    public BigDecimal getIgv() {
         return igv;
     }
 
-    public void setigv(BigDecimal igv) {
+    public void setIgv(BigDecimal igv) {
         this.igv = igv;
-    }
-
-    public BigDecimal getIgvPorcentaje() {
-        return igvPorcentaje;
-    }
-
-    public void setIgvPorcentaje(BigDecimal igvPorcentaje) {
-        this.igvPorcentaje = igvPorcentaje;
     }
 
     public BigDecimal getTotal() {
@@ -100,12 +82,12 @@ public class VentaResponse {
         this.serie = serie;
     }
 
-    public String getCorrelativo() {
-        return correlativo;
+    public String getNumero() {
+        return numero;
     }
 
-    public void setCorrelativo(String correlativo) {
-        this.correlativo = correlativo;
+    public void setNumero(String numero) {
+        this.numero = numero;
     }
 
     public String getEstado() {

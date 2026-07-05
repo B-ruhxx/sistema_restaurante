@@ -10,24 +10,23 @@ const Toaster = ({ ...props }: ToasterProps) => {
     <Sonner
       theme={theme as ToasterProps["theme"]}
       className="toaster group"
-      // Definición de variables CSS para sincronización con el sistema de diseño
       style={
         {
-          "--normal-bg": "hsl(var(--popover))",
-          "--normal-text": "hsl(var(--popover-foreground))",
-          "--normal-border": "hsl(var(--border))",
-          "--error-bg": "hsl(var(--destructive))",
-          "--error-text": "hsl(var(--destructive-foreground))",
-          "--error-border": "hsl(var(--destructive))",
-          "--success-bg": "hsl(var(--background))",
-          "--success-text": "hsl(var(--foreground))",
-          "--success-border": "hsl(var(--border))",
+          "--normal-bg": "var(--popover)",
+          "--normal-text": "var(--popover-foreground)",
+          "--normal-border": "var(--border)",
+          "--error-bg": "var(--status-danger-surface)",
+          "--error-text": "var(--status-danger)",
+          "--error-border": "var(--status-danger)",
+          "--success-bg": "var(--status-success-surface)",
+          "--success-text": "var(--status-success)",
+          "--success-border": "var(--status-success)",
         } as React.CSSProperties
       }
       toastOptions={{
         classNames: {
           toast:
-            "group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg",
+            "group toast group-[.toaster]:bg-popover group-[.toaster]:text-popover-foreground group-[.toaster]:border-border group-[.toaster]:shadow-ui-medium",
           description: "group-[.toast]:text-muted-foreground",
           actionButton:
             "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground",

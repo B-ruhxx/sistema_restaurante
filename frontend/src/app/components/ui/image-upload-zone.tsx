@@ -16,6 +16,7 @@ interface ImageUploadZoneProps {
   className?: string;
   label?: string;
   description?: string;
+  ctaText?: string;
 }
 
 export function ImageUploadZone({
@@ -25,6 +26,7 @@ export function ImageUploadZone({
   className = "",
   label = "Imagen",
   description = "Sube una imagen o arrástrala desde tu equipo o internet",
+  ctaText = "Subir imagen",
 }: ImageUploadZoneProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -209,7 +211,7 @@ export function ImageUploadZone({
             </div>
             <div className="grid gap-1">
               <p className="text-sm font-semibold text-primary tracking-tight">
-                Haz clic para subir o arrastra aquí
+                {ctaText}
               </p>
               {description && (
                 <p className="mx-auto max-w-[280px] text-xs text-muted-foreground/90 leading-normal">

@@ -23,24 +23,43 @@ public class MovimientoInventario {
     private Insumo insumo;
 
     @ManyToOne
+    @JoinColumn(name = "id_lote_insumo")
+    private LoteInsumo loteInsumo;
+
+    @ManyToOne
     @JoinColumn(name = "id_producto")
     private Producto producto;
 
+    @ManyToOne
+    @JoinColumn(name = "id_lote_producto")
+    private LoteProducto loteProducto;
+
     @Enumerated(EnumType.STRING)
-    @Column(name = "tipo_movimiento", columnDefinition = "ENUM('ENTRADA', 'SALIDA', 'AJUSTE', 'DEVOLUCION', 'CONSUMO') NOT NULL")
+    @Column(name = "tipo_movimiento", columnDefinition = "ENUM('ENTRADA_COMPRA','SALIDA_VENTA','SALIDA_AJUSTE','ENTRADA_ANULACION','MERMA','DEVOLUCION','CORRECCION') NOT NULL")
     private TipoMovimiento tipoMovimiento;
 
-    @Enumerated(EnumType.STRING)
-    @Column(columnDefinition = "ENUM('VENTA', 'COMPRA', 'AJUSTE', 'ANULACION', 'OTRO') NOT NULL")
-    private Origen origen;
+    @Column(name = "reference_type", nullable = false, length = 40)
+    private String referenceType;
 
-    @Column(name = "referencia_id")
-    private Integer referenciaId;
+    @Column(name = "reference_id", nullable = false)
+    private Integer referenceId;
 
-    @Column(nullable = false, precision = 10, scale = 2)
+    @Column(nullable = false, precision = 12, scale = 3)
     private BigDecimal cantidad;
 
-    @Column(length = 255)
+    @Column(name = "stock_anterior", nullable = false, precision = 12, scale = 3)
+    private BigDecimal stockAnterior;
+
+    @Column(name = "stock_nuevo", nullable = false, precision = 12, scale = 3)
+    private BigDecimal stockNuevo;
+
+    @Column(name = "costo_unitario", precision = 10, scale = 4)
+    private BigDecimal costoUnitario;
+
+    @Column(name = "saldo_valorizado", precision = 12, scale = 2)
+    private BigDecimal saldoValorizado;
+
+    @Column(nullable = false, length = 255)
     private String motivo;
 
     @CreationTimestamp
@@ -56,11 +75,7 @@ public class MovimientoInventario {
     }
 
     public enum TipoMovimiento {
-        ENTRADA, SALIDA, AJUSTE, DEVOLUCION, CONSUMO
-    }
-
-    public enum Origen {
-        VENTA, COMPRA, AJUSTE, ANULACION, OTRO
+        ENTRADA_COMPRA, SALIDA_VENTA, SALIDA_AJUSTE, ENTRADA_ANULACION, MERMA, DEVOLUCION, CORRECCION
     }
 
     public MovimientoInventario() {
@@ -90,12 +105,28 @@ public class MovimientoInventario {
         this.insumo = insumo;
     }
 
+    public LoteInsumo getLoteInsumo() {
+        return loteInsumo;
+    }
+
+    public void setLoteInsumo(LoteInsumo loteInsumo) {
+        this.loteInsumo = loteInsumo;
+    }
+
     public Producto getProducto() {
         return producto;
     }
 
     public void setProducto(Producto producto) {
         this.producto = producto;
+    }
+
+    public LoteProducto getLoteProducto() {
+        return loteProducto;
+    }
+
+    public void setLoteProducto(LoteProducto loteProducto) {
+        this.loteProducto = loteProducto;
     }
 
     public TipoMovimiento getTipoMovimiento() {
@@ -106,20 +137,20 @@ public class MovimientoInventario {
         this.tipoMovimiento = tipoMovimiento;
     }
 
-    public Origen getOrigen() {
-        return origen;
+    public String getReferenceType() {
+        return referenceType;
     }
 
-    public void setOrigen(Origen origen) {
-        this.origen = origen;
+    public void setReferenceType(String referenceType) {
+        this.referenceType = referenceType;
     }
 
-    public Integer getReferenciaId() {
-        return referenciaId;
+    public Integer getReferenceId() {
+        return referenceId;
     }
 
-    public void setReferenciaId(Integer referenciaId) {
-        this.referenciaId = referenciaId;
+    public void setReferenceId(Integer referenceId) {
+        this.referenceId = referenceId;
     }
 
     public BigDecimal getCantidad() {
@@ -128,6 +159,38 @@ public class MovimientoInventario {
 
     public void setCantidad(BigDecimal cantidad) {
         this.cantidad = cantidad;
+    }
+
+    public BigDecimal getStockAnterior() {
+        return stockAnterior;
+    }
+
+    public void setStockAnterior(BigDecimal stockAnterior) {
+        this.stockAnterior = stockAnterior;
+    }
+
+    public BigDecimal getStockNuevo() {
+        return stockNuevo;
+    }
+
+    public void setStockNuevo(BigDecimal stockNuevo) {
+        this.stockNuevo = stockNuevo;
+    }
+
+    public BigDecimal getCostoUnitario() {
+        return costoUnitario;
+    }
+
+    public void setCostoUnitario(BigDecimal costoUnitario) {
+        this.costoUnitario = costoUnitario;
+    }
+
+    public BigDecimal getSaldoValorizado() {
+        return saldoValorizado;
+    }
+
+    public void setSaldoValorizado(BigDecimal saldoValorizado) {
+        this.saldoValorizado = saldoValorizado;
     }
 
     public String getMotivo() {

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   Plus, Search, Pencil, Trash2, MoreHorizontal, LayoutGrid, List,
-  Tag, Percent, X, Package, Loader2
+  Percent, X, Loader2
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -24,10 +24,9 @@ import { cn, getFullImageUrl } from '../components/ui/utils';
 import { ImageUploadZone } from '../components/ui/image-upload-zone';
 import { useCombos } from '../../hooks/useCombos';
 import { useProductos } from '../../hooks/useProductos';
-import { ComboRequest } from '../../api/combos';
-import authApi from '../../api/auth';
+import type { Combo as ApiCombo, ComboDetalle, ComboRequest } from '../../api/combos';
 import { toast } from '../../lib/notifications';
-
+import { PageWrapper, ModuleHeader, KpiCard, FilterToolbar, EmptyState, SectionCard } from '../components/ui/erp-layout';
 
 interface ComboItem {
   productId: string;
@@ -40,7 +39,7 @@ interface Combo {
   id: string;
   name: string;
   description: string;
-  image: string;
+  image?: string;
   rawImagenUrl?: string;
   items: ComboItem[];
   promoPrice: number;
@@ -68,16 +67,18 @@ export function Combos() {
 
   if (isLoading) {
     return (
-      <div className="h-[80vh] flex flex-col items-center justify-center gap-2">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="h-[80vh] flex flex-col items-center justify-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+          <Loader2 className="w-5 h-5 animate-spin text-primary" />
+        </div>
         <p className="text-sm text-muted-foreground">Cargando combos...</p>
       </div>
     );
   }
 
   // Map API combos to UI Combo interface
-  const combos: Combo[] = apiCombos.map((c: any) => {
-    const comboItems: ComboItem[] = (c.detalles || []).map((det: any) => ({
+  const combos: Combo[] = apiCombos.map((c: ApiCombo) => {
+    const comboItems: ComboItem[] = (c.detalles || []).map((det: ComboDetalle) => ({
       productId: String(det.idProducto),
       productName: det.nombreProducto || 'Producto',
       qty: det.cantidad,
@@ -89,26 +90,29 @@ export function Combos() {
       id: String(c.idCombo),
       name: c.nombre,
       description: c.descripcion || '',
-      image: c.imagenUrl ? getFullImageUrl(c.imagenUrl) : 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=300&h=180&fit=crop&auto=format',
+      image: c.imagenUrl ? getFullImageUrl(c.imagenUrl) : undefined,
       rawImagenUrl: c.imagenUrl || '',
       items: comboItems,
       promoPrice: c.precio,
       regularTotal: total,
       active: c.estado === 'ACTIVO',
-      validUntil: '',
-      tag: '',
+      validUntil: c.validoHasta || '',
+      tag: c.etiqueta || '',
     };
   });
 
   // Map products to select options
-  const mappedProducts = productos.map(p => ({
-    id: String(p.idProducto),
-    name: p.nombre,
-    price: p.precio,
-  }));
+  const mappedProducts = productos
+    .filter((p) => p.estado === 'ACTIVO' && p.esSku !== false && !p.tieneSkus)
+    .map((p) => ({
+      id: String(p.idProducto),
+      name: p.nombreProductoPadre
+        ? `${p.nombreProductoPadre} / ${p.nombre}${p.sku ? ` (${p.sku})` : ''}`
+        : `${p.nombre}${p.sku ? ` (${p.sku})` : ''}`,
+      price: Number(p.precio || 0),
+    }));
 
   const filtered = combos.filter(c => {
-    if (!c.active) return false; // filter out inactive/deleted combos
     return c.name.toLowerCase().includes(search.toLowerCase()) ||
       c.description.toLowerCase().includes(search.toLowerCase());
   });
@@ -127,7 +131,6 @@ export function Combos() {
 
   const openEdit = (c: Combo) => {
     setEditing(c);
-    // Store the raw imagenUrl from API (relative path) not the full URL
     setForm({ name: c.name, description: c.description, image: c.rawImagenUrl || '', promoPrice: String(c.promoPrice), validUntil: c.validUntil, tag: c.tag, active: c.active });
     setItems([...c.items]);
     setDialogOpen(true);
@@ -155,13 +158,22 @@ export function Combos() {
       toast.error('Debe agregar al menos un producto al combo');
       return;
     }
+    if (promoPrice <= 0) {
+      toast.error('El precio promocional debe ser mayor a cero');
+      return;
+    }
+    if (regularTotal > 0 && promoPrice > regularTotal) {
+      toast.error('El precio promocional no debe superar el total regular del combo');
+      return;
+    }
 
     const payload: ComboRequest = {
-      nombre: form.name,
-      descripcion: form.description,
+      nombre: form.name.trim(),
+      descripcion: form.description.trim() || undefined,
       precio: promoPrice,
-      // Store only relative path (e.g. /api/uploads/combos/xxx.jpg or empty)
       imagenUrl: form.image && !form.image.startsWith('http') ? form.image : (form.image ? form.image.replace(/^https?:\/\/[^/]+/, '') : undefined),
+      etiqueta: form.tag.trim() || undefined,
+      validoHasta: form.validUntil || undefined,
       estado: form.active ? 'ACTIVO' : 'INACTIVO',
       detalles: items.map(item => ({
         idProducto: Number(item.productId),
@@ -184,185 +196,238 @@ export function Combos() {
     }
   };
 
-
+  const totalActivos = combos.filter(c => c.active).length;
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Combos y Promociones</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{combos.filter(c => c.active).length} activos de {combos.length} totales</p>
-        </div>
-        <Button onClick={openCreate}><Plus className="w-4 h-4 mr-2" /> Nuevo Combo</Button>
+    <PageWrapper>
+      <ModuleHeader
+        breadcrumbs={[
+          { label: 'Catálogo' },
+          { label: 'Combos' },
+        ]}
+        icon={Percent}
+        iconColor="blue"
+        title="Combos y Promociones"
+        subtitle="Administra ofertas conjuntas de la carta, promociones temporales y descuentos vinculados."
+        action={
+          <Button onClick={openCreate} className="h-11 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95 gap-2 font-semibold">
+            <Plus className="w-4 h-4" /> Nuevo Combo
+          </Button>
+        }
+      />
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <KpiCard
+          icon={Percent}
+          label="Total Combos"
+          value={combos.length}
+          color="slate"
+        />
+        <KpiCard
+          icon={Percent}
+          label="Combos Activos"
+          value={totalActivos}
+          color="green"
+        />
       </div>
 
       {/* Toolbar */}
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder="Buscar combo..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
-        </div>
-        <div className="flex items-center border border-border rounded-lg overflow-hidden">
-          <button onClick={() => setView('cards')} className={cn('p-2 transition-colors', view === 'cards' ? 'bg-primary text-primary-foreground' : 'hover:bg-accent')}>
-            <LayoutGrid className="w-4 h-4" />
-          </button>
-          <button onClick={() => setView('table')} className={cn('p-2 transition-colors', view === 'table' ? 'bg-primary text-primary-foreground' : 'hover:bg-accent')}>
-            <List className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
+      <FilterToolbar
+        search={{
+          value: search,
+          onChange: setSearch,
+          placeholder: 'Buscar combo...',
+        }}
+        actions={
+          <div className="flex items-center border border-border rounded-xl bg-muted/20 p-1 overflow-hidden">
+            <Button size="icon" onClick={() => setView('cards')} variant={view === 'cards' ? 'default' : 'ghost'} className="h-9 w-9 rounded-lg">
+              <LayoutGrid className="w-4 h-4" />
+            </Button>
+            <Button size="icon" onClick={() => setView('table')} variant={view === 'table' ? 'default' : 'ghost'} className="h-9 w-9 rounded-lg">
+              <List className="w-4 h-4" />
+            </Button>
+          </div>
+        }
+      />
 
-      {/* Cards View */}
-      {view === 'cards' && (
+      {/* Content */}
+      {filtered.length === 0 ? (
+        <EmptyState
+          icon={Percent}
+          title="Sin combos encontrados"
+          description="Crea promociones y combos de productos para agilizar tus ventas y ofrecer precios competitivos."
+          action={
+            <Button onClick={openCreate} className="h-10 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95">
+              <Plus className="w-4 h-4 mr-2" />
+              Nuevo Combo
+            </Button>
+          }
+        />
+      ) : view === 'cards' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filtered.map(c => {
             const discount = c.regularTotal > 0 ? ((c.regularTotal - c.promoPrice) / c.regularTotal) * 100 : 0;
             return (
-              <Card key={c.id} className={`overflow-hidden hover:shadow-md transition-shadow ${!c.active ? 'opacity-60' : ''}`}>
-                <div className="relative">
-                  <img src={c.image} alt={c.name} className="w-full h-40 object-cover bg-muted" />
-                  {c.tag && (
-                    <div className="absolute top-2 left-2 bg-primary text-primary-foreground text-xs px-2 py-1 rounded-full font-medium">
-                      {c.tag}
-                    </div>
-                  )}
-                  <div className="absolute top-2 right-2 bg-destructive text-white text-xs px-2 py-1 rounded-full font-bold">
-                    -{discount.toFixed(0)}%
-                  </div>
-                </div>
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <h3 className="font-semibold">{c.name}</h3>
-                      <p className="text-xs text-muted-foreground mt-0.5">{c.description}</p>
-                    </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button size="icon" variant="ghost" className="h-7 w-7 flex-shrink-0">
-                          <MoreHorizontal className="w-3.5 h-3.5" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => openEdit(c)}>
-                          <Pencil className="w-4 h-4 mr-2" /> Editar
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive" onClick={() => { setDeleting(c); setDeleteOpen(true); }}>
-                          <Trash2 className="w-4 h-4 mr-2" /> Eliminar
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-
-                  <div className="space-y-1 mb-3">
-                    {c.items.map(i => (
-                      <div key={i.productId} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <span className="w-4 h-4 rounded bg-muted flex items-center justify-center text-[10px] font-bold">{i.qty}</span>
-                        {i.productName}
+              <Card key={c.id} className={cn('border border-border bg-card text-card-foreground shadow-sm rounded-2xl overflow-hidden hover:border-primary/30 transition-all flex flex-col justify-between', !c.active && 'opacity-65')}>
+                <div>
+                  <div className="relative aspect-[16/9] bg-muted border-b border-border/60">
+                    {c.image ? (
+                      <img src={c.image} alt={c.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-xs text-muted-foreground font-semibold">
+                        Sin imagen
                       </div>
-                    ))}
+                    )}
+                    {c.tag && (
+                      <Badge className="absolute top-2.5 left-2.5 font-semibold text-[9px] shadow-2xs">
+                        {c.tag}
+                      </Badge>
+                    )}
+                    {discount > 0 && (
+                      <Badge variant="destructive" className="absolute top-2.5 right-2.5 font-bold text-[9px] shadow-2xs">
+                        -{discount.toFixed(0)}% DCTO
+                      </Badge>
+                    )}
                   </div>
-
-                  <Separator className="mb-3" />
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs text-muted-foreground line-through">S/ {c.regularTotal.toFixed(2)}</p>
-                      <p className="text-lg font-bold text-primary">S/ {c.promoPrice.toFixed(2)}</p>
-                    </div>
-                    <div className="text-right">
-                      <Badge variant={c.active ? 'default' : 'secondary'}>{c.active ? 'Activo' : 'Inactivo'}</Badge>
-                      {c.validUntil && <p className="text-xs text-muted-foreground mt-1">Hasta {c.validUntil}</p>}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Table View */}
-      {view === 'table' && (
-        <Card>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nombre</TableHead>
-                <TableHead className="hidden md:table-cell">Items</TableHead>
-                <TableHead>Precio regular</TableHead>
-                <TableHead>Precio promo</TableHead>
-                <TableHead>Ahorro</TableHead>
-                <TableHead className="hidden sm:table-cell">Válido hasta</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead className="w-12"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map(c => {
-                const savings = c.regularTotal - c.promoPrice;
-                return (
-                  <TableRow key={c.id}>
-                    <TableCell>
-                      <p className="font-medium">{c.name}</p>
-                      {c.tag && <p className="text-xs text-muted-foreground">{c.tag}</p>}
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell text-sm text-muted-foreground">{c.items.length} productos</TableCell>
-                    <TableCell className="text-sm text-muted-foreground line-through">S/ {c.regularTotal.toFixed(2)}</TableCell>
-                    <TableCell className="font-semibold text-primary">S/ {c.promoPrice.toFixed(2)}</TableCell>
-                    <TableCell>
-                      <span className="text-xs text-green-600 font-medium">-S/ {savings.toFixed(2)}</span>
-                    </TableCell>
-                    <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">{c.validUntil || '—'}</TableCell>
-                    <TableCell>
-                      <Badge variant={c.active ? 'default' : 'secondary'}>{c.active ? 'Activo' : 'Inactivo'}</Badge>
-                    </TableCell>
-                    <TableCell>
+                  <CardContent className="p-5 pb-3">
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <div>
+                        <h3 className="font-bold text-foreground text-sm leading-snug">{c.name}</h3>
+                        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2 leading-relaxed font-medium">{c.description || 'Sin descripción'}</p>
+                      </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button size="icon" variant="ghost" className="h-8 w-8">
-                            <MoreHorizontal className="w-4 h-4" />
+                          <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg flex-shrink-0">
+                            <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openEdit(c)}>
-                            <Pencil className="w-4 h-4 mr-2" /> Editar
+                        <DropdownMenuContent align="end" className="rounded-xl">
+                          <DropdownMenuItem onClick={() => openEdit(c)} className="rounded-lg">
+                            <Pencil className="w-4 h-4 mr-2 text-muted-foreground" /> Editar
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive" onClick={() => { setDeleting(c); setDeleteOpen(true); }}>
+                          <DropdownMenuItem className="ui-status-danger rounded-lg focus:bg-[var(--status-danger-surface)]" onClick={() => { setDeleting(c); setDeleteOpen(true); }}>
                             <Trash2 className="w-4 h-4 mr-2" /> Eliminar
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </Card>
+                    </div>
+
+                    <div className="space-y-1.5 py-1.5 border-t border-border/40">
+                      {c.items.map(i => (
+                        <div key={i.productId} className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+                          <span className="w-5 h-5 rounded bg-muted border border-border/60 flex items-center justify-center text-[10px] text-foreground font-bold">{i.qty}</span>
+                          <span className="truncate flex-1">{i.productName}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </div>
+
+                <div className="p-5 pt-0 border-t border-border/40 mt-3">
+                  <div className="flex items-center justify-between mt-3">
+                    <div>
+                      <p className="text-[10px] text-muted-foreground line-through font-semibold ui-tabular">S/ {c.regularTotal.toFixed(2)}</p>
+                      <p className="text-lg font-black text-primary ui-tabular">S/ {c.promoPrice.toFixed(2)}</p>
+                    </div>
+                    <div className="text-right space-y-1">
+                      <Badge variant={c.active ? 'success' : 'secondary'} className="shadow-2xs text-[9px] font-bold px-2 py-0.5">{c.active ? 'Activo' : 'Inactivo'}</Badge>
+                      {c.validUntil && <p className="text-[10px] text-muted-foreground font-medium">Hasta {c.validUntil}</p>}
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      ) : (
+        <SectionCard
+          title="Listado de combos y ofertas"
+          description="Estructuración de ofertas y precios especiales."
+          icon={Percent}
+          iconColor="blue"
+        >
+          <div className="rounded-xl border border-border overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nombre</TableHead>
+                  <TableHead className="hidden md:table-cell">Items</TableHead>
+                  <TableHead>Precio regular</TableHead>
+                  <TableHead>Precio promo</TableHead>
+                  <TableHead>Ahorro</TableHead>
+                  <TableHead className="hidden sm:table-cell">Válido hasta</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead className="w-12"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.map(c => {
+                  const savings = c.regularTotal - c.promoPrice;
+                  return (
+                    <TableRow key={c.id}>
+                      <TableCell>
+                        <p className="font-bold text-foreground">{c.name}</p>
+                        {c.tag && <Badge className="text-[9px] h-4 mt-1">{c.tag}</Badge>}
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell text-xs font-semibold text-muted-foreground">{c.items.length} productos</TableCell>
+                      <TableCell className="text-xs text-muted-foreground line-through font-medium ui-tabular">S/ {c.regularTotal.toFixed(2)}</TableCell>
+                      <TableCell className="font-bold text-primary ui-tabular">S/ {c.promoPrice.toFixed(2)}</TableCell>
+                      <TableCell>
+                        <span className="text-xs ui-status-success font-bold ui-tabular">-S/ {savings.toFixed(2)}</span>
+                      </TableCell>
+                      <TableCell className="hidden sm:table-cell text-sm text-muted-foreground font-medium">{c.validUntil || '—'}</TableCell>
+                      <TableCell>
+                        <Badge variant={c.active ? 'success' : 'secondary'} className="shadow-2xs">{c.active ? 'Activo' : 'Inactivo'}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg">
+                              <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="rounded-xl">
+                            <DropdownMenuItem onClick={() => openEdit(c)} className="rounded-lg">
+                              <Pencil className="w-4 h-4 mr-2 text-muted-foreground" /> Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="ui-status-danger rounded-lg focus:bg-[var(--status-danger-surface)]" onClick={() => { setDeleting(c); setDeleteOpen(true); }}>
+                              <Trash2 className="w-4 h-4 mr-2" /> Eliminar
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </SectionCard>
       )}
 
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl rounded-2xl">
           <DialogHeader>
-            <DialogTitle>{editing ? 'Editar Combo' : 'Nuevo Combo'}</DialogTitle>
+            <DialogTitle className="text-lg font-bold">{editing ? 'Editar Combo' : 'Nuevo Combo'}</DialogTitle>
           </DialogHeader>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
-              <Label>Nombre del combo *</Label>
-              <Input placeholder="Ej: Combo Familiar" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="mt-1" />
+          <div className="grid grid-cols-2 gap-4 mt-2">
+            <div className="col-span-2 space-y-1.5">
+              <Label className="text-sm font-semibold">Nombre del combo *</Label>
+              <Input placeholder="Ej: Combo Familiar" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="h-11 rounded-xl" />
             </div>
-            <div className="col-span-2">
-              <Label>Descripción</Label>
-              <Textarea rows={2} className="mt-1 resize-none" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
+            <div className="col-span-2 space-y-1.5">
+              <Label className="text-sm font-semibold">Descripción</Label>
+              <Textarea rows={2} className="resize-none rounded-xl" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Detalles de lo que incluye el combo..." />
             </div>
-            <div>
-              <Label>Etiqueta (emoji + texto)</Label>
-              <Input placeholder="Ej: 🔥 Más vendido" value={form.tag} onChange={e => setForm(f => ({ ...f, tag: e.target.value }))} className="mt-1" />
+            <div className="space-y-1.5">
+              <Label className="text-sm font-semibold">Etiqueta comercial</Label>
+              <Input placeholder="Ej: Más vendido" value={form.tag} onChange={e => setForm(f => ({ ...f, tag: e.target.value }))} className="h-11 rounded-xl" />
             </div>
-            <div>
-              <Label>Válido hasta</Label>
-              <Input type="date" value={form.validUntil} onChange={e => setForm(f => ({ ...f, validUntil: e.target.value }))} className="mt-1" />
+            <div className="space-y-1.5">
+              <Label className="text-sm font-semibold">Válido hasta</Label>
+              <Input type="date" value={form.validUntil} onChange={e => setForm(f => ({ ...f, validUntil: e.target.value }))} className="h-11 rounded-xl bg-background" />
             </div>
             <div className="col-span-2">
               <ImageUploadZone
@@ -374,65 +439,65 @@ export function Combos() {
               />
             </div>
 
-            <div className="col-span-2">
-              <Separator />
-              <p className="text-sm font-medium mt-3 mb-2">Productos incluidos</p>
-              <div className="flex gap-2 mb-3">
+            <div className="col-span-2 space-y-3">
+              <Separator className="my-2" />
+              <p className="text-sm font-bold text-foreground">Productos incluidos en el combo</p>
+              <div className="flex gap-2">
                 <select
-                  className="flex-1 h-9 rounded-md border border-input bg-background px-3 text-sm"
+                  className="flex-1 h-11 px-3 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                   value={addProd.productId}
                   onChange={e => setAddProd(a => ({ ...a, productId: e.target.value }))}
                 >
-                  <option value="">Seleccionar producto...</option>
-                  {mappedProducts.map(p => <option key={p.id} value={p.id}>{p.name} — S/ {p.price}</option>)}
+                  <option value="">Seleccionar SKU vendible...</option>
+                  {mappedProducts.map(p => <option key={p.id} value={p.id}>{p.name} — S/ {p.price.toFixed(2)}</option>)}
                 </select>
-                <Input type="number" className="w-20" placeholder="Cant." value={addProd.qty} onChange={e => setAddProd(a => ({ ...a, qty: e.target.value }))} />
-                <Button size="sm" onClick={handleAddProduct} disabled={!addProd.productId}>
+                <Input type="number" className="w-24 h-11 rounded-xl" placeholder="Cant." value={addProd.qty} onChange={e => setAddProd(a => ({ ...a, qty: e.target.value }))} />
+                <Button type="button" onClick={handleAddProduct} disabled={!addProd.productId} className="h-11 rounded-xl px-4">
                   <Plus className="w-4 h-4" />
                 </Button>
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
                 {items.map(i => (
-                  <div key={i.productId} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 text-sm">
-                    <span className="w-6 h-6 rounded bg-background border text-center text-xs font-medium flex items-center justify-center">{i.qty}</span>
-                    <span className="flex-1">{i.productName}</span>
-                    <span className="text-muted-foreground">S/ {(i.regularPrice * i.qty).toFixed(2)}</span>
-                    <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" onClick={() => setItems(prev => prev.filter(x => x.productId !== i.productId))}>
-                      <X className="w-3 h-3" />
+                  <div key={i.productId} className="flex items-center gap-2 p-2 rounded-xl bg-muted/30 border border-border/50 text-xs">
+                    <span className="w-6 h-6 rounded-lg bg-background border text-center text-xs font-bold flex items-center justify-center shadow-2xs">{i.qty}</span>
+                    <span className="flex-1 font-semibold text-foreground">{i.productName}</span>
+                    <span className="text-muted-foreground font-bold ui-tabular">S/ {(i.regularPrice * i.qty).toFixed(2)}</span>
+                    <Button type="button" size="icon" variant="ghost" className="h-7 w-7 rounded-lg ui-status-danger hover:bg-[var(--status-danger-surface)]" onClick={() => setItems(prev => prev.filter(x => x.productId !== i.productId))}>
+                      <X className="w-3.5 h-3.5" />
                     </Button>
                   </div>
                 ))}
-                {items.length === 0 && <p className="text-xs text-muted-foreground text-center py-3">Sin productos agregados</p>}
+                {items.length === 0 && <p className="text-xs text-muted-foreground text-center py-4 font-semibold">Sin productos en la oferta</p>}
               </div>
             </div>
 
-            <div>
-              <Label>Precio regular (auto)</Label>
-              <Input disabled value={`S/ ${regularTotal.toFixed(2)}`} className="mt-1 bg-muted/50" />
+            <div className="space-y-1.5">
+              <Label className="text-sm font-semibold">Precio regular acumulado</Label>
+              <Input disabled value={`S/ ${regularTotal.toFixed(2)}`} className="h-11 rounded-xl bg-muted/40 font-bold ui-tabular text-foreground" />
             </div>
-            <div>
-              <Label>Precio promocional *</Label>
-              <Input type="number" step="0.01" placeholder="0.00" value={form.promoPrice} onChange={e => setForm(f => ({ ...f, promoPrice: e.target.value }))} className="mt-1" />
+            <div className="space-y-1.5">
+              <Label className="text-sm font-semibold">Precio promocional combo *</Label>
+              <Input type="number" step="0.01" placeholder="0.00" value={form.promoPrice} onChange={e => setForm(f => ({ ...f, promoPrice: e.target.value }))} className="h-11 rounded-xl font-bold" />
             </div>
 
             {promoPrice > 0 && regularTotal > 0 && (
-              <div className="col-span-2 flex items-center gap-4 p-3 rounded-lg bg-green-50 border border-green-200">
-                <Percent className="w-5 h-5 text-green-600 flex-shrink-0" />
-                <div className="text-sm">
-                  <span className="text-green-800 font-medium">Ahorro: S/ {savings.toFixed(2)}</span>
-                  <span className="text-green-700 ml-2">({savingsPct.toFixed(1)}% descuento)</span>
+              <div className="col-span-2 flex items-center gap-3.5 p-3.5 rounded-xl ui-status-success-soft border">
+                <Percent className="w-5 h-5 ui-status-success flex-shrink-0" />
+                <div className="text-xs font-bold leading-normal">
+                  <span className="ui-status-success block">Ahorro total estimado: S/ {savings.toFixed(2)}</span>
+                  <span className="text-muted-foreground mt-0.5 block font-medium">({savingsPct.toFixed(1)}% de descuento real aplicado)</span>
                 </div>
               </div>
             )}
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 col-span-2 pt-2">
               <Switch checked={form.active} onCheckedChange={v => setForm(f => ({ ...f, active: v }))} />
-              <Label>Combo activo</Label>
+              <Label className="text-sm font-semibold">Combo activo en menú</Label>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={!form.name.trim() || !form.promoPrice}>
+          <DialogFooter className="gap-2 sm:gap-0 mt-5 pt-3 border-t border-border/40">
+            <Button variant="outline" onClick={() => setDialogOpen(false)} className="h-10 rounded-xl">Cancelar</Button>
+            <Button onClick={handleSave} disabled={!form.name.trim() || !form.promoPrice} className="h-10 rounded-xl">
               {editing ? 'Guardar cambios' : 'Crear combo'}
             </Button>
           </DialogFooter>
@@ -440,15 +505,34 @@ export function Combos() {
       </Dialog>
 
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader><DialogTitle>Eliminar combo</DialogTitle></DialogHeader>
-          <p className="text-sm text-muted-foreground">¿Eliminar <strong>{deleting?.name}</strong>?</p>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteOpen(false)}>Cancelar</Button>
-            <Button variant="destructive" onClick={async () => { if (deleting) { await deleteCombo(Number(deleting.id)); setDeleteOpen(false); setDeleting(null); } }}>Eliminar</Button>
+        <DialogContent className="sm:max-w-sm rounded-2xl">
+          <DialogHeader><DialogTitle className="text-lg font-bold">Desactivar combo</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+            ¿Seguro que deseas inactivar el combo <strong>{deleting?.name}</strong>? Se ocultará de la lista del POS.
+          </p>
+          <DialogFooter className="gap-2 sm:gap-0 mt-4">
+            <Button variant="outline" onClick={() => setDeleteOpen(false)} className="h-10 rounded-xl">Cancelar</Button>
+            <Button
+              variant="destructive"
+              className="h-10 rounded-xl"
+              onClick={async () => {
+                if (!deleting) return;
+                try {
+                  await deleteCombo(Number(deleting.id));
+                  toast.success('Combo inactivado correctamente');
+                  setDeleteOpen(false);
+                  setDeleting(null);
+                } catch (error) {
+                  console.error(error);
+                  toast.error('No se pudo inactivar el combo');
+                }
+              }}
+            >
+              Inactivar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageWrapper>
   );
 }

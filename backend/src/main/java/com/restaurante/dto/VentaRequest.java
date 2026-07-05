@@ -11,7 +11,7 @@ public class VentaRequest {
     private String tipoComprobante;
 
     private String serie;
-    private String correlativo;
+    private String numero;
 
     @NotEmpty(message = "La venta debe incluir al menos un pago.")
     private List<VentaPagoRequest> pagos;
@@ -27,8 +27,8 @@ public class VentaRequest {
     public String getSerie() { return serie; }
     public void setSerie(String serie) { this.serie = serie; }
 
-    public String getCorrelativo() { return correlativo; }
-    public void setCorrelativo(String correlativo) { this.correlativo = correlativo; }
+    public String getNumero() { return numero; }
+    public void setNumero(String numero) { this.numero = numero; }
 
     public List<VentaPagoRequest> getPagos() { return pagos; }
     public void setPagos(List<VentaPagoRequest> pagos) { this.pagos = pagos; }

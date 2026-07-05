@@ -36,11 +36,16 @@ export const useAuth = () => {
         isLoading: false,
         error: null,
       });
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const apiError = e as AppApiErrorLike;
+      const message =
+        typeof apiError.response?.data === 'object'
+          ? apiError.response.data?.message
+          : undefined;
       useAuthStore.setState({
         isAuthenticated: false,
         isLoading: false,
-        error: e.response?.data?.message || 'Usuario o contraseña incorrectos',
+        error: message || 'Usuario o contraseña incorrectos',
       });
       throw e;
     }

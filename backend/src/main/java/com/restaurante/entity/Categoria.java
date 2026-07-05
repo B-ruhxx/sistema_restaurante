@@ -23,9 +23,6 @@ public class Categoria {
     @Column(name = "imagen_url", length = 255)
     private String imagenUrl;
 
-    @Column(name = "img", length = 255)
-    private String img;
-
     @Enumerated(EnumType.STRING)
     @Column(columnDefinition = "ENUM('ACTIVO', 'INACTIVO') DEFAULT 'ACTIVO'")
     private Estado estado = Estado.ACTIVO;
@@ -77,14 +74,6 @@ public class Categoria {
 
     public void setImagenUrl(String imagenUrl) {
         this.imagenUrl = imagenUrl;
-    }
-
-    public String getImg() {
-        return img;
-    }
-
-    public void setImg(String img) {
-        this.img = img;
     }
 
     public Estado getEstado() {

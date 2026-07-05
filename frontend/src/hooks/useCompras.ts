@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { comprasApi, CompraRequest } from '../api/compras';
+import { comprasApi } from '../api/compras';
 import { PrivateQueryOptions, usePrivateQueryEnabled } from './usePrivateQuery';
 
 export const useCompras = ({ enabled = true }: PrivateQueryOptions = {}) => {

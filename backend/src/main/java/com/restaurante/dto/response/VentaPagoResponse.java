@@ -7,7 +7,7 @@ public class VentaPagoResponse {
     private Integer idMetodoPago;
     private String nombreMetodoPago;
     private BigDecimal monto;
-    private String numeroOperacion;
+    private String referencia;
     private String estado;
 
     public Integer getIdVentaPago() {
@@ -42,12 +42,12 @@ public class VentaPagoResponse {
         this.monto = monto;
     }
 
-    public String getNumeroOperacion() {
-        return numeroOperacion;
+    public String getReferencia() {
+        return referencia;
     }
 
-    public void setNumeroOperacion(String numeroOperacion) {
-        this.numeroOperacion = numeroOperacion;
+    public void setReferencia(String referencia) {
+        this.referencia = referencia;
     }
 
     public String getEstado() {

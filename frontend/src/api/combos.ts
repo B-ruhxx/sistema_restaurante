@@ -14,6 +14,8 @@ export interface Combo {
   descripcion?: string;
   precio: number;
   imagenUrl?: string;
+  etiqueta?: string;
+  validoHasta?: string;
   estado?: 'ACTIVO' | 'INACTIVO';
   detalles: ComboDetalle[];
 }
@@ -23,6 +25,8 @@ export interface ComboRequest {
   descripcion?: string;
   precio: number;
   imagenUrl?: string;
+  etiqueta?: string;
+  validoHasta?: string;
   estado?: 'ACTIVO' | 'INACTIVO';
   detalles: {
     idProducto: number;

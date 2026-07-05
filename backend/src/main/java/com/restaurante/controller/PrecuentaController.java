@@ -1,6 +1,7 @@
 package com.restaurante.controller;
 
 import com.restaurante.dto.response.PrecuentaResponse;
+import com.restaurante.dto.response.PedidoResponse;
 import com.restaurante.entity.Empleado;
 import com.restaurante.security.CustomUserDetails;
 import com.restaurante.service.PrecuentaService;
@@ -17,7 +18,7 @@ public class PrecuentaController {
     @Autowired
     private PrecuentaService precuentaService;
 
-    @PostMapping("/pedidos/{id}/precuenta")
+    @PostMapping("/pedidos/{id}/precuentas")
     @PreAuthorize("hasAuthority('GESTION_PRECUENTA') or hasAuthority('GESTION_POS') or hasAuthority('ACCESO_TOTAL')")
     public ResponseEntity<PrecuentaResponse> emitir(@PathVariable Integer id,
                                                      @AuthenticationPrincipal CustomUserDetails userDetails) {
@@ -35,5 +36,13 @@ public class PrecuentaController {
     @PreAuthorize("hasAuthority('GESTION_PRECUENTA') or hasAuthority('GESTION_CAJA') or hasAuthority('ACCESO_TOTAL')")
     public ResponseEntity<List<PrecuentaResponse>> porPedido(@PathVariable Integer idPedido) {
         return ResponseEntity.ok(precuentaService.obtenerPorPedido(idPedido));
+    }
+
+    @PostMapping("/pedidos/{id}/reabrir")
+    @PreAuthorize("hasAuthority('GESTION_PRECUENTA') or hasAuthority('GESTION_POS') or hasAuthority('ACCESO_TOTAL')")
+    public ResponseEntity<PedidoResponse> reabrirPedido(@PathVariable Integer id,
+                                                         @AuthenticationPrincipal CustomUserDetails userDetails) {
+        Empleado empleado = userDetails.getEmpleado();
+        return ResponseEntity.ok(precuentaService.reabrirPedidoPorAdicion(id, empleado));
     }
 }

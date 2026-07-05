@@ -1,7 +1,9 @@
 package com.restaurante.controller;
 
 import com.restaurante.dto.request.EmpleadoRequest;
+import com.restaurante.dto.response.EmpleadoActividadResponse;
 import com.restaurante.dto.response.EmpleadoResponse;
+import com.restaurante.dto.response.EmpleadoSesionResponse;
 import com.restaurante.dto.response.RolResponse;
 import com.restaurante.service.EmpleadoService;
 import jakarta.validation.Valid;
@@ -27,6 +29,24 @@ public class EmpleadoController {
     public ResponseEntity<EmpleadoResponse> getEmpleadoById(@PathVariable Integer id) {
         try {
             return ResponseEntity.ok(empleadoService.getEmpleadoById(id));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @GetMapping("/{id}/sesiones")
+    public ResponseEntity<List<EmpleadoSesionResponse>> getSesionesEmpleado(@PathVariable Integer id) {
+        try {
+            return ResponseEntity.ok(empleadoService.getSesionesEmpleado(id));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @GetMapping("/{id}/actividad")
+    public ResponseEntity<List<EmpleadoActividadResponse>> getActividadEmpleado(@PathVariable Integer id) {
+        try {
+            return ResponseEntity.ok(empleadoService.getActividadEmpleado(id));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
         }

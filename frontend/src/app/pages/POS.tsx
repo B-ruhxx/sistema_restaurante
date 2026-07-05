@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useERP, Product, Customer } from '../contexts/ERPContext';
+import { useERP, Product, Customer } from '../contexts/ERPContextValue';
 import { mesasApi } from '../../api/mesas';
 import { pedidosApi, Pedido } from '../../api/pedidos';
 import { precuentasApi } from '../../api/precuentas';
-import { variantesApi } from '../../api/variantes';
 import { extrasApi, ExtraProducto } from '../../api/extras';
 import { toast } from '../../lib/notifications';
 import { Input } from '../components/ui/input';
@@ -18,37 +17,23 @@ import {
   DialogFooter, DialogHeader, DialogTitle,
 } from '../components/ui/dialog';
 import {
-  Search, Plus, Minus, X, CreditCard, Pencil, Trash2,
+  Search, Plus, Minus, X, CreditCard,
   BookOpen, User, UserSearch, UserPlus, ChevronRight,
   Clock, Flame, CheckCircle2, Package, BadgeCheck, ChefHat,
   ShoppingCart, AlertTriangle,
 } from 'lucide-react';
 import { cn } from '../components/ui/utils';
 
-/* ── Categorías ─────────────────────────────────────────────── */
-const CATEGORIES = [
-  { id: 'todos',        label: 'Todos' },
-  { id: 'hamburguesas', label: 'Hamburguesas' },
-  { id: 'pizzas',       label: 'Pizzas' },
-  { id: 'ensaladas',    label: 'Ensaladas' },
-  { id: 'pastas',       label: 'Pastas' },
-  { id: 'bebidas',      label: 'Bebidas' },
-  { id: 'postres',      label: 'Postres' },
-  { id: 'mexicano',     label: 'Mexicano' },
-  { id: 'sushi',        label: 'Sushi' },
-  { id: 'peruano',      label: 'Peruano' },
-];
-
 /* ── Estados del pedido ─────────────────────────────────────── */
 type PosStatus = 'draft' | 'pendiente' | 'en-cocina' | 'listo' | 'entregado' | 'cobrado';
 
 const STATUS_META: Record<PosStatus, { label: string; color: string; icon: React.ElementType }> = {
-  draft:     { label: 'Armando pedido',   color: 'text-gray-500',   icon: ShoppingCart },
-  pendiente: { label: 'Pendiente',         color: 'text-amber-600',  icon: Clock },
-  'en-cocina': { label: 'En preparación', color: 'text-blue-600',   icon: Flame },
-  listo:     { label: 'Listo para servir',color: 'text-green-600',  icon: CheckCircle2 },
-  entregado: { label: 'Entregado',         color: 'text-teal-600',   icon: Package },
-  cobrado:   { label: 'Cobrado',           color: 'text-purple-600', icon: BadgeCheck },
+  draft:     { label: 'Armando pedido',   color: 'text-muted-foreground', icon: ShoppingCart },
+  pendiente: { label: 'Pendiente',         color: 'ui-status-warning', icon: Clock },
+  'en-cocina': { label: 'En preparación', color: 'ui-status-info', icon: Flame },
+  listo:     { label: 'Listo para servir', color: 'ui-status-success', icon: CheckCircle2 },
+  entregado: { label: 'Entregado',         color: 'ui-status-success', icon: Package },
+  cobrado:   { label: 'Cobrado',           color: 'ui-status-info', icon: BadgeCheck },
 };
 
 /* ── Tipo cliente selector ──────────────────────────────────── */
@@ -71,9 +56,10 @@ export function POS() {
   } = useERP();
 
   const isCajaAbierta = cashRegister && cashRegister.status === 'abierta';
-  const [selectedMesaId, setSelectedMesaId] = useState('');
+  const [selectedMesaId, setSelectedMesaId] = useState(() => searchParams.get('mesa') || '');
   const [activePedido, setActivePedido] = useState<Pedido | null>(null);
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
+  const [posStatus, setPosStatus] = useState<PosStatus>('draft');
 
   const mesasDisponiblesQuery = useQuery({
     queryKey: ['mesas', 'disponibles'],
@@ -88,13 +74,6 @@ export function POS() {
   });
 
   useEffect(() => {
-    const mesaFromUrl = searchParams.get('mesa');
-    if (mesaFromUrl) {
-      setSelectedMesaId(mesaFromUrl);
-    }
-  }, [searchParams]);
-
-  useEffect(() => {
     const loadActivePedido = async () => {
       if (!selectedMesaId) {
         setActivePedido(null);
@@ -107,8 +86,9 @@ export function POS() {
         return;
       }
       if (pedido.estado === 'LISTO') setPosStatus('listo');
-      else if (pedido.estado === 'ENTREGADO' || pedido.estado === 'CUENTA_SOLICITADA' || pedido.estado === 'CUENTA_EMITIDA') setPosStatus('entregado');
-      else if (pedido.estado === 'ENVIADO_COCINA' || pedido.estado === 'EN_PREPARACION') setPosStatus('en-cocina');
+      else if (pedido.estado === 'SERVIDO' || pedido.estado === 'CUENTA') setPosStatus('entregado');
+      else if (pedido.estado === 'EN_COCINA') setPosStatus('en-cocina');
+      else if (pedido.estado === 'CERRADO') setPosStatus('cobrado');
       else setPosStatus('draft');
     };
 
@@ -146,9 +126,6 @@ export function POS() {
   const [newCustomer, setNewCustomer]         = useState({ name: '', doc: '', phone: '' });
   const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);
 
-  /* estado del pedido POS */
-  const [posStatus, setPosStatus] = useState<PosStatus>('draft');
-
   const filteredProducts = products.filter(p => {
     const matchCat    = category === 'todos' || p.category === category;
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase());
@@ -160,9 +137,17 @@ export function POS() {
   /* abrir modal customización */
   const openEdit = (product: Product) => {
     if (posStatus !== 'draft' && posStatus !== 'pendiente') return;
+    if (!selectedMesaId) {
+      toast.error('Selecciona una mesa antes de armar el pedido');
+      return;
+    }
+    if (product.variants?.length && !product.variants.some(variant => variant.isAvailable)) {
+      toast.warning('No hay SKUs disponibles para este producto');
+      return;
+    }
     if (product.variants || product.extras) {
       setEditProduct(product);
-      setEditVariant(product.variants?.[0]?.name || '');
+      setEditVariant(product.variants?.find(variant => variant.isAvailable)?.name || product.variants?.[0]?.name || '');
       setEditExtras([]);
       setEditNotes('');
     } else {
@@ -172,6 +157,11 @@ export function POS() {
 
   const confirmAdd = () => {
     if (!editProduct) return;
+    const selectedVariant = editProduct.variants?.find(variant => variant.name === editVariant);
+    if (editProduct.variants?.length && !selectedVariant?.isAvailable) {
+      toast.warning('Selecciona un SKU con stock disponible');
+      return;
+    }
     addToCart(editProduct, editVariant, editExtras, editNotes);
     setEditProduct(null);
   };
@@ -192,22 +182,12 @@ export function POS() {
   };
 
   const mapCartItemToDetalle = async (item: typeof cart[number]) => {
-    let idVariante: number | undefined;
-    if (item.variant) {
-      const variantes = await queryClient.fetchQuery({
-        queryKey: ['variantes', Number(item.productId)],
-        queryFn: () => variantesApi.getByProducto(Number(item.productId)),
-      });
-      idVariante = variantes.find(v => v.nombre === item.variant)?.idVariante;
-    }
-
     const extrasIds = (item.extras || [])
       .map(extraName => allExtras.find(extra => extra.nombre === extraName)?.idExtra)
       .filter((id): id is number => typeof id === 'number');
 
     return {
-      idProducto: Number(item.productId),
-      idVariante,
+      idProducto: Number(item.variantSkuProductId ?? item.productId),
       cantidad: item.quantity,
       observacion: item.notes,
       extrasIds,
@@ -226,7 +206,7 @@ export function POS() {
 
     try {
       setIsSubmittingOrder(true);
-      if (activePedido?.estado === 'CUENTA_EMITIDA' || activePedido?.estado === 'PAGADO' || activePedido?.estado === 'CANCELADO') {
+      if (activePedido?.estado === 'CUENTA' || activePedido?.estado === 'CERRADO' || activePedido?.estado === 'CANCELADO') {
         toast.error('Este pedido ya no admite nuevos productos');
         return;
       }
@@ -258,7 +238,7 @@ export function POS() {
       setPosStatus('entregado');
       return;
     }
-    const updated = await pedidosApi.updateEstado(activePedido.idPedido, 'ENTREGADO');
+    const updated = await pedidosApi.updateEstado(activePedido.idPedido, 'SERVIDO');
     setActivePedido(updated);
     setPosStatus('entregado');
     queryClient.invalidateQueries({ queryKey: ['pedidos'] });
@@ -272,14 +252,10 @@ export function POS() {
       return;
     }
 
-    if (activePedido.estado === 'CUENTA_EMITIDA') {
+    if (activePedido.estado === 'CUENTA') {
       toast.success('La precuenta ya fue emitida');
       navigate('/caja');
       return;
-    }
-
-    if (activePedido.estado === 'ENTREGADO') {
-      await pedidosApi.solicitarCuenta(activePedido.idPedido);
     }
 
     const precuenta = await precuentasApi.emitir(activePedido.idPedido);
@@ -299,7 +275,8 @@ export function POS() {
     const refreshed = await pedidosApi.getById(activePedido.idPedido);
     setActivePedido(refreshed);
     if (refreshed.estado === 'LISTO') setPosStatus('listo');
-    if (refreshed.estado === 'ENTREGADO' || refreshed.estado === 'CUENTA_EMITIDA') setPosStatus('entregado');
+    if (refreshed.estado === 'SERVIDO' || refreshed.estado === 'CUENTA') setPosStatus('entregado');
+    if (refreshed.estado === 'CERRADO') setPosStatus('cobrado');
     toast.info(`Estado actual: ${refreshed.estado.replaceAll('_', ' ')}`);
   };
 
@@ -387,13 +364,13 @@ export function POS() {
     || (posStatus === 'draft' && !selectedMesaId);
 
   return (
-    <div className="h-[calc(100vh-3.5rem)] flex flex-col overflow-hidden bg-[#f8f7f5] dark:bg-background">
+    <div className="h-[calc(100vh-3.5rem)] flex flex-col overflow-hidden bg-surface-default dark:bg-background">
 
       {/* ── Top bar: search + category chips ─────────────────── */}
-      <div className="bg-white dark:bg-card border-b border-border px-4 py-2 flex items-center gap-3 shrink-0">
+      <div className="bg-surface-panel border-b border-border px-4 py-2 flex items-center gap-3 shrink-0">
         {/* Icono POS */}
-        <div className="w-8 h-8 rounded-xl bg-[#e8f0fe] dark:bg-blue-950 flex items-center justify-center shrink-0">
-          <ChefHat className="w-4 h-4 text-[#4f7bf7] dark:text-blue-400" />
+        <div className="w-8 h-8 rounded-xl bg-[var(--status-info-surface)] flex items-center justify-center shrink-0">
+          <ChefHat className="w-4 h-4 text-[var(--status-info)]" />
         </div>
 
         {/* Buscador */}
@@ -401,7 +378,7 @@ export function POS() {
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <Input
             placeholder="Buscar producto..."
-            className="pl-8 h-8 text-sm bg-[#f8f7f5] dark:bg-muted border-0 focus-visible:ring-1"
+            className="pl-8 h-8 text-sm bg-muted/40 border-border focus-visible:ring-1"
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
@@ -417,8 +394,8 @@ export function POS() {
                 className={cn(
                   'px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-150 border',
                   category === cat.id
-                    ? 'bg-red-600 text-white border-red-600 shadow-sm'
-                    : 'bg-white dark:bg-card text-muted-foreground border-border hover:bg-red-50 hover:text-red-600 hover:border-red-200 dark:hover:bg-red-950/20'
+                    ? 'bg-[var(--action-primary)] text-white border-transparent shadow-sm'
+                    : 'bg-surface-panel text-muted-foreground border-border hover:bg-[var(--status-info-surface)] hover:text-[var(--status-info)] hover:border-[var(--status-info)]'
                 )}
               >
                 {cat.label}
@@ -441,7 +418,7 @@ export function POS() {
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
               {filteredProducts.map(p => (
-                <ProductCard key={p.id} product={p} onAdd={openEdit} disabled={!canEdit} />
+                <ProductCard key={p.id} product={p} onAdd={openEdit} disabled={!canEdit || !selectedMesaId} />
               ))}
             </div>
           )}
@@ -453,7 +430,7 @@ export function POS() {
           {/* Status bar */}
           <div className={cn(
             'px-4 py-2.5 border-b border-border flex items-center gap-2',
-            posStatus === 'draft' ? 'bg-gray-50 dark:bg-muted/30' : 'bg-amber-50 dark:bg-amber-950/20'
+            posStatus === 'draft' ? 'bg-muted/30' : 'bg-[var(--status-warning-surface)]'
           )}>
             {(() => {
               const meta = STATUS_META[posStatus];
@@ -469,8 +446,8 @@ export function POS() {
 
           {/* Caja cerrada warning */}
           {!isCajaAbierta && (
-            <div className="bg-amber-50 dark:bg-amber-950/20 border-b border-amber-200 dark:border-amber-800/50 px-4 py-2 flex items-center gap-2 text-amber-800 dark:text-amber-400">
-              <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-500" />
+            <div className="bg-[var(--status-warning-surface)] border-b border-[var(--status-warning)]/20 px-4 py-2 flex items-center gap-2 text-[var(--status-warning)]">
+              <AlertTriangle className="w-4 h-4 shrink-0 text-[var(--status-warning)]" />
               <span className="text-[11px] font-medium leading-tight">
                 Caja cerrada. Abre la caja en Gestión de Caja para cobrar pedidos.
               </span>
@@ -498,7 +475,7 @@ export function POS() {
               {activePedido && (
                 <button
                   type="button"
-                  className="text-[11px] font-medium text-red-600 hover:text-red-700"
+                  className="text-[11px] font-medium text-[var(--status-info)] hover:opacity-80"
                   onClick={refreshActivePedido}
                 >
                   Actualizar estado
@@ -506,7 +483,7 @@ export function POS() {
               )}
             </div>
             {activePedido ? (
-              <div className="flex items-center justify-between rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 px-2.5 py-1.5">
+              <div className="flex items-center justify-between rounded-lg bg-[var(--status-info-surface)] border border-[var(--status-info)]/20 px-2.5 py-1.5">
                 <span className="text-sm font-medium">
                   Pedido #{activePedido.idPedido} · {activePedido.numeroMesa ? `Mesa ${activePedido.numeroMesa}` : 'Mesa asignada'}
                 </span>
@@ -550,26 +527,26 @@ export function POS() {
                       )}
                     </div>
                     <div className="flex flex-col items-end gap-1 shrink-0">
-                      <span className="text-sm font-bold text-red-600">
+                      <span className="text-sm font-bold text-[var(--status-danger)]">
                         S/ {(item.price * item.quantity).toFixed(2)}
                       </span>
                       {canEdit && (
                         <div className="flex items-center gap-1">
                           <button
-                            className="w-5 h-5 rounded-full border border-gray-200 dark:border-border flex items-center justify-center text-gray-400 hover:border-red-400 hover:text-red-600 transition-colors"
+                            className="w-5 h-5 rounded-full border border-border flex items-center justify-center text-muted-foreground hover:border-[var(--status-danger)] hover:text-[var(--status-danger)] transition-colors"
                             onClick={() => updateCartItem(item.id, item.quantity - 1)}
                           >
                             <Minus className="w-2.5 h-2.5" />
                           </button>
                           <span className="w-5 text-center text-xs font-semibold">{item.quantity}</span>
                           <button
-                            className="w-5 h-5 rounded-full border border-gray-200 dark:border-border flex items-center justify-center text-gray-400 hover:border-red-400 hover:text-red-600 transition-colors"
+                            className="w-5 h-5 rounded-full border border-border flex items-center justify-center text-muted-foreground hover:border-[var(--status-danger)] hover:text-[var(--status-danger)] transition-colors"
                             onClick={() => updateCartItem(item.id, item.quantity + 1)}
                           >
                             <Plus className="w-2.5 h-2.5" />
                           </button>
                           <button
-                            className="w-5 h-5 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors ml-0.5"
+                            className="w-5 h-5 flex items-center justify-center text-muted-foreground hover:text-[var(--status-danger)] transition-colors ml-0.5"
                             onClick={() => removeFromCart(item.id)}
                           >
                             <X className="w-3 h-3" />
@@ -599,12 +576,12 @@ export function POS() {
                     <div key={s} className="flex items-center flex-1">
                       <div className={cn(
                         'w-2 h-2 rounded-full shrink-0 transition-colors',
-                        done ? 'bg-red-600' : 'bg-gray-200 dark:bg-muted'
+                        done ? 'bg-[var(--action-primary)]' : 'bg-muted'
                       )} />
                       {i < 4 && (
                         <div className={cn(
                           'h-0.5 flex-1 mx-0.5 transition-colors',
-                          stepIdx < currentIdx ? 'bg-red-600' : 'bg-gray-200 dark:bg-muted'
+                          stepIdx < currentIdx ? 'bg-[var(--action-primary)]' : 'bg-muted'
                         )} />
                       )}
                     </div>
@@ -626,7 +603,7 @@ export function POS() {
               <span className="text-sm text-muted-foreground">
                 {cart.length} {cart.length === 1 ? 'producto' : 'productos'}
               </span>
-              <span className="text-xl font-extrabold text-red-600">S/ {cartTotal.toFixed(2)}</span>
+              <span className="text-xl font-extrabold text-[var(--text-primary)] tabular-nums">S/ {cartTotal.toFixed(2)}</span>
             </div>
 
             {/* Botón principal de acción */}
@@ -637,10 +614,10 @@ export function POS() {
                 className={cn(
                   'w-full h-11 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all',
                   actionDisabled
-                    ? 'bg-gray-100 dark:bg-muted text-gray-300 cursor-not-allowed'
+                    ? 'bg-muted text-muted-foreground cursor-not-allowed'
                   : posStatus === 'entregado'
-                    ? 'bg-purple-600 hover:bg-purple-700 text-white shadow-sm'
-                    : 'bg-red-600 hover:bg-red-700 text-white shadow-sm'
+                    ? 'bg-[var(--action-primary)] hover:opacity-90 text-white shadow-sm'
+                    : 'bg-[var(--action-primary)] hover:opacity-90 text-white shadow-sm'
                 )}
               >
                 {posStatus === 'entregado'
@@ -655,9 +632,9 @@ export function POS() {
                 }
               </button>
             ) : (
-              <div className="w-full h-11 rounded-xl bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 flex items-center justify-center gap-2">
-                <BadgeCheck className="w-4 h-4 text-green-600" />
-                <span className="text-sm font-semibold text-green-700 dark:text-green-400">Pedido cobrado</span>
+              <div className="w-full h-11 rounded-xl bg-[var(--status-success-surface)] border border-[var(--status-success)]/20 flex items-center justify-center gap-2">
+                <BadgeCheck className="w-4 h-4 text-[var(--status-success)]" />
+                <span className="text-sm font-semibold text-[var(--status-success)]">Pedido cobrado</span>
               </div>
             )}
 
@@ -665,7 +642,7 @@ export function POS() {
             {(cart.length > 0 || posStatus !== 'draft') && (
               <button
                 onClick={handleNewOrder}
-                className="w-full text-xs text-muted-foreground hover:text-red-500 transition-colors py-0.5"
+                className="w-full text-xs text-muted-foreground hover:text-[var(--status-info)] transition-colors py-0.5"
               >
                 Nuevo pedido
               </button>
@@ -686,19 +663,35 @@ export function POS() {
             {editProduct?.variants && (
               <div className="space-y-2">
                 <Label>Variante</Label>
-                <Tabs value={editVariant} onValueChange={setEditVariant}>
-                  <TabsList
-                    className="grid w-full"
-                    style={{ gridTemplateColumns: `repeat(${editProduct.variants.length}, 1fr)` }}
+                {editProduct.variants.length <= 4 ? (
+                  <Tabs value={editVariant} onValueChange={setEditVariant}>
+                    <TabsList
+                      className="grid w-full"
+                      style={{ gridTemplateColumns: `repeat(${editProduct.variants.length}, minmax(0, 1fr))` }}
+                    >
+                      {editProduct.variants.map(v => (
+                        <TabsTrigger key={v.name} value={v.name} disabled={!v.isAvailable}>
+                          {v.name}<br />
+                          <span className="text-[10px]">
+                            {v.isAvailable ? `S/ ${v.price.toFixed(2)}` : 'Agotado'}
+                          </span>
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
+                  </Tabs>
+                ) : (
+                  <select
+                    className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                    value={editVariant}
+                    onChange={(event) => setEditVariant(event.target.value)}
                   >
                     {editProduct.variants.map(v => (
-                      <TabsTrigger key={v.name} value={v.name}>
-                        {v.name}<br />
-                        <span className="text-[10px]">S/ {v.price}</span>
-                      </TabsTrigger>
+                      <option key={v.name} value={v.name} disabled={!v.isAvailable}>
+                        {v.name} - {v.isAvailable ? `S/ ${v.price.toFixed(2)}` : 'Agotado'}
+                      </option>
                     ))}
-                  </TabsList>
-                </Tabs>
+                  </select>
+                )}
               </div>
             )}
 
@@ -709,7 +702,7 @@ export function POS() {
                   {editProduct.extras.map(extra => (
                     <label
                       key={extra.name}
-                      className="flex items-center justify-between p-2.5 border border-border rounded-lg cursor-pointer hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
+                      className="flex items-center justify-between p-2.5 border border-border rounded-lg cursor-pointer hover:bg-[var(--status-info-surface)] transition-colors"
                     >
                       <div className="flex items-center gap-2">
                         <input
@@ -721,7 +714,7 @@ export function POS() {
                               : editExtras.filter(x => x !== extra.name)
                             )
                           }
-                          className="accent-red-600"
+                          className="accent-[var(--action-primary)]"
                         />
                         <span className="text-sm">{extra.name}</span>
                       </div>
@@ -751,8 +744,9 @@ export function POS() {
               Cancelar
             </button>
             <button
-              className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-colors"
+              className="px-4 py-2 rounded-lg bg-[var(--action-primary)] hover:opacity-90 text-white text-sm font-semibold transition-colors"
               onClick={confirmAdd}
+              disabled={!!editProduct?.variants?.length && !editProduct.variants.find(variant => variant.name === editVariant)?.isAvailable}
             >
               Agregar al pedido
             </button>
@@ -790,7 +784,7 @@ function CustomerSelector({
             onClick={() => { setMode('generic'); setSelectedCustomer(null); }}
             className={cn(
               'p-1 rounded text-muted-foreground transition-colors',
-              mode === 'generic' ? 'text-red-600 bg-red-50 dark:bg-red-950/30' : 'hover:text-foreground hover:bg-muted'
+              mode === 'generic' ? 'text-[var(--status-info)] bg-[var(--status-info-surface)]' : 'hover:text-foreground hover:bg-muted'
             )}
             title="Cliente genérico"
           >
@@ -800,7 +794,7 @@ function CustomerSelector({
             onClick={() => setMode('search')}
             className={cn(
               'p-1 rounded text-muted-foreground transition-colors',
-              mode === 'search' ? 'text-red-600 bg-red-50 dark:bg-red-950/30' : 'hover:text-foreground hover:bg-muted'
+              mode === 'search' ? 'text-[var(--status-info)] bg-[var(--status-info-surface)]' : 'hover:text-foreground hover:bg-muted'
             )}
             title="Buscar cliente"
           >
@@ -810,7 +804,7 @@ function CustomerSelector({
             onClick={() => setMode('create')}
             className={cn(
               'p-1 rounded text-muted-foreground transition-colors',
-              mode === 'create' ? 'text-red-600 bg-red-50 dark:bg-red-950/30' : 'hover:text-foreground hover:bg-muted'
+              mode === 'create' ? 'text-[var(--status-info)] bg-[var(--status-info-surface)]' : 'hover:text-foreground hover:bg-muted'
             )}
             title="Crear cliente"
           >
@@ -831,15 +825,15 @@ function CustomerSelector({
       {mode === 'search' && (
         <div className="space-y-1.5">
           {selectedCustomer ? (
-            <div className="flex items-center gap-2 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg px-2.5 py-1.5">
-              <div className="w-6 h-6 rounded-full bg-red-600 flex items-center justify-center text-white text-[10px] font-bold shrink-0">
+            <div className="flex items-center gap-2 bg-[var(--status-info-surface)] border border-[var(--status-info)]/20 rounded-lg px-2.5 py-1.5">
+              <div className="w-6 h-6 rounded-full bg-[var(--status-info)] flex items-center justify-center text-white text-[10px] font-bold shrink-0">
                 {selectedCustomer.name.charAt(0)}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-semibold truncate">{selectedCustomer.name}</p>
                 <p className="text-[10px] text-muted-foreground">{selectedCustomer.documentNumber}</p>
               </div>
-              <button onClick={() => setSelectedCustomer(null)} className="text-gray-300 hover:text-red-500">
+              <button onClick={() => setSelectedCustomer(null)} className="text-muted-foreground hover:text-[var(--status-info)]">
                 <X className="w-3 h-3" />
               </button>
             </div>
@@ -848,7 +842,7 @@ function CustomerSelector({
               <div className="relative">
                 <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
                 <input
-                  className="w-full pl-6 pr-2 py-1.5 text-xs rounded-lg border border-border bg-background focus:outline-none focus:ring-1 focus:ring-red-400"
+                  className="w-full pl-6 pr-2 py-1.5 text-xs rounded-lg border border-border bg-background focus:outline-none focus:ring-1 focus:ring-[var(--action-primary)]/30"
                   placeholder="Nombre o documento..."
                   value={customerSearch}
                   onChange={e => setCustomerSearch(e.target.value)}
@@ -861,7 +855,7 @@ function CustomerSelector({
                   ) : filteredCustomers.map(c => (
                     <button
                       key={c.id}
-                      className="w-full text-left px-2.5 py-1.5 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
+                      className="w-full text-left px-2.5 py-1.5 hover:bg-[var(--status-info-surface)] transition-colors"
                       onClick={() => { setSelectedCustomer(c); setCustomerSearch(''); }}
                     >
                       <p className="text-xs font-medium">{c.name}</p>
@@ -879,27 +873,27 @@ function CustomerSelector({
       {mode === 'create' && (
         <div className="space-y-1.5">
           <input
-            className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-border bg-background focus:outline-none focus:ring-1 focus:ring-red-400"
+            className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-border bg-background focus:outline-none focus:ring-1 focus:ring-[var(--action-primary)]/30"
             placeholder="Nombre completo"
             value={newCustomer.name}
             onChange={e => setNewCustomer({ ...newCustomer, name: e.target.value })}
           />
           <div className="grid grid-cols-2 gap-1.5">
             <input
-              className="px-2.5 py-1.5 text-xs rounded-lg border border-border bg-background focus:outline-none focus:ring-1 focus:ring-red-400"
+              className="px-2.5 py-1.5 text-xs rounded-lg border border-border bg-background focus:outline-none focus:ring-1 focus:ring-[var(--action-primary)]/30"
               placeholder="DNI / RUC"
               value={newCustomer.doc}
               onChange={e => setNewCustomer({ ...newCustomer, doc: e.target.value })}
             />
             <input
-              className="px-2.5 py-1.5 text-xs rounded-lg border border-border bg-background focus:outline-none focus:ring-1 focus:ring-red-400"
+              className="px-2.5 py-1.5 text-xs rounded-lg border border-border bg-background focus:outline-none focus:ring-1 focus:ring-[var(--action-primary)]/30"
               placeholder="Teléfono"
               value={newCustomer.phone}
               onChange={e => setNewCustomer({ ...newCustomer, phone: e.target.value })}
             />
           </div>
           <button
-            className="w-full py-1.5 rounded-lg bg-red-600 hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-xs font-semibold transition-colors"
+            className="w-full py-1.5 rounded-lg bg-[var(--action-primary)] hover:opacity-90 disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed text-white text-xs font-semibold transition-colors"
             disabled={isCreatingCustomer}
             onClick={onCreateCustomer}
           >
@@ -915,32 +909,25 @@ function CustomerSelector({
 function ProductCard({
   product, onAdd, disabled,
 }: { product: Product; onAdd: (p: Product) => void; disabled: boolean }) {
-  const isOutOfStock = product.stock <= 0;
+  const usesPhysicalStock = product.type === 'INVENTARIO_DIRECTO' && !product.isCatalogParent;
+  const availableVariants = product.variants?.filter(variant => variant.isAvailable) || [];
+  const isOutOfStock = product.variants?.length ? availableVariants.length === 0 : usesPhysicalStock && product.stock <= 0;
   const isCardDisabled = disabled || isOutOfStock;
 
-  const stockBadge = isOutOfStock
-    ? 'bg-gray-200 text-gray-500 dark:bg-gray-800 dark:text-gray-400'
-    : product.stock < 5
-    ? 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400'
-    : product.stock < 20
-    ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400'
-    : 'bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400';
-
   const hasOptions = !!(product.variants?.length || product.extras?.length);
-  const productKindLabel = product.type === 'INVENTARIO_DIRECTO'
-    ? hasOptions ? 'Variantes' : 'Directo'
+  const productKindLabel = product.variants?.length
+    ? `${availableVariants.length}/${product.variants.length} opciones`
     : hasOptions ? 'Personalizable' : 'Sin opciones';
 
   return (
     <div
       className={cn(
-        'bg-white dark:bg-card rounded-2xl overflow-hidden border border-orange-100 dark:border-border shadow-sm transition-all duration-200 flex flex-col group',
-        isCardDisabled ? 'opacity-60 cursor-not-allowed' : 'hover:shadow-md cursor-pointer'
+        'bg-card rounded-lg overflow-hidden border border-border shadow-ui-low transition-colors flex flex-col group',
+        isCardDisabled ? 'opacity-60 cursor-not-allowed' : 'hover:border-primary/40 cursor-pointer'
       )}
       onClick={() => !isCardDisabled && onAdd(product)}
     >
-      {/* Imagen */}
-      <div className="relative overflow-hidden" style={{ height: '140px' }}>
+      <div className="relative aspect-[4/3] overflow-hidden bg-muted">
         <img
           src={product.image}
           alt={product.name}
@@ -949,30 +936,27 @@ function ProductCard({
             !isCardDisabled && 'group-hover:scale-105'
           )}
         />
-        {/* Stock badge — esquina inferior izquierda */}
-        <span className={cn(
-          'absolute bottom-2 left-2 text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm backdrop-blur-sm',
-          stockBadge
-        )}>
-          {isOutOfStock ? 'Agotado' : `${product.stock} uds`}
-        </span>
+        {isOutOfStock && (
+          <span className={cn(
+            'absolute bottom-2 left-2 max-w-[calc(100%-1rem)] rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold text-muted-foreground shadow-ui-low'
+          )}>
+            Agotado
+          </span>
+        )}
       </div>
 
-      {/* Body */}
       <div className="p-2.5 flex flex-col flex-1 gap-1">
-        {/* Nombre + categoría */}
         <div className="flex items-start gap-1">
           <p className="font-semibold text-xs leading-tight flex-1 line-clamp-2">{product.name}</p>
-          <span className="shrink-0 bg-orange-50 dark:bg-orange-950/30 text-orange-500 border border-orange-200 dark:border-orange-800 text-[9px] font-medium px-1.5 py-0.5 rounded capitalize">
+          <span className="shrink-0 rounded border border-border bg-muted px-1.5 py-0.5 text-[9px] font-medium capitalize text-muted-foreground">
             {product.category}
           </span>
         </div>
 
-        {/* Precio */}
         <div className="flex items-center justify-between mt-auto">
-          <span className="text-sm font-extrabold text-red-600">S/ {product.price.toFixed(2)}</span>
+          <span className="text-sm font-extrabold text-primary">Desde S/ {product.price.toFixed(2)}</span>
           {hasOptions ? (
-            <span className="flex items-center gap-0.5 text-[10px] text-red-500 font-medium">
+            <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground font-medium">
               <BookOpen className="w-3 h-3" />
               {productKindLabel}
             </span>
@@ -981,17 +965,16 @@ function ProductCard({
           )}
         </div>
 
-        {/* Add button */}
         {!isCardDisabled && (
           <button
-            className="w-full h-7 rounded-lg border border-red-200 dark:border-red-800 text-red-600 text-xs font-semibold hover:bg-red-600 hover:text-white transition-all duration-150 flex items-center justify-center gap-1 mt-0.5"
+            className="w-full h-9 rounded-lg border border-border text-primary text-xs font-semibold hover:bg-primary hover:text-primary-foreground transition-colors flex items-center justify-center gap-1 mt-0.5"
             onClick={e => { e.stopPropagation(); onAdd(product); }}
           >
             <Plus className="w-3 h-3" /> Agregar
           </button>
         )}
         {isOutOfStock && (
-          <div className="w-full h-7 rounded-lg bg-gray-100 dark:bg-muted text-gray-400 text-xs font-semibold flex items-center justify-center gap-1 mt-0.5">
+          <div className="w-full h-7 rounded-lg bg-muted text-muted-foreground text-xs font-semibold flex items-center justify-center gap-1 mt-0.5">
             Agotado
           </div>
         )}

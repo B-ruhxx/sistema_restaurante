@@ -10,6 +10,7 @@ import com.restaurante.service.VentaService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -23,6 +24,7 @@ public class VentaController {
     private VentaService ventaService;
 
     @PostMapping
+    @PreAuthorize("hasAuthority('GESTION_VENTAS') or hasAuthority('GESTION_CAJA') or hasAuthority('ACCESO_TOTAL')")
     public ResponseEntity<VentaResponse> registrarVenta(@Valid @RequestBody VentaRequest request,
                                                          @AuthenticationPrincipal CustomUserDetails userDetails) {
         Empleado empleado = userDetails.getEmpleado();
@@ -31,13 +33,15 @@ public class VentaController {
     }
 
     @PostMapping("/{id}/pagar")
+    @PreAuthorize("hasAuthority('GESTION_VENTAS') or hasAuthority('GESTION_CAJA') or hasAuthority('ACCESO_TOTAL')")
     public ResponseEntity<VentaResponse> pagarVenta(@PathVariable Integer id,
-                                                     @RequestBody List<VentaPagoRequest> pagosReq) {
+                                                     @Valid @RequestBody List<@Valid VentaPagoRequest> pagosReq) {
         VentaResponse response = ventaService.pagarVenta(id, pagosReq);
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/{id}/anular")
+    @PreAuthorize("hasAuthority('GESTION_VENTAS') or hasAuthority('GESTION_CAJA') or hasAuthority('ACCESO_TOTAL')")
     public ResponseEntity<VentaResponse> anularVenta(@PathVariable Integer id,
                                                       @Valid @RequestBody VentaAnulacionRequest request,
                                                       @AuthenticationPrincipal CustomUserDetails userDetails) {
@@ -47,6 +51,7 @@ public class VentaController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('GESTION_VENTAS') or hasAuthority('GESTION_CAJA') or hasAuthority('ACCESO_TOTAL')")
     public ResponseEntity<VentaResponse> obtenerVenta(@PathVariable Integer id) {
         return ventaService.obtenerVentaPorId(id)
                 .map(ResponseEntity::ok)
@@ -54,6 +59,7 @@ public class VentaController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAuthority('GESTION_VENTAS') or hasAuthority('GESTION_CAJA') or hasAuthority('ACCESO_TOTAL')")
     public ResponseEntity<List<VentaResponse>> listarVentas() {
         return ResponseEntity.ok(ventaService.listarVentas());
     }

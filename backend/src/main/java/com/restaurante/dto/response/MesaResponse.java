@@ -3,7 +3,6 @@ package com.restaurante.dto.response;
 public class MesaResponse {
     private Integer idMesa;
     private String numero;
-    private String nombre;
     private Integer capacidad;
     private String ubicacion;
     private String estado;
@@ -22,14 +21,6 @@ public class MesaResponse {
 
     public void setNumero(String numero) {
         this.numero = numero;
-    }
-
-    public String getNombre() {
-        return nombre;
-    }
-
-    public void setNombre(String nombre) {
-        this.nombre = nombre;
     }
 
     public Integer getCapacidad() {

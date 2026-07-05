@@ -2,6 +2,7 @@ package com.restaurante.entity;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.Objects;
 
 @Entity
@@ -23,6 +24,12 @@ public class ComboProducto {
 
     @Column(name = "imagen_url", length = 255)
     private String imagenUrl;
+
+    @Column(length = 80)
+    private String etiqueta;
+
+    @Column(name = "valido_hasta")
+    private LocalDate validoHasta;
 
     @Enumerated(EnumType.STRING)
     @Column(columnDefinition = "ENUM('ACTIVO', 'INACTIVO') DEFAULT 'ACTIVO'")
@@ -65,6 +72,22 @@ public class ComboProducto {
 
     public void setImagenUrl(String imagenUrl) {
         this.imagenUrl = imagenUrl;
+    }
+
+    public String getEtiqueta() {
+        return etiqueta;
+    }
+
+    public void setEtiqueta(String etiqueta) {
+        this.etiqueta = etiqueta;
+    }
+
+    public LocalDate getValidoHasta() {
+        return validoHasta;
+    }
+
+    public void setValidoHasta(LocalDate validoHasta) {
+        this.validoHasta = validoHasta;
     }
 
     public BigDecimal getPrecio() {

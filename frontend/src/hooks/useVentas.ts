@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ventasApi, VentaRequest, VentaPagoRequest } from '../api/ventas';
+import { ventasApi, VentaPagoRequest } from '../api/ventas';
 import { PrivateQueryOptions, usePrivateQueryEnabled } from './usePrivateQuery';
 
 export const useVentas = ({ enabled = true }: PrivateQueryOptions = {}) => {
@@ -27,6 +27,11 @@ export const useVentas = ({ enabled = true }: PrivateQueryOptions = {}) => {
       queryClient.invalidateQueries({ queryKey: ['ventas'] });
       // Invalidate products as stock changes after sale payment
       queryClient.invalidateQueries({ queryKey: ['productos'] });
+      queryClient.invalidateQueries({ queryKey: ['cajas'] });
+      queryClient.invalidateQueries({ queryKey: ['pedidos'] });
+      queryClient.invalidateQueries({ queryKey: ['mesas'] });
+      queryClient.invalidateQueries({ queryKey: ['movimientos'] });
+      queryClient.invalidateQueries({ queryKey: ['reportes'] });
     },
   });
 
@@ -36,6 +41,11 @@ export const useVentas = ({ enabled = true }: PrivateQueryOptions = {}) => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ventas'] });
       queryClient.invalidateQueries({ queryKey: ['productos'] });
+      queryClient.invalidateQueries({ queryKey: ['cajas'] });
+      queryClient.invalidateQueries({ queryKey: ['pedidos'] });
+      queryClient.invalidateQueries({ queryKey: ['mesas'] });
+      queryClient.invalidateQueries({ queryKey: ['movimientos'] });
+      queryClient.invalidateQueries({ queryKey: ['reportes'] });
     },
   });
 

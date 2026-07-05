@@ -14,6 +14,12 @@ public class ExtraProductoMapper {
         response.setIdExtra(entity.getIdExtra());
         response.setNombre(entity.getNombre());
         response.setPrecio(entity.getPrecio());
+        response.setCantidadConsumida(entity.getCantidadConsumida());
+        if (entity.getInsumo() != null) {
+            response.setIdInsumo(entity.getInsumo().getIdInsumo());
+            response.setNombreInsumo(entity.getInsumo().getNombre());
+            response.setUnidadMedidaInsumo(entity.getInsumo().getUnidad());
+        }
         if (entity.getEstado() != null) {
             response.setEstado(entity.getEstado().name());
         }
@@ -25,6 +31,7 @@ public class ExtraProductoMapper {
         ExtraProducto entity = new ExtraProducto();
         entity.setNombre(request.getNombre());
         entity.setPrecio(request.getPrecio());
+        entity.setCantidadConsumida(request.getCantidadConsumida());
         if (request.getEstado() != null) {
             entity.setEstado(ExtraProducto.Estado.valueOf(request.getEstado().toUpperCase()));
         }

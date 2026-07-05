@@ -10,7 +10,7 @@ public class CobrarPedidoRequest {
     private String tipoComprobante;
 
     private String serie;
-    private String correlativo;
+    private String numero;
 
     @Valid
     @NotEmpty(message = "Debe registrar al menos un pago")
@@ -32,12 +32,12 @@ public class CobrarPedidoRequest {
         this.serie = serie;
     }
 
-    public String getCorrelativo() {
-        return correlativo;
+    public String getNumero() {
+        return numero;
     }
 
-    public void setCorrelativo(String correlativo) {
-        this.correlativo = correlativo;
+    public void setNumero(String numero) {
+        this.numero = numero;
     }
 
     public List<VentaPagoRequest> getPagos() {

@@ -7,6 +7,10 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "test:smoke": "node scripts/smoke-rf-check.mjs",
+    "visual:validate": "node scripts/visual-validate.mjs",
+    "contracts:generate": "node scripts/generate-openapi-types.mjs",
+    "contracts:check": "node scripts/generate-openapi-types.mjs --check",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -85,6 +89,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.6.0",
+    "playwright": "^1.61.1",
     "tailwindcss": "^4.3.0",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.59.2",

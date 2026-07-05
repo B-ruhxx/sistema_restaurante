@@ -5,7 +5,6 @@ import java.util.List;
 public class DetallePedidoRequest {
     private Integer idProducto;
     private Integer idCombo;
-    private Integer idVariante;
     private Integer cantidad;
     private String observacion;
     private List<Integer> extrasIds;
@@ -17,9 +16,6 @@ public class DetallePedidoRequest {
 
     public Integer getIdCombo() { return idCombo; }
     public void setIdCombo(Integer idCombo) { this.idCombo = idCombo; }
-
-    public Integer getIdVariante() { return idVariante; }
-    public void setIdVariante(Integer idVariante) { this.idVariante = idVariante; }
 
     public Integer getCantidad() { return cantidad; }
     public void setCantidad(Integer cantidad) { this.cantidad = cantidad; }

@@ -1,17 +1,8 @@
-import React, { createContext, useContext, useEffect, ReactNode } from 'react';
+import { useEffect, ReactNode } from 'react';
 import { useAuthStore } from '../../store/authStore';
 import api from '../../api/auth';
 import { getFullImageUrl } from '../components/ui/utils';
-
-interface AuthContextProps {
-  isAuthenticated: boolean;
-  user: any | null;
-  isLoading: boolean;
-  error: string | null;
-  logout: () => Promise<void>;
-}
-
-const AuthContext = createContext<AuthContextProps | undefined>(undefined);
+import { AuthContext } from './AuthContextValue';
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const { isAuthenticated, user, isLoading, error } = useAuthStore();
@@ -43,7 +34,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             isLoading: false,
             error: null,
           });
-        } catch (e) {
+        } catch {
           // Clear invalid token
           if (typeof window !== 'undefined') {
             localStorage.removeItem('token');
@@ -58,16 +49,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     };
     fetchMe();
-  }, []);
+  }, [isAuthenticated]);
 
   const logout = async () => {
-    await api.post('/auth/logout');
-    useAuthStore.setState({
-      user: null,
-      isAuthenticated: false,
-      isLoading: false,
-      error: null,
-    });
+    try {
+      await api.post('/auth/logout');
+    } finally {
+      localStorage.removeItem('token');
+      useAuthStore.setState({
+        user: null,
+        isAuthenticated: false,
+        isLoading: false,
+        error: null,
+      });
+    }
   };
 
   return (
@@ -83,10 +78,4 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       {children}
     </AuthContext.Provider>
   );
-};
-
-export const useAuthContext = () => {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuthContext must be used within AuthProvider');
-  return ctx;
 };

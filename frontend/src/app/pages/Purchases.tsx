@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import {
-  Plus, Search, ChevronRight, CheckCircle2, Clock, X, Eye,
-  ShoppingCart, Building2, AlertCircle, Ban, Loader2
+  Plus, ChevronRight, CheckCircle2, Clock, X, Eye,
+  ShoppingCart, Building2, Ban, Loader2
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Badge } from '../components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
+import { Card, CardContent } from '../components/ui/card';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '../components/ui/dialog';
@@ -23,58 +23,78 @@ import { toast } from '../../lib/notifications';
 import { useCompras } from '../../hooks/useCompras';
 import { useProveedores } from '../../hooks/useProveedores';
 import { useInsumos } from '../../hooks/useInsumos';
-import { CompraResponse } from '../../api/compras';
+import { useProductos } from '../../hooks/useProductos';
+import { comprasApi } from '../../api/compras';
+import type { CompraResponse } from '../../api/compras';
+import { PageWrapper, ModuleHeader, KpiCard, FilterToolbar, EmptyState, SectionCard } from '../components/ui/erp-layout';
+import { cn } from '../components/ui/utils';
 
 interface SelectedItem {
-  idInsumo: number;
+  tipoRecurso: 'INSUMO' | 'PRODUCTO';
+  idInsumo?: number;
+  idProducto?: number;
   nombre: string;
   unidad: string;
+  sku?: string;
   qty: number;
   unitPrice: number;
+  expirationDate: string;
   total: number;
 }
 
 type Step = 1 | 2 | 3;
 
-const statusConf: Record<string, { label: string; badge: string }> = {
-  REGISTRADA: { label: 'Registrada', badge: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
-  ANULADA: { label: 'Anulada', badge: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
+const statusConf: Record<string, { label: string; badgeVariant: 'success' | 'danger' | 'info' | 'warning' | 'secondary' }> = {
+  REGISTRADA: { label: 'Registrada', badgeVariant: 'success' },
+  ANULADA: { label: 'Anulada', badgeVariant: 'danger' },
 };
 
 export function Purchases() {
   const { compras, isLoading: loadingCompras, createCompra, anularCompra, isCreating, isAnulando } = useCompras();
   const { proveedores, isLoading: loadingProveedores } = useProveedores();
   const { insumos, isLoading: loadingInsumos } = useInsumos();
+  const { productos, isLoading: loadingProductos } = useProductos();
 
   const [search, setSearch] = useState('');
   const [newOpen, setNewOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedP, setSelectedP] = useState<CompraResponse | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [step, setStep] = useState<Step>(1);
   const [newForm, setNewForm] = useState({ supplierId: '', notes: '' });
   const [newItems, setNewItems] = useState<SelectedItem[]>([]);
-  const [addItem, setAddItem] = useState({ idInsumo: '', qty: '', unitPrice: '' });
+  const [addItem, setAddItem] = useState({
+    tipoRecurso: 'INSUMO' as 'INSUMO' | 'PRODUCTO',
+    idRecurso: '',
+    qty: '',
+    unitPrice: '',
+    expirationDate: '',
+  });
 
-  if (loadingCompras || loadingProveedores || loadingInsumos) {
+  if (loadingCompras || loadingProveedores || loadingInsumos || loadingProductos) {
     return (
-      <div className="h-[80vh] flex flex-col items-center justify-center gap-2">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="h-[80vh] flex flex-col items-center justify-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+          <Loader2 className="w-5 h-5 animate-spin text-primary" />
+        </div>
         <p className="text-sm text-muted-foreground">Cargando compras y catálogos...</p>
       </div>
     );
   }
 
-  // Filters active suppliers
   const activeSuppliers = proveedores.filter(p => p.estado !== 'INACTIVO');
   const activeInsumos = insumos.filter(i => i.estado !== 'INACTIVO');
+  const activeProductSkus = productos.filter(p =>
+    p.estado !== 'INACTIVO' &&
+    p.esSku !== false &&
+    p.tipoProducto === 'INVENTARIO_DIRECTO'
+  );
 
-  // Filter purchases by search term
   const filtered = compras.filter(p =>
     (p.codigoCompra || '').toLowerCase().includes(search.toLowerCase()) ||
     (p.proveedorNombre || '').toLowerCase().includes(search.toLowerCase())
   );
 
-  // Group purchases by month for the chart
   const purchasesByMonth = compras
     .filter(c => c.estado !== 'ANULADA')
     .reduce((acc, c) => {
@@ -87,41 +107,68 @@ export function Purchases() {
   const monthsOrder = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
   const chartData = monthsOrder
     .filter(m => purchasesByMonth[m] !== undefined)
-    .map(m => ({
-      month: m,
-      total: purchasesByMonth[m] || 0
-    }));
+    .map(m => ({ month: m, total: purchasesByMonth[m] || 0 }));
 
-  const totalThisMonth = compras
+  const totalRegistrado = compras
     .filter(c => c.estado !== 'ANULADA')
     .reduce((s, p) => s + Number(p.total), 0);
-
-  const pendingCount = compras.filter(p => p.estado === 'PENDIENTE').length;
 
   const newTotal = newItems.reduce((s, i) => s + i.total, 0);
 
   const handleAddItem = () => {
-    const insumo = activeInsumos.find(i => i.idInsumo === Number(addItem.idInsumo));
-    if (!insumo || !addItem.qty || !addItem.unitPrice) return;
     const qty = parseFloat(addItem.qty);
     const price = parseFloat(addItem.unitPrice);
-    
-    // Check if item is already added
-    if (newItems.some(i => i.idInsumo === insumo.idInsumo)) {
-      toast.warning('Este insumo ya ha sido agregado.');
+    if (!addItem.idRecurso || !addItem.qty || !addItem.unitPrice || !addItem.expirationDate) return;
+    if (qty <= 0 || price <= 0) return;
+
+    if (addItem.tipoRecurso === 'PRODUCTO' && !Number.isInteger(qty)) {
+      toast.warning('La cantidad de un SKU producto debe ser un número entero.');
       return;
     }
 
-    const item: SelectedItem = {
-      idInsumo: insumo.idInsumo,
-      nombre: insumo.nombre,
-      unidad: insumo.unidad,
-      qty,
-      unitPrice: price,
-      total: qty * price
-    };
+    const duplicate = newItems.some(i =>
+      i.tipoRecurso === addItem.tipoRecurso &&
+      (addItem.tipoRecurso === 'INSUMO'
+        ? i.idInsumo === Number(addItem.idRecurso)
+        : i.idProducto === Number(addItem.idRecurso))
+    );
+    if (duplicate) {
+      toast.warning('Este recurso ya ha sido agregado.');
+      return;
+    }
+
+    const item: SelectedItem = addItem.tipoRecurso === 'INSUMO'
+      ? (() => {
+          const insumo = activeInsumos.find(i => i.idInsumo === Number(addItem.idRecurso));
+          if (!insumo) throw new Error('Insumo no encontrado');
+          return {
+            tipoRecurso: 'INSUMO' as const,
+            idInsumo: insumo.idInsumo,
+            nombre: insumo.nombre,
+            unidad: insumo.unidad,
+            qty,
+            unitPrice: price,
+            expirationDate: addItem.expirationDate,
+            total: qty * price,
+          };
+        })()
+      : (() => {
+          const producto = activeProductSkus.find(p => p.idProducto === Number(addItem.idRecurso));
+          if (!producto) throw new Error('SKU producto no encontrado');
+          return {
+            tipoRecurso: 'PRODUCTO' as const,
+            idProducto: producto.idProducto,
+            nombre: producto.nombre,
+            unidad: 'uds',
+            sku: producto.sku,
+            qty,
+            unitPrice: price,
+            expirationDate: addItem.expirationDate,
+            total: qty * price,
+          };
+        })();
     setNewItems(prev => [...prev, item]);
-    setAddItem({ idInsumo: '', qty: '', unitPrice: '' });
+    setAddItem(a => ({ ...a, idRecurso: '', qty: '', unitPrice: '', expirationDate: '' }));
   };
 
   const handleConfirm = async () => {
@@ -131,9 +178,11 @@ export function Purchases() {
       const payload = {
         idProveedor: Number(newForm.supplierId),
         detalles: newItems.map(item => ({
-          idInsumo: item.idInsumo,
+          idInsumo: item.tipoRecurso === 'INSUMO' ? item.idInsumo : undefined,
+          idProducto: item.tipoRecurso === 'PRODUCTO' ? item.idProducto : undefined,
           cantidad: item.qty,
-          precioUnitario: item.unitPrice
+          precioUnitario: item.unitPrice,
+          fechaVencimiento: item.expirationDate
         })),
         observacion: newForm.notes || 'Registro de compra.'
       };
@@ -144,9 +193,14 @@ export function Purchases() {
       setStep(1);
       setNewForm({ supplierId: '', notes: '' });
       setNewItems([]);
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      toast.error(err.response?.data?.message || 'Error al registrar la compra');
+      const apiError = err as AppApiErrorLike;
+      const errorMessage =
+        typeof apiError.response?.data === 'string'
+          ? apiError.response.data
+          : apiError.response?.data?.message;
+      toast.error(errorMessage || 'Error al registrar la compra');
     }
   };
 
@@ -156,157 +210,191 @@ export function Purchases() {
       await anularCompra(id);
       toast.success('Compra anulada correctamente');
       setDetailOpen(false);
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      toast.error(err.response?.data?.message || 'Error al anular la compra');
+      const apiError = err as AppApiErrorLike;
+      const errorMessage =
+        typeof apiError.response?.data === 'string'
+          ? apiError.response.data
+          : apiError.response?.data?.message;
+      toast.error(errorMessage || 'Error al anular la compra');
+    }
+  };
+
+  const openDetail = async (purchase: CompraResponse) => {
+    setSelectedP(purchase);
+    setDetailOpen(true);
+    setDetailLoading(true);
+    try {
+      const detail = await comprasApi.getById(purchase.idCompra);
+      setSelectedP(detail);
+    } catch (err) {
+      console.error(err);
+      toast.error('No se pudo cargar el detalle completo de la compra');
+    } finally {
+      setDetailLoading(false);
     }
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Compras</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Gestión de órdenes de compra e ingresos a inventario</p>
-        </div>
-        <Button onClick={() => { setNewOpen(true); setStep(1); }}>
-          <Plus className="w-4 h-4 mr-2" /> Nueva Compra
-        </Button>
-      </div>
+    <PageWrapper>
+      <ModuleHeader
+        breadcrumbs={[
+          { label: 'Inventario' },
+          { label: 'Compras' },
+        ]}
+        icon={ShoppingCart}
+        iconColor="blue"
+        title="Compras"
+        subtitle="Gestión de órdenes de compra e ingresos a inventario por lotes."
+        action={
+          <Button onClick={() => { setNewOpen(true); setStep(1); }} className="h-11 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95 gap-2 font-semibold">
+            <Plus className="w-4 h-4" /> Nueva Compra
+          </Button>
+        }
+      />
 
-      {/* Dashboard Top */}
+      {/* KPI Cards + Chart */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="md:col-span-2">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Gastos en Compras de Insumos (S/)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {chartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={140}>
-                  <BarChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-                    <XAxis dataKey="month" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} width={50} />
-                    <Tooltip formatter={(v: number) => [`S/ ${v}`, 'Total']} />
-                    <Bar dataKey="total" fill="var(--primary)" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-[140px] flex items-center justify-center text-sm text-muted-foreground">
-                  Sin compras registradas para graficar.
-                </div>
-              )}
-            </CardContent>
-          </Card>
+        {/* Chart */}
+        <div className="md:col-span-2 rounded-2xl border border-border bg-card p-5 shadow-sm">
+          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-4">Gastos en Compras de Inventario (S/)</p>
+          {chartData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={130}>
+              <BarChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                <XAxis dataKey="month" tick={{ fontSize: 11, fontWeight: 600 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fontWeight: 600 }} axisLine={false} tickLine={false} width={50} />
+                <Tooltip formatter={(v: number) => [`S/ ${v}`, 'Total']} />
+                <Bar dataKey="total" fill="var(--primary)" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[130px] flex items-center justify-center text-xs font-semibold text-muted-foreground">
+              Sin compras registradas para graficar.
+            </div>
+          )}
         </div>
-        <div className="space-y-3">
-          {[
-            { label: 'Compras Totales Registradas', value: `S/ ${totalThisMonth.toLocaleString()}`, icon: ShoppingCart },
-            { label: 'Órdenes de Compra', value: compras.length, icon: Clock },
-            { label: 'Proveedores Activos', value: activeSuppliers.length, icon: Building2 },
-          ].map(s => (
-            <Card key={s.label}>
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <s.icon className="w-4 h-4 text-primary" />
-                </div>
-                <div>
-                  <p className="text-lg font-semibold">{s.value}</p>
-                  <p className="text-xs text-muted-foreground">{s.label}</p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+
+        {/* KPIs */}
+        <div className="flex flex-col gap-3">
+          <KpiCard icon={ShoppingCart} label="Compras Totales (S/)" value={`S/ ${totalRegistrado.toLocaleString()}`} color="blue" />
+          <KpiCard icon={Clock} label="Órdenes de Compra" value={compras.length} color="slate" />
+          <KpiCard icon={Building2} label="Proveedores Activos" value={activeSuppliers.length} color="green" />
         </div>
       </div>
 
-      {/* Main Providers summary */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {activeSuppliers.slice(0, 4).map(s => {
-          const total = compras
-            .filter(p => p.idProveedor === s.idProveedor && p.estado !== 'ANULADA')
-            .reduce((sum, p) => sum + Number(p.total), 0);
-          return (
-            <Card key={s.idProveedor} className="p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <Building2 className="w-4 h-4 text-muted-foreground" />
-                <p className="text-xs font-medium truncate">{s.razonSocial}</p>
+      {/* Supplier quick summary */}
+      {activeSuppliers.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {activeSuppliers.slice(0, 4).map(s => {
+            const total = compras
+              .filter(p => p.idProveedor === s.idProveedor && p.estado !== 'ANULADA')
+              .reduce((sum, p) => sum + Number(p.total), 0);
+            return (
+              <div key={s.idProveedor} className="rounded-xl border border-border bg-card p-3.5 shadow-sm">
+                <div className="flex items-center gap-2 mb-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <Building2 className="w-3.5 h-3.5 text-primary" />
+                  </div>
+                  <p className="text-xs font-bold text-foreground truncate">{s.razonSocial}</p>
+                </div>
+                <p className="text-sm font-black text-foreground ui-tabular">S/ {total.toFixed(0)}</p>
+                <p className="text-[10px] text-muted-foreground font-semibold mt-0.5">en compras activas</p>
               </div>
-              <p className="text-base font-semibold">S/ {total.toFixed(0)}</p>
-              <p className="text-xs text-muted-foreground">compras activas</p>
-            </Card>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
-      {/* Filters + Table */}
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input placeholder="Buscar compra o proveedor..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
-      </div>
+      {/* Filters */}
+      <FilterToolbar
+        search={{
+          value: search,
+          onChange: setSearch,
+          placeholder: 'Buscar compra o proveedor...',
+        }}
+      />
 
-      <Card>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>N° Compra</TableHead>
-              <TableHead className="hidden md:table-cell">Proveedor</TableHead>
-              <TableHead className="hidden sm:table-cell">Comprador</TableHead>
-              <TableHead className="hidden sm:table-cell">Fecha</TableHead>
-              <TableHead className="hidden lg:table-cell">Items</TableHead>
-              <TableHead>Total</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead className="w-10"></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.map(p => (
-              <TableRow key={p.idCompra} className="cursor-pointer hover:bg-accent/50" onClick={() => { setSelectedP(p); setDetailOpen(true); }}>
-                <TableCell className="font-mono text-sm font-medium">{p.codigoCompra || `COMP-${String(p.idCompra).padStart(4, '0')}`}</TableCell>
-                <TableCell className="hidden md:table-cell text-sm">{p.proveedorNombre}</TableCell>
-                <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">{p.empleadoNombre}</TableCell>
-                <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">{new Date(p.fecha).toLocaleString()}</TableCell>
-                <TableCell className="hidden lg:table-cell text-sm">{p.detalles?.length || 0}</TableCell>
-                <TableCell className="font-medium">S/ {Number(p.total).toFixed(2)}</TableCell>
-                <TableCell>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusConf[p.estado]?.badge || 'bg-zinc-100 text-zinc-700'}`}>
-                    {statusConf[p.estado]?.label || p.estado}
-                  </span>
-                </TableCell>
-                <TableCell onClick={e => e.stopPropagation()}>
-                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => { setSelectedP(p); setDetailOpen(true); }}>
-                    <Eye className="w-4 h-4" />
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-            {filtered.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                  No se encontraron órdenes de compra.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </Card>
+      {/* Table */}
+      {filtered.length === 0 ? (
+        <EmptyState
+          icon={ShoppingCart}
+          title="Sin órdenes de compra"
+          description="Registra tu primera compra para ingresar stock al inventario."
+          action={
+            <Button onClick={() => { setNewOpen(true); setStep(1); }} className="h-10 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95">
+              <Plus className="w-4 h-4 mr-2" />
+              Nueva Compra
+            </Button>
+          }
+        />
+      ) : (
+        <SectionCard
+          title="Órdenes de Compra"
+          description={`Mostrando ${filtered.length} registros.`}
+          icon={ShoppingCart}
+          iconColor="blue"
+        >
+          <div className="rounded-xl border border-border overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>N° Compra</TableHead>
+                  <TableHead className="hidden md:table-cell">Proveedor</TableHead>
+                  <TableHead className="hidden sm:table-cell">Comprador</TableHead>
+                  <TableHead className="hidden sm:table-cell">Fecha</TableHead>
+                  <TableHead className="hidden lg:table-cell">Items</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead className="w-10"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.map(p => (
+                  <TableRow key={p.idCompra} className="cursor-pointer" onClick={() => openDetail(p)}>
+                    <TableCell className="font-mono text-xs font-bold text-foreground">{p.codigoCompra || `COMP-${String(p.idCompra).padStart(4, '0')}`}</TableCell>
+                    <TableCell className="hidden md:table-cell text-sm font-bold text-foreground">{p.proveedorNombre}</TableCell>
+                    <TableCell className="hidden sm:table-cell text-xs font-semibold text-muted-foreground">{p.empleadoNombre}</TableCell>
+                    <TableCell className="hidden sm:table-cell text-xs font-semibold text-muted-foreground">{new Date(p.fecha).toLocaleString()}</TableCell>
+                    <TableCell className="hidden lg:table-cell text-xs font-semibold text-muted-foreground">{p.detalles?.length || 0}</TableCell>
+                    <TableCell className="font-bold text-foreground ui-tabular text-sm">S/ {Number(p.total).toFixed(2)}</TableCell>
+                    <TableCell>
+                      <Badge variant={statusConf[p.estado]?.badgeVariant || 'secondary'} className="shadow-2xs text-[10px] font-bold">
+                        {statusConf[p.estado]?.label || p.estado}
+                      </Badge>
+                    </TableCell>
+                    <TableCell onClick={e => e.stopPropagation()}>
+                      <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg" onClick={() => openDetail(p)}>
+                        <Eye className="w-4 h-4 text-muted-foreground" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </SectionCard>
+      )}
 
       {/* New Purchase Wizard */}
       <Dialog open={newOpen} onOpenChange={setNewOpen}>
-        <DialogContent className="max-w-xl">
+        <DialogContent className="max-w-xl rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Nueva Orden de Compra</DialogTitle>
-            <DialogDescription>Completa el asistente para registrar la compra e ingresar stock al inventario.</DialogDescription>
+            <DialogTitle className="text-lg font-bold">Nueva Orden de Compra</DialogTitle>
+            <DialogDescription className="text-xs">Completa el asistente para registrar la compra e ingresar stock al inventario.</DialogDescription>
             {/* Steps indicator */}
-            <div className="flex items-center gap-2 mt-3">
-              {[1, 2, 3].map(s => (
+            <div className="flex items-center gap-2 mt-4">
+              {([1, 2, 3] as const).map(s => (
                 <div key={s} className="flex items-center gap-2">
-                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium transition-colors ${step >= s ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+                  <div className={cn(
+                    'w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all shadow-sm',
+                    step >= s ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground border border-border'
+                  )}>
                     {step > s ? <CheckCircle2 className="w-4 h-4" /> : s}
                   </div>
-                  <span className="text-xs text-muted-foreground hidden sm:block">
-                    {s === 1 ? 'Proveedor' : s === 2 ? 'Insumos' : 'Confirmación'}
+                  <span className="text-xs font-semibold text-muted-foreground hidden sm:block">
+                    {s === 1 ? 'Proveedor' : s === 2 ? 'Recursos' : 'Confirmación'}
                   </span>
                   {s < 3 && <ChevronRight className="w-3 h-3 text-muted-foreground" />}
                 </div>
@@ -315,112 +403,136 @@ export function Purchases() {
           </DialogHeader>
 
           {step === 1 && (
-            <div className="space-y-4">
-              <div>
-                <Label>Proveedor *</Label>
+            <div className="space-y-4 mt-2">
+              <div className="space-y-1.5">
+                <Label className="text-sm font-semibold">Proveedor *</Label>
                 <Select value={newForm.supplierId} onValueChange={v => setNewForm(f => ({ ...f, supplierId: v }))}>
-                  <SelectTrigger className="mt-1"><SelectValue placeholder="Seleccionar proveedor..." /></SelectTrigger>
-                  <SelectContent>
+                  <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Seleccionar proveedor..." /></SelectTrigger>
+                  <SelectContent className="rounded-xl">
                     {activeSuppliers.map(s => (
-                      <SelectItem key={s.idProveedor} value={String(s.idProveedor)}>
+                      <SelectItem key={s.idProveedor} value={String(s.idProveedor)} className="rounded-lg">
                         {s.razonSocial} {s.ruc ? `(${s.ruc})` : ''}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <Label>Notas / Observación</Label>
-                <Input placeholder="Observaciones..." value={newForm.notes} onChange={e => setNewForm(f => ({ ...f, notes: e.target.value }))} className="mt-1" />
+              <div className="space-y-1.5">
+                <Label className="text-sm font-semibold">Notas / Observación</Label>
+                <Input placeholder="Observaciones..." value={newForm.notes} onChange={e => setNewForm(f => ({ ...f, notes: e.target.value }))} className="h-11 rounded-xl" />
               </div>
             </div>
           )}
 
           {step === 2 && (
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">Agrega los insumos a comprar:</p>
-              <div className="flex gap-2 flex-wrap items-end">
-                <div className="flex-1 min-w-[200px]">
-                  <Label>Insumo *</Label>
-                  <Select value={addItem.idInsumo} onValueChange={v => setAddItem(a => ({ ...a, idInsumo: v }))}>
-                    <SelectTrigger className="mt-1"><SelectValue placeholder="Insumo..." /></SelectTrigger>
-                    <SelectContent>
-                      {activeInsumos.map(s => (
-                        <SelectItem key={s.idInsumo} value={String(s.idInsumo)}>{s.nombre} ({s.unidad})</SelectItem>
-                      ))}
+            <div className="space-y-4 mt-2">
+              <p className="text-xs font-semibold text-muted-foreground">Agrega insumos o SKUs de inventario directo:</p>
+              <div className="grid grid-cols-1 sm:grid-cols-[120px_1fr_80px_100px_140px_auto] gap-2 items-end">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold">Tipo</Label>
+                  <Select
+                    value={addItem.tipoRecurso}
+                    onValueChange={v => setAddItem(a => ({ ...a, tipoRecurso: v as 'INSUMO' | 'PRODUCTO', idRecurso: '' }))}
+                  >
+                    <SelectTrigger className="h-9 rounded-xl text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent className="rounded-xl">
+                      <SelectItem value="INSUMO" className="rounded-lg">Insumo</SelectItem>
+                      <SelectItem value="PRODUCTO" className="rounded-lg">SKU</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="w-24">
-                  <Label>Cantidad</Label>
-                  <Input placeholder="Cant." type="number" min="0.01" step="any" className="mt-1" value={addItem.qty} onChange={e => setAddItem(a => ({ ...a, qty: e.target.value }))} />
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold">{addItem.tipoRecurso === 'INSUMO' ? 'Insumo *' : 'SKU producto *'}</Label>
+                  <Select value={addItem.idRecurso} onValueChange={v => setAddItem(a => ({ ...a, idRecurso: v }))}>
+                    <SelectTrigger className="h-9 rounded-xl text-xs"><SelectValue placeholder={addItem.tipoRecurso === 'INSUMO' ? 'Insumo...' : 'SKU...'} /></SelectTrigger>
+                    <SelectContent className="rounded-xl">
+                      {addItem.tipoRecurso === 'INSUMO'
+                        ? activeInsumos.map(s => (
+                            <SelectItem key={s.idInsumo} value={String(s.idInsumo)} className="rounded-lg">{s.nombre} ({s.unidad})</SelectItem>
+                          ))
+                        : activeProductSkus.map(p => (
+                            <SelectItem key={p.idProducto} value={String(p.idProducto)} className="rounded-lg">
+                              {p.nombre}{p.sku ? ` (${p.sku})` : ''}
+                            </SelectItem>
+                          ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-                <div className="w-28">
-                  <Label>Precio Unitario</Label>
-                  <Input placeholder="P. unit." type="number" min="0.01" step="any" className="mt-1" value={addItem.unitPrice} onChange={e => setAddItem(a => ({ ...a, unitPrice: e.target.value }))} />
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold">Cant.</Label>
+                  <Input placeholder="Qty" type="number" min="0.01" step="any" className="h-9 rounded-xl text-xs" value={addItem.qty} onChange={e => setAddItem(a => ({ ...a, qty: e.target.value }))} />
                 </div>
-                <Button onClick={handleAddItem} className="h-10"><Plus className="w-4 h-4" /></Button>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold">P. Unitario</Label>
+                  <Input placeholder="0.00" type="number" min="0.01" step="any" className="h-9 rounded-xl text-xs" value={addItem.unitPrice} onChange={e => setAddItem(a => ({ ...a, unitPrice: e.target.value }))} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold">Vencimiento</Label>
+                  <Input type="date" className="h-9 rounded-xl text-xs bg-background" value={addItem.expirationDate} onChange={e => setAddItem(a => ({ ...a, expirationDate: e.target.value }))} />
+                </div>
+                <Button onClick={handleAddItem} className="h-9 w-9 rounded-xl p-0" size="icon"><Plus className="w-4 h-4" /></Button>
               </div>
-              <div className="space-y-2 max-h-52 overflow-y-auto mt-2">
+              <div className="space-y-2 max-h-52 overflow-y-auto">
                 {newItems.map((item, i) => (
-                  <div key={i} className="flex items-center gap-3 p-2 rounded-lg border border-border text-sm">
-                    <span className="flex-1 font-medium">{item.nombre}</span>
-                    <span className="text-muted-foreground">{item.qty} {item.unidad}</span>
-                    <span className="text-muted-foreground">S/ {item.unitPrice.toFixed(2)} c/u</span>
-                    <span className="font-semibold">S/ {item.total.toFixed(2)}</span>
-                    <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive hover:bg-destructive/10" onClick={() => setNewItems(prev => prev.filter((_, idx) => idx !== i))}>
+                  <div key={i} className="flex items-center gap-2.5 p-2.5 rounded-xl border border-border bg-muted/10 text-xs">
+                    <span className="text-[9px] px-2 py-0.5 rounded-lg bg-muted font-bold">{item.tipoRecurso === 'INSUMO' ? 'Insumo' : 'SKU'}</span>
+                    <span className="flex-1 font-bold text-foreground">{item.nombre}{item.sku ? ` · ${item.sku}` : ''}</span>
+                    <span className="text-muted-foreground font-semibold">{item.qty} {item.unidad}</span>
+                    <span className="text-muted-foreground font-semibold">S/ {item.unitPrice.toFixed(2)}/u</span>
+                    <span className="font-bold text-foreground">S/ {item.total.toFixed(2)}</span>
+                    <Button size="icon" variant="ghost" className="h-6 w-6 rounded-lg ui-status-danger hover:bg-[var(--status-danger-surface)]" onClick={() => setNewItems(prev => prev.filter((_, idx) => idx !== i))}>
                       <X className="w-3 h-3" />
                     </Button>
                   </div>
                 ))}
-                {newItems.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Sin insumos agregados</p>}
+                {newItems.length === 0 && <p className="text-xs text-muted-foreground text-center py-4 font-semibold">Sin recursos agregados</p>}
               </div>
               {newItems.length > 0 && (
-                <div className="flex justify-between p-3 rounded-lg bg-muted/50 font-medium text-sm">
-                  <span>Total estimado</span>
-                  <span>S/ {newTotal.toFixed(2)}</span>
+                <div className="flex justify-between items-center p-3.5 rounded-xl bg-muted/30 border border-border/40">
+                  <span className="text-sm font-bold text-foreground">Total estimado</span>
+                  <span className="text-base font-black text-primary ui-tabular">S/ {newTotal.toFixed(2)}</span>
                 </div>
               )}
             </div>
           )}
 
           {step === 3 && (
-            <div className="space-y-4">
-              <div className="p-4 rounded-xl border border-border space-y-3">
+            <div className="space-y-4 mt-2">
+              <div className="p-5 rounded-2xl border border-border bg-muted/10 space-y-3">
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Proveedor</span>
-                  <span className="font-medium">{proveedores.find(s => s.idProveedor === Number(newForm.supplierId))?.razonSocial}</span>
+                  <span className="text-muted-foreground font-semibold">Proveedor</span>
+                  <span className="font-bold text-foreground">{proveedores.find(s => s.idProveedor === Number(newForm.supplierId))?.razonSocial}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Insumos totales</span>
-                  <span className="font-medium">{newItems.length} items</span>
+                  <span className="text-muted-foreground font-semibold">Recursos totales</span>
+                  <span className="font-bold text-foreground">{newItems.length} items</span>
                 </div>
                 <Separator />
                 <div className="flex justify-between">
-                  <span className="font-medium">Total de la Compra</span>
-                  <span className="font-semibold text-lg text-primary">S/ {newTotal.toFixed(2)}</span>
+                  <span className="font-bold text-foreground">Total de la Compra</span>
+                  <span className="font-black text-lg text-primary ui-tabular">S/ {newTotal.toFixed(2)}</span>
                 </div>
               </div>
-              <div className="space-y-2 max-h-40 overflow-y-auto">
+              <div className="space-y-1.5 max-h-40 overflow-y-auto">
                 {newItems.map((item, i) => (
-                  <div key={i} className="flex justify-between text-sm text-muted-foreground">
-                    <span>{item.nombre} × {item.qty} {item.unidad}</span>
-                    <span>S/ {item.total.toFixed(2)}</span>
+                  <div key={i} className="flex justify-between text-xs text-muted-foreground font-semibold">
+                    <span>{item.tipoRecurso === 'INSUMO' ? 'Insumo' : 'SKU'} · {item.nombre} × {item.qty} {item.unidad} · vence {new Date(item.expirationDate + 'T00:00:00').toLocaleDateString()}</span>
+                    <span className="font-bold text-foreground ui-tabular">S/ {item.total.toFixed(2)}</span>
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          <DialogFooter>
-            {step > 1 && <Button variant="outline" onClick={() => setStep(s => (s - 1) as Step)}>Anterior</Button>}
-            <Button variant="outline" onClick={() => setNewOpen(false)}>Cancelar</Button>
+          <DialogFooter className="gap-2 sm:gap-0 mt-5 pt-3 border-t border-border/40">
+            {step > 1 && <Button variant="outline" onClick={() => setStep(s => (s - 1) as Step)} className="h-10 rounded-xl">Anterior</Button>}
+            <Button variant="outline" onClick={() => setNewOpen(false)} className="h-10 rounded-xl">Cancelar</Button>
             {step < 3 ? (
-              <Button onClick={() => setStep(s => (s + 1) as Step)} disabled={step === 1 && !newForm.supplierId || step === 2 && newItems.length === 0}>
+              <Button onClick={() => setStep(s => (s + 1) as Step)} disabled={step === 1 && !newForm.supplierId || step === 2 && newItems.length === 0} className="h-10 rounded-xl font-semibold">
                 Siguiente <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
             ) : (
-              <Button onClick={handleConfirm} disabled={isCreating}>
+              <Button onClick={handleConfirm} disabled={isCreating} className="h-10 rounded-xl font-semibold">
                 {isCreating ? 'Guardando...' : 'Confirmar compra'}
               </Button>
             )}
@@ -430,98 +542,112 @@ export function Purchases() {
 
       {/* Detail Dialog */}
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Detalle — {selectedP?.codigoCompra || `COMP-${String(selectedP?.idCompra).padStart(4, '0')}`}</DialogTitle>
+            <DialogTitle className="text-lg font-bold">Detalle — {selectedP?.codigoCompra || `COMP-${String(selectedP?.idCompra).padStart(4, '0')}`}</DialogTitle>
+            {detailLoading && <DialogDescription className="text-xs">Cargando detalle real desde backend...</DialogDescription>}
           </DialogHeader>
           {selectedP && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3 text-sm">
+            <div className="space-y-4 mt-2">
+              <div className="grid grid-cols-2 gap-3 text-sm p-4 rounded-xl border border-border bg-muted/10">
                 <div>
-                  <p className="text-muted-foreground text-xs">Proveedor</p>
-                  <p className="font-medium">{selectedP.proveedorNombre}</p>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Proveedor</p>
+                  <p className="font-bold text-foreground mt-0.5">{selectedP.proveedorNombre}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground text-xs">Comprador</p>
-                  <p className="font-medium">{selectedP.empleadoNombre}</p>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Comprador</p>
+                  <p className="font-bold text-foreground mt-0.5">{selectedP.empleadoNombre}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground text-xs">Fecha</p>
-                  <p className="font-medium">{new Date(selectedP.fecha).toLocaleString()}</p>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Fecha</p>
+                  <p className="font-semibold text-foreground mt-0.5">{new Date(selectedP.fecha).toLocaleString()}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground text-xs">Estado</p>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusConf[selectedP.estado]?.badge || 'bg-zinc-100 text-zinc-700'}`}>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Estado</p>
+                  <Badge variant={statusConf[selectedP.estado]?.badgeVariant || 'secondary'} className="mt-1 shadow-2xs text-[10px] font-bold">
                     {statusConf[selectedP.estado]?.label || selectedP.estado}
-                  </span>
+                  </Badge>
                 </div>
                 {selectedP.observacion && (
                   <div className="col-span-2">
-                    <p className="text-muted-foreground text-xs">Observación</p>
-                    <p className="font-medium">{selectedP.observacion}</p>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Observación</p>
+                    <p className="font-semibold text-foreground mt-0.5 text-xs">{selectedP.observacion}</p>
                   </div>
                 )}
               </div>
-              <Separator />
-              <p className="text-sm font-semibold">Items Comprados</p>
-              <div className="border rounded-lg overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Insumo</TableHead>
-                      <TableHead className="text-right">Cant.</TableHead>
-                      <TableHead className="text-right">P. Unit.</TableHead>
-                      <TableHead className="text-right">Total</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {selectedP.detalles?.map(item => (
-                      <TableRow key={item.idDetalleCompra}>
-                        <TableCell className="text-sm">{item.nombreInsumo}</TableCell>
-                        <TableCell className="text-sm text-right">{item.cantidad} {item.unidadInsumo}</TableCell>
-                        <TableCell className="text-sm text-right">S/ {Number(item.precioUnitario).toFixed(2)}</TableCell>
-                        <TableCell className="text-sm text-right font-medium">S/ {Number(item.subtotal).toFixed(2)}</TableCell>
+
+              <div>
+                <p className="text-xs font-bold text-foreground mb-2">Items Comprados</p>
+                <div className="rounded-xl border border-border overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Recurso</TableHead>
+                        <TableHead className="text-right">Cant.</TableHead>
+                        <TableHead className="text-right">Vence</TableHead>
+                        <TableHead className="text-right">P. Unit.</TableHead>
+                        <TableHead className="text-right">Total</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {selectedP.detalles?.map(item => (
+                        <TableRow key={item.idDetalleCompra}>
+                          <TableCell className="text-xs font-bold text-foreground">
+                            {item.tipoRecurso === 'PRODUCTO'
+                              ? `${item.nombreProducto}${item.skuProducto ? ` · ${item.skuProducto}` : ''}`
+                              : item.nombreInsumo}
+                          </TableCell>
+                          <TableCell className="text-xs font-semibold text-muted-foreground text-right">
+                            {item.cantidad} {item.tipoRecurso === 'PRODUCTO' ? 'uds' : item.unidadInsumo}
+                          </TableCell>
+                          <TableCell className="text-xs font-semibold text-muted-foreground text-right">
+                            {item.fechaVencimiento ? new Date(item.fechaVencimiento + 'T00:00:00').toLocaleDateString() : 'Sin fecha'}
+                          </TableCell>
+                          <TableCell className="text-xs font-semibold text-muted-foreground text-right ui-tabular">S/ {Number(item.precioUnitario).toFixed(2)}</TableCell>
+                          <TableCell className="text-xs font-bold text-foreground text-right ui-tabular">S/ {Number(item.subtotal).toFixed(2)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
 
-              <div className="flex flex-col items-end gap-1.5 pt-2 text-sm font-medium">
+              <div className="flex flex-col items-end gap-1.5 pt-1 text-sm font-semibold">
                 <div className="flex justify-between w-48">
                   <span className="text-muted-foreground">Subtotal</span>
-                  <span>S/ {Number(selectedP.subtotal).toFixed(2)}</span>
+                  <span className="ui-tabular">S/ {Number(selectedP.subtotal).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between w-48">
                   <span className="text-muted-foreground">IGV (18%)</span>
-                  <span>S/ {Number(selectedP.igv).toFixed(2)}</span>
+                  <span className="ui-tabular">S/ {Number(selectedP.igv).toFixed(2)}</span>
                 </div>
                 <Separator className="w-48" />
-                <div className="flex justify-between w-48 text-base font-semibold text-primary">
+                <div className="flex justify-between w-48 text-base font-black text-primary">
                   <span>Total</span>
-                  <span>S/ {Number(selectedP.total).toFixed(2)}</span>
+                  <span className="ui-tabular">S/ {Number(selectedP.total).toFixed(2)}</span>
                 </div>
               </div>
             </div>
           )}
-          <DialogFooter className="flex justify-between items-center w-full">
+          <DialogFooter className="flex justify-between items-center w-full mt-4 pt-3 border-t border-border/40">
             <div>
               {selectedP && selectedP.estado === 'REGISTRADA' && (
-                <Button 
-                  variant="destructive" 
-                  size="sm" 
-                  disabled={isAnulando} 
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  disabled={isAnulando}
                   onClick={() => handleAnular(selectedP.idCompra)}
+                  className="h-9 rounded-xl gap-1.5 font-semibold"
                 >
-                  <Ban className="w-4 h-4 mr-2" />
+                  <Ban className="w-3.5 h-3.5" />
                   {isAnulando ? 'Anulando...' : 'Anular Compra'}
                 </Button>
               )}
             </div>
-            <Button variant="outline" onClick={() => setDetailOpen(false)}>Cerrar</Button>
+            <Button variant="outline" onClick={() => setDetailOpen(false)} className="h-9 rounded-xl">Cerrar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageWrapper>
   );
 }
