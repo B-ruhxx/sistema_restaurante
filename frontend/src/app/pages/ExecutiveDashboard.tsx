@@ -304,7 +304,10 @@ export function ExecutiveDashboard() {
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(v: number, name: string, props: any) => [`${v}% (S/ ${props.payload.monto.toFixed(2)})`, 'Participación']} />
+                <Tooltip
+                  formatter={(v: number, name: string, props: { payload?: { monto: number } }) =>
+                    [`${v}% (S/ ${props.payload?.monto.toFixed(2) ?? 0})`, 'Participación']}
+                />
               </PieChart>
             </ResponsiveContainer>
           ) : (

@@ -16,6 +16,7 @@ import {
   XCircle,
   ClipboardList,
   Loader2,
+  type LucideIcon,
 } from 'lucide-react';
 import { usePedidos } from '../../hooks/usePedidos';
 import { pedidosApi, Pedido } from '../../api/pedidos';
@@ -31,7 +32,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { PageWrapper, ModuleHeader, KpiCard, FilterToolbar, EmptyState, SectionCard } from '../components/ui/erp-layout';
 import { cn } from '../components/ui/utils';
 
-const ESTADO_META: Record<string, { label: string; variant: 'secondary' | 'success' | 'warning' | 'danger' | 'info' | 'type'; icon: React.ElementType; group: string; color: 'slate' | 'blue' | 'green' | 'violet' | 'red' }> = {
+const ESTADO_META: Record<string, { label: string; variant: 'secondary' | 'success' | 'warning' | 'danger' | 'info' | 'type'; icon: LucideIcon; group: string; color: 'slate' | 'blue' | 'green' | 'violet' | 'red' }> = {
   BORRADOR_ATENCION: { label: 'Atención', variant: 'secondary', icon: Clock, group: 'atencion', color: 'slate' },
   EN_COCINA: { label: 'En cocina', variant: 'info', icon: ChefHat, group: 'cocina', color: 'blue' },
   LISTO: { label: 'Listo', variant: 'success', icon: CheckCircle2, group: 'entrega', color: 'green' },
@@ -316,7 +317,7 @@ export function Orders() {
           return (
             <KpiCard
               key={group.id}
-              icon={Icon as any}
+              icon={Icon}
               label={group.title}
               value={byGroup(group.id).length}
               color={group.accent}
