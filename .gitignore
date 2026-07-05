@@ -1,6 +1,12 @@
 # Ignorar la carpeta de dependencias de Node (¡pesa muchísimo!)
 node_modules/
 uploads/
+
+# Build outputs
+target/
+backend/target/
+frontend/dist/
+dist/
 # Ignorar archivos de variables de entorno (donde guardas contraseñas y llaves de API)
 .env
 .env.local
