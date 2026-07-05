@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  Plus, Search, Pencil, Trash2, MoreHorizontal, LayoutGrid, List,
+  Plus, Pencil, Trash2, MoreHorizontal, LayoutGrid, List,
   Percent, X, Loader2
 } from 'lucide-react';
 import { Button } from '../components/ui/button';

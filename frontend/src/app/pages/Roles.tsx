@@ -26,7 +26,6 @@ import { useRoles } from '../../hooks/useRoles';
 import { usePermisos } from '../../hooks/usePermisos';
 import type { Permiso, Rol, RolRequest } from '../../api/roles';
 import { PageWrapper, ModuleHeader, KpiCard, EmptyState, SectionCard } from '../components/ui/erp-layout';
-import { cn } from '../components/ui/utils';
 
 export function Roles() {
   const { roles, isLoading: rolesLoading, createRol, updateRol, deleteRol } = useRoles();

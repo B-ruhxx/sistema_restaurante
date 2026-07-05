@@ -3,7 +3,6 @@ import {
   LayoutGrid,
   List,
   Plus,
-  Search,
   Pencil,
   Trash2,
   MoreHorizontal,
@@ -45,7 +44,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../components/ui/select';
-import { cn, getFullImageUrl } from '../components/ui/utils';
+import { getFullImageUrl } from '../components/ui/utils';
 
 import { useCategorias } from '../../hooks/useCategorias';
 import { Categoria, CategoriaEstadoFiltro } from '../../api/categorias';

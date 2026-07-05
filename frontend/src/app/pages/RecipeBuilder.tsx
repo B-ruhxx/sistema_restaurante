@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { Plus, Search, FlaskConical, ChefHat, X, Loader2, DollarSign, TrendingUp, Clock, AlertTriangle } from 'lucide-react';
+import { Plus, Search, FlaskConical, ChefHat, X, Loader2, AlertTriangle } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Card, CardContent } from '../components/ui/card';
 import { Separator } from '../components/ui/separator';
 import { Badge } from '../components/ui/badge';
 import {
@@ -18,7 +18,7 @@ import { useProductos } from '../../hooks/useProductos';
 import { useInsumos } from '../../hooks/useInsumos';
 import { useCategorias } from '../../hooks/useCategorias';
 import { Producto, RecetaItemRequest, RecetaProducto } from '../../api/productos';
-import { PageWrapper, ModuleHeader, KpiCard, EmptyState, SectionCard } from '../components/ui/erp-layout';
+import { PageWrapper, ModuleHeader, EmptyState, SectionCard } from '../components/ui/erp-layout';
 import { cn } from '../components/ui/utils';
 
 interface RecipeItem {

@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react';
 import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Badge } from '../components/ui/badge';
 import {
@@ -21,7 +20,6 @@ import {
 import { Avatar, AvatarFallback } from '../components/ui/avatar';
 import {
   History,
-  Search,
   Filter,
   Download,
   Eye,

@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import {
-  Plus, Search, Pencil, Trash2, MoreHorizontal,
+  Plus, Pencil, Trash2, MoreHorizontal,
   Package, ChevronRight, Star, FlaskConical, Layers,
-  LayoutGrid, List, RotateCcw, X, Loader2
+  LayoutGrid, List, RotateCcw
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';

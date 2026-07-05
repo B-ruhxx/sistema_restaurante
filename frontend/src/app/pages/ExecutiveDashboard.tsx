@@ -1,4 +1,3 @@
-import { Card, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import {
   BarChart,
@@ -27,8 +26,6 @@ import {
 } from 'lucide-react';
 import { useReportes } from '../../hooks/useReportes';
 import { PageWrapper, ModuleHeader, KpiCard, SectionCard } from '../components/ui/erp-layout';
-import { cn } from '../components/ui/utils';
-
 const COLORS = [
   'var(--status-info)',
   'var(--status-success)',

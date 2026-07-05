@@ -26,11 +26,9 @@ import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '../components/ui/dialog';
-import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { PageWrapper, ModuleHeader, KpiCard, FilterToolbar, EmptyState, SectionCard } from '../components/ui/erp-layout';
-import { cn } from '../components/ui/utils';
 
 const ESTADO_META: Record<string, { label: string; variant: 'secondary' | 'success' | 'warning' | 'danger' | 'info' | 'type'; icon: LucideIcon; group: string; color: 'slate' | 'blue' | 'green' | 'violet' | 'red' }> = {
   BORRADOR_ATENCION: { label: 'Atención', variant: 'secondary', icon: Clock, group: 'atencion', color: 'slate' },

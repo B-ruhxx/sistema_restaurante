@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { Label } from '../components/ui/label';
 import { Badge } from '../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import {
@@ -35,7 +34,7 @@ import { useReportes } from '../../hooks/useReportes';
 import { useCaja } from '../../hooks/useCaja';
 import { useInsumos } from '../../hooks/useInsumos';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
-import { PageWrapper, ModuleHeader, KpiCard, EmptyState, SectionCard } from '../components/ui/erp-layout';
+import { PageWrapper, ModuleHeader, KpiCard, SectionCard } from '../components/ui/erp-layout';
 
 const formatShortDate = (value: string) =>
   new Date(`${value}T00:00:00`).toLocaleDateString('es-PE', {

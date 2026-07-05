@@ -1,4 +1,3 @@
-import { Card, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import {
   Table,
@@ -26,7 +25,7 @@ import { useSeguridad } from '../../hooks/useSeguridad';
 import type { SecurityAlert, SecuritySession } from '../../api/seguridad';
 import { toast } from '../../lib/notifications';
 import { Button } from '../components/ui/button';
-import { PageWrapper, ModuleHeader, KpiCard, EmptyState, SectionCard } from '../components/ui/erp-layout';
+import { PageWrapper, ModuleHeader, KpiCard, SectionCard } from '../components/ui/erp-layout';
 import { cn } from '../components/ui/utils';
 
 const getSessionId = (session: SecuritySession) =>

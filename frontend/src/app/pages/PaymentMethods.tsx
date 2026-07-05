@@ -25,7 +25,6 @@ import { toast } from '../../lib/notifications';
 import { useMetodoPagos } from '../../hooks/useMetodoPagos';
 import type { MetodoPago, MetodoPagoRequest } from '../../api/metodoPagos';
 import { PageWrapper, ModuleHeader, KpiCard, EmptyState, SectionCard } from '../components/ui/erp-layout';
-import { cn } from '../components/ui/utils';
 
 export function PaymentMethods() {
   const {

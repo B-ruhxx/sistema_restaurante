@@ -1,5 +1,4 @@
 import { useERP } from '../contexts/ERPContextValue';
-import { CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { 
   TrendingUp, 
   DollarSign, 
@@ -7,7 +6,6 @@ import {
   Wallet, 
   AlertTriangle,
   Clock,
-  CheckCircle2,
   LayoutDashboard
 } from 'lucide-react';
 import {
