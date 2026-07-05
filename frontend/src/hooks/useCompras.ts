@@ -1,10 +1,21 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import type { CompraResponse } from '../api/compras';
 import { comprasApi } from '../api/compras';
 import { PrivateQueryOptions, usePrivateQueryEnabled } from './usePrivateQuery';
+
+const EMPTY_COMPRAS: CompraResponse[] = [];
 
 export const useCompras = ({ enabled = true }: PrivateQueryOptions = {}) => {
   const queryClient = useQueryClient();
   const queryEnabled = usePrivateQueryEnabled(enabled);
+
+  const invalidateCompraRelatedQueries = () => {
+    queryClient.invalidateQueries({ queryKey: ['compras'] });
+    queryClient.invalidateQueries({ queryKey: ['insumos'] });
+    queryClient.invalidateQueries({ queryKey: ['productos'] });
+    queryClient.invalidateQueries({ queryKey: ['movimientos'] });
+    queryClient.invalidateQueries({ queryKey: ['reportes'] });
+  };
 
   const comprasQuery = useQuery({
     queryKey: ['compras'],
@@ -16,24 +27,19 @@ export const useCompras = ({ enabled = true }: PrivateQueryOptions = {}) => {
   const createMutation = useMutation({
     mutationFn: comprasApi.create,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['compras'] });
-      // Invalidate stock alerts and insumos since purchases modify stock
-      queryClient.invalidateQueries({ queryKey: ['insumos'] });
-      queryClient.invalidateQueries({ queryKey: ['reportes'] });
+      invalidateCompraRelatedQueries();
     },
   });
 
   const anularMutation = useMutation({
     mutationFn: comprasApi.anular,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['compras'] });
-      queryClient.invalidateQueries({ queryKey: ['insumos'] });
-      queryClient.invalidateQueries({ queryKey: ['reportes'] });
+      invalidateCompraRelatedQueries();
     },
   });
 
   return {
-    compras: comprasQuery.data || [],
+    compras: comprasQuery.data ?? EMPTY_COMPRAS,
     isLoading: comprasQuery.isLoading,
     isError: comprasQuery.isError,
     createCompra: createMutation.mutateAsync,

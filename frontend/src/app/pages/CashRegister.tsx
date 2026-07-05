@@ -8,7 +8,9 @@ import { es } from 'date-fns/locale/es';
 import { useERP } from '../contexts/ERPContextValue';
 import { cajasApi } from '../../api/cajas';
 import { Pedido } from '../../api/pedidos';
+import type { MetodoPago } from '../../api/metodoPagos';
 import { metodoPagosApi } from '../../api/metodoPagos';
+import { metodoPagosQueryKeys } from '../../lib/queryKeys/metodoPagos';
 import { precuentasApi } from '../../api/precuentas';
 import { toast } from '../../lib/notifications';
 import { Button } from '../components/ui/button';
@@ -20,6 +22,8 @@ import { Label } from '../components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { PageWrapper, ModuleHeader, KpiCard, FilterToolbar, EmptyState, SectionCard } from '../components/ui/erp-layout';
 import { cn } from '../components/ui/utils';
+
+const EMPTY_METODO_PAGOS: MetodoPago[] = [];
 
 export function CashRegister() {
   const queryClient = useQueryClient();
@@ -76,11 +80,13 @@ export function CashRegister() {
   });
 
   const metodosPagoQuery = useQuery({
-    queryKey: ['metodoPagos', 'activos'],
+    queryKey: metodoPagosQueryKeys.activos,
     queryFn: metodoPagosApi.getActivos,
     enabled: cajaAbierta,
     staleTime: 60000,
   });
+
+  const metodosPago = metodosPagoQuery.data ?? EMPTY_METODO_PAGOS;
 
   const precuentasPedidoQuery = useQuery({
     queryKey: ['precuentas', 'pedido', selectedPedido?.idPedido],
@@ -88,7 +94,7 @@ export function CashRegister() {
     enabled: showCobroDialog && !!selectedPedido,
   });
 
-  const selectedMetodoPago = (metodosPagoQuery.data || []).find(
+  const selectedMetodoPago = metodosPago.find(
     (metodo) => String(metodo.idMetodoPago) === cobroMetodoId
   );
   const isCobroEfectivo = selectedMetodoPago
@@ -195,7 +201,7 @@ export function CashRegister() {
   const openCobro = (pedido: Pedido) => {
     setSelectedPedido(pedido);
     setCobroMonto((pedido.total || 0).toFixed(2));
-    const firstMetodo = metodosPagoQuery.data?.[0];
+    const firstMetodo = metodosPago[0];
     setCobroMetodoId(firstMetodo ? String(firstMetodo.idMetodoPago) : '');
     setCobroOperacion('');
     setCobroComprobante('BOLETA');
@@ -558,7 +564,7 @@ export function CashRegister() {
                   }}
                 >
                   <option value="">Selecciona un método de pago</option>
-                  {(metodosPagoQuery.data || []).map((metodo) => (
+                  {metodosPago.map((metodo) => (
                     <option key={metodo.idMetodoPago} value={metodo.idMetodoPago}>
                       {metodo.nombre}
                     </option>
