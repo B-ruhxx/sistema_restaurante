@@ -27,7 +27,7 @@ public class AuditoriaService {
     }
 
     public List<AuditoriaResponse> getAuditoriaByTabla(String tabla) {
-        return auditoriaRepository.findByTablaAfectadaOrderByFechaEventoDesc(tabla).stream()
+        return auditoriaRepository.findByEntidadOrderByFechaDesc(tabla).stream()
                 .map(auditoriaMapper::toResponse)
                 .collect(Collectors.toList());
     }

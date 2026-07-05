@@ -13,6 +13,7 @@ import com.restaurante.config.SecurityProperties;
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
+import java.util.UUID;
 
 @Component
 public class JwtTokenProvider {
@@ -33,6 +34,7 @@ public class JwtTokenProvider {
         Date expiryDate = new Date(now.getTime() + securityProperties.getExpiration());
 
         return Jwts.builder()
+                .setId(UUID.randomUUID().toString())
                 .setSubject(userDetails.getUsername())
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)
@@ -48,6 +50,15 @@ public class JwtTokenProvider {
                 .getBody();
 
         return claims.getSubject();
+    }
+
+    public Date getExpirationFromJWT(String token) {
+        Claims claims = Jwts.parserBuilder()
+                .setSigningKey(key)
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+        return claims.getExpiration();
     }
 
     public boolean validateToken(String authToken) {

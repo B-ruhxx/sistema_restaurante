@@ -55,18 +55,18 @@ public class AuditoriaAspect {
         String tableName = getTableName(entity);
         Object id = getEntityId(entity);
 
-        Auditoria.Accion accion = Auditoria.Accion.INSERT;
+        Auditoria.Accion accion = Auditoria.Accion.CREAR;
         String datosAnterioresJson = null;
 
         if (methodName.startsWith("delete")) {
-            accion = Auditoria.Accion.DELETE;
+            accion = Auditoria.Accion.ELIMINAR;
             // Capture before state
             Map<String, Object> prevMap = serializeEntityToMap(entity);
             datosAnterioresJson = toJson(prevMap);
         } else if (methodName.startsWith("save")) {
             if (id != null) {
                 // It might be an update, let's try to fetch the previous state from database
-                accion = Auditoria.Accion.UPDATE;
+                accion = Auditoria.Accion.ACTUALIZAR;
                 try {
                     Object existing = entityManager.find(entity.getClass(), id);
                     if (existing != null) {
@@ -75,7 +75,7 @@ public class AuditoriaAspect {
                     }
                 } catch (Exception ignored) {}
             } else {
-                accion = Auditoria.Accion.INSERT;
+                accion = Auditoria.Accion.CREAR;
             }
         }
 
@@ -84,7 +84,7 @@ public class AuditoriaAspect {
 
         // Capture new state
         String datosNuevosJson = null;
-        if (accion != Auditoria.Accion.DELETE) {
+        if (accion != Auditoria.Accion.ELIMINAR) {
             Object savedEntity = result != null ? result : entity;
             if (id == null) {
                 id = getEntityId(savedEntity);
@@ -102,6 +102,7 @@ public class AuditoriaAspect {
             auditoria.setDatosAnteriores(datosAnterioresJson);
             auditoria.setDatosNuevos(datosNuevosJson);
             auditoria.setEmpleado(getAuthenticatedEmpleado());
+            auditoria.setResumen(accion.name() + " " + tableName + " #" + auditoria.getIdRegistro());
 
             auditoriaHelperService.guardarAuditoria(auditoria);
         } catch (Exception e) {
