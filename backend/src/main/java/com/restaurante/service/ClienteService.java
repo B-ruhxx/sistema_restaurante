@@ -39,6 +39,7 @@ public class ClienteService {
         if (cliente.getEstado() == null) {
             cliente.setEstado(Cliente.Estado.ACTIVO);
         }
+        normalizarDocumento(cliente, request);
         Cliente savedCliente = clienteRepository.save(cliente);
         return clienteMapper.toResponse(savedCliente);
     }
@@ -61,8 +62,19 @@ public class ClienteService {
             cliente.setEstado(Cliente.Estado.valueOf(request.getEstado().toUpperCase()));
         }
 
+        normalizarDocumento(cliente, request);
         Cliente savedCliente = clienteRepository.save(cliente);
         return clienteMapper.toResponse(savedCliente);
+    }
+
+    private void normalizarDocumento(Cliente cliente, ClienteRequest request) {
+        String tipo = request.getTipoDocumento();
+        boolean esSindocumento = tipo == null || tipo.isBlank() || "SIN_DOCUMENTO".equalsIgnoreCase(tipo);
+        if (esSindocumento) {
+            cliente.setDocumentoIdentidad(null);
+        } else if (cliente.getDocumentoIdentidad() != null && cliente.getDocumentoIdentidad().isBlank()) {
+            cliente.setDocumentoIdentidad(null);
+        }
     }
 
     @Transactional

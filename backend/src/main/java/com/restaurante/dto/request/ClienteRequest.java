@@ -1,8 +1,10 @@
 package com.restaurante.dto.request;
 
+import com.restaurante.dto.validation.ValidDocumentoIdentidad;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
+@ValidDocumentoIdentidad
 public class ClienteRequest {
     @NotBlank(message = "El nombre es obligatorio")
     @Size(max = 50, message = "El nombre no puede exceder los 50 caracteres")
@@ -14,7 +16,6 @@ public class ClienteRequest {
 
     private String tipoDocumento; // DNI / RUC / CE
 
-    @NotBlank(message = "El documento de identidad es obligatorio")
     @Size(max = 20, message = "El documento no puede exceder los 20 caracteres")
     private String documentoIdentidad;
 
