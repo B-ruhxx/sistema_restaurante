@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Search, AlertTriangle, CheckCircle2, XCircle, History, RefreshCw, Loader2, Package, Boxes
+  AlertTriangle, CheckCircle2, XCircle, History, RefreshCw, Loader2, Package, Boxes
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -22,8 +22,12 @@ import { useMovimientos } from '../../hooks/useMovimientos';
 import { usePrivateQueryEnabled } from '../../hooks/usePrivateQuery';
 import { Producto } from '../../api/productos';
 import { productosApi } from '../../api/productos';
-import { movimientosApi } from '../../api/movimientos';
-import { getFullImageUrl, cn } from '../components/ui/utils';
+import {
+  getInventoryMovementLabel,
+  getInventoryMovementSignedQuantity,
+  movimientosApi,
+} from '../../api/movimientos';
+import { getFullImageUrl } from '../components/ui/utils';
 import { PageWrapper, ModuleHeader, KpiCard, FilterToolbar, EmptyState } from '../components/ui/erp-layout';
 
 const statusConf = {
@@ -48,6 +52,7 @@ export function DirectInventory() {
     onSuccess: (_movimiento, variables) => {
       queryClient.invalidateQueries({ queryKey: ['productos'] });
       queryClient.invalidateQueries({ queryKey: ['productos', variables.idProducto] });
+      queryClient.invalidateQueries({ queryKey: ['productos', variables.idProducto, 'lotes'] });
       queryClient.invalidateQueries({ queryKey: ['movimientos'] });
     },
   });
@@ -373,25 +378,33 @@ function HistoryDialog({ idProducto, nombre, onClose }: { idProducto: number; no
           ) : movimientos.length === 0 ? (
             <p className="text-xs text-muted-foreground text-center py-8 font-semibold">Sin movimientos registrados</p>
           ) : (
-            movimientos.map(h => (
-              <div key={h.idMovimiento} className="flex gap-3 p-3.5 rounded-xl border border-border bg-muted/10">
-                <div className="flex-1 text-sm">
-                  <div className="flex items-center gap-2">
-                    <Badge variant={h.tipoMovimiento === 'ENTRADA' ? 'success' : 'secondary'} className="text-[9px] font-bold shadow-2xs">
-                      {h.tipoMovimiento}
-                    </Badge>
-                    <span className="font-bold text-foreground text-xs">
-                      {h.tipoMovimiento === 'ENTRADA' ? '+' : '-'}{h.cantidad}
-                    </span>
+            movimientos.map(h => {
+              const signedQuantity = getInventoryMovementSignedQuantity(h);
+              const movementDate = h.fecha ? new Date(h.fecha).toLocaleDateString() : 'Sin fecha';
+
+              return (
+                <div key={h.idMovimiento ?? `${h.fecha ?? 'mov'}-${h.referenceId ?? 'n/a'}`} className="flex gap-3 p-3.5 rounded-xl border border-border bg-muted/10">
+                  <div className="flex-1 text-sm">
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        variant={signedQuantity > 0 ? 'success' : signedQuantity < 0 ? 'danger' : 'secondary'}
+                        className="text-[9px] font-bold shadow-2xs"
+                      >
+                        {getInventoryMovementLabel(h.tipoMovimiento)}
+                      </Badge>
+                      <span className="font-bold text-foreground text-xs">
+                        {signedQuantity > 0 ? '+' : ''}{signedQuantity}
+                      </span>
+                    </div>
+                    {h.motivo && <p className="text-xs text-muted-foreground mt-0.5 font-medium">{h.motivo}</p>}
                   </div>
-                  {h.motivo && <p className="text-xs text-muted-foreground mt-0.5 font-medium">{h.motivo}</p>}
+                  <div className="text-[10px] text-muted-foreground text-right font-semibold">
+                    <p>{movementDate}</p>
+                    {h.nombreEmpleado && <p>{h.nombreEmpleado}</p>}
+                  </div>
                 </div>
-                <div className="text-[10px] text-muted-foreground text-right font-semibold">
-                  <p>{new Date(h.fecha).toLocaleDateString()}</p>
-                  {h.nombreEmpleado && <p>{h.nombreEmpleado}</p>}
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
         <DialogFooter>

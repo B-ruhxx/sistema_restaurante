@@ -7,7 +7,6 @@ import {
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
-import { Card, CardContent } from '../components/ui/card';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '../components/ui/dialog';
@@ -25,9 +24,13 @@ import { Progress } from '../components/ui/progress';
 
 import { useInsumos } from '../../hooks/useInsumos';
 import { useMovimientos } from '../../hooks/useMovimientos';
-import { movimientosApi } from '../../api/movimientos';
+import {
+  getInventoryMovementLabel,
+  getInventoryMovementSignedQuantity,
+  movimientosApi,
+} from '../../api/movimientos';
 import type { Insumo, InsumoRequest } from '../../api/insumos';
-import { PageWrapper, ModuleHeader, KpiCard, FilterToolbar, EmptyState, SectionCard } from '../components/ui/erp-layout';
+import { PageWrapper, ModuleHeader, FilterToolbar, EmptyState, SectionCard } from '../components/ui/erp-layout';
 import { cn } from '../components/ui/utils';
 
 const units = ['unidad', 'kg', 'gr', 'lt', 'ml', 'bolsa', 'caja', 'lata'];
@@ -151,7 +154,6 @@ export function Supplies() {
         {(['normal', 'bajo', 'critico'] as const).map(s => {
           const cfg = statusConfig[s];
           const Icon = cfg.icon;
-          const colorMap = { normal: 'green' as const, bajo: 'amber' as const, critico: 'red' as const };
           return (
             <div
               key={s}
@@ -407,11 +409,11 @@ export function Supplies() {
                 </TableHeader>
                 <TableBody>
                   {historyMovs.map((mov) => (
-                    <TableRow key={mov.idMovimiento}>
+                    <TableRow key={mov.idMovimiento ?? `${mov.fecha ?? 'mov'}-${mov.referenceId ?? 'n/a'}`}>
                       <TableCell className="text-xs font-semibold text-muted-foreground">{mov.fecha?.replace('T', ' ').slice(0, 16)}</TableCell>
-                      <TableCell className="text-xs font-bold text-foreground">{mov.tipoMovimiento}</TableCell>
+                      <TableCell className="text-xs font-bold text-foreground">{getInventoryMovementLabel(mov.tipoMovimiento)}</TableCell>
                       <TableCell className="text-xs font-semibold text-muted-foreground">{mov.referenceType}{mov.referenceId ? ` #${mov.referenceId}` : ''}</TableCell>
-                      <TableCell className="text-right font-bold text-foreground ui-tabular">{mov.cantidad}</TableCell>
+                      <TableCell className="text-right font-bold text-foreground ui-tabular">{getInventoryMovementSignedQuantity(mov)}</TableCell>
                     </TableRow>
                   ))}
                   {historyMovs.length === 0 && (

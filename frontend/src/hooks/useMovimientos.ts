@@ -1,12 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
-import { movimientosApi } from '../api/movimientos';
+import { MovimientoInventario, movimientosApi } from '../api/movimientos';
 import { PrivateQueryOptions, usePrivateQueryEnabled } from './usePrivateQuery';
+
+const EMPTY_MOVIMIENTOS: MovimientoInventario[] = [];
 
 export const useMovimientos = (
   filters?: { idInsumo?: number; idProducto?: number },
   { enabled = true }: PrivateQueryOptions = {}
 ) => {
-  const queryKey = ['movimientos', filters];
+  const queryKey = ['movimientos', filters?.idInsumo ?? null, filters?.idProducto ?? null];
   const queryEnabled = usePrivateQueryEnabled(enabled);
 
   const queryFn = () => {
@@ -27,7 +29,7 @@ export const useMovimientos = (
   });
 
   return {
-    movimientos: movimientosQuery.data || [],
+    movimientos: movimientosQuery.data ?? EMPTY_MOVIMIENTOS,
     isLoading: movimientosQuery.isLoading,
     isError: movimientosQuery.isError,
     refetch: movimientosQuery.refetch,
