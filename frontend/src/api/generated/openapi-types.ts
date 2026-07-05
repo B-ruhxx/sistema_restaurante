@@ -75,9 +75,9 @@ export namespace ApiSchemas {
     observacion?: string;
     fechaApertura?: string;
     fechaCierre?: string;
+    empleadoNombre?: string;
     observacionApertura?: string;
     observacionCierre?: string;
-    empleadoNombre?: string;
   }
 
   export interface CategoriaRequest {
@@ -99,7 +99,7 @@ export namespace ApiSchemas {
     nombre: string;
     apellido: string;
     tipoDocumento?: string;
-    documentoIdentidad: string;
+    documentoIdentidad?: string;
     telefono?: string;
     email?: string;
     direccion?: string;
@@ -676,6 +676,13 @@ export namespace ApiSchemas {
     size?: number;
     contentType?: string;
     fileUrl?: string;
+  }
+
+  export interface UtilidadDiariaResponse {
+    fecha?: string;
+    ventas?: number;
+    costo?: number;
+    utilidad?: number;
   }
 
   export interface VentaAnulacionRequest {
