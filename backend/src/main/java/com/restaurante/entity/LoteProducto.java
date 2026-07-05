@@ -39,7 +39,7 @@ public class LoteProducto {
     private LocalDate fechaVencimiento;
 
     @Enumerated(EnumType.STRING)
-    @Column(columnDefinition = "ENUM('DISPONIBLE','AGOTADO') DEFAULT 'DISPONIBLE'")
+    @Column(columnDefinition = "ENUM('DISPONIBLE','AGOTADO','VENCIDO','ANULADO') DEFAULT 'DISPONIBLE'")
     private Estado estado = Estado.DISPONIBLE;
 
     @CreationTimestamp
@@ -47,7 +47,7 @@ public class LoteProducto {
     private LocalDateTime createdAt;
 
     public enum Estado {
-        DISPONIBLE, AGOTADO
+        DISPONIBLE, AGOTADO, VENCIDO, ANULADO
     }
 
     public Integer getIdLoteProducto() {

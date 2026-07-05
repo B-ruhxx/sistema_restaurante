@@ -22,7 +22,7 @@ public class Insumo {
     @Column(name = "unidad_medida", length = 20)
     private String unidad;
 
-    @Formula("(select coalesce(sum(li.cantidad_disponible), 0) from lote_insumo li where li.id_insumo = id_insumo and li.estado = 'DISPONIBLE')")
+    @Formula("(select coalesce(sum(li.cantidad_disponible), 0) from lote_insumo li where li.id_insumo = id_insumo and li.estado = 'DISPONIBLE' and li.fecha_vencimiento >= current_date)")
     private BigDecimal stock = BigDecimal.ZERO;
 
     @Column(name = "stock_minimo", nullable = false, precision = 10, scale = 2)

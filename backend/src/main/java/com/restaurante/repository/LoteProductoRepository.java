@@ -8,9 +8,18 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface LoteProductoRepository extends JpaRepository<LoteProducto, Integer> {
-    List<LoteProducto> findByProductoIdProductoAndCantidadDisponibleGreaterThanOrderByFechaVencimientoAscIdLoteProductoAsc(
-            Integer idProducto,
-            Integer cantidad);
+    @Query("""
+            select l from LoteProducto l
+            where l.producto.idProducto = :idProducto
+              and l.estado = 'DISPONIBLE'
+              and l.fechaVencimiento >= :hoy
+              and l.cantidadDisponible > :cantidad
+            order by l.fechaVencimiento asc, l.idLoteProducto asc
+            """)
+    List<LoteProducto> findDisponiblesFifo(
+            @Param("idProducto") Integer idProducto,
+            @Param("cantidad") Integer cantidad,
+            @Param("hoy") LocalDate hoy);
 
     List<LoteProducto> findByProductoIdProductoOrderByFechaVencimientoAscIdLoteProductoAsc(Integer idProducto);
 
@@ -19,21 +28,24 @@ public interface LoteProductoRepository extends JpaRepository<LoteProducto, Inte
 
     List<LoteProducto> findByDetalleCompraIdDetalleCompra(Integer idDetalleCompra);
 
-    @Query("select count(l) from LoteProducto l where l.producto.idProducto = :idProducto and l.cantidadDisponible > 0")
+    @Query("select count(l) from LoteProducto l where l.producto.idProducto = :idProducto and l.estado = 'DISPONIBLE' and l.fechaVencimiento >= current_date and l.cantidadDisponible > 0")
     Long countDisponiblesByProducto(@Param("idProducto") Integer idProducto);
 
-    @Query("select coalesce(sum(l.cantidadDisponible), 0) from LoteProducto l where l.producto.idProducto = :idProducto and l.cantidadDisponible > 0")
+    @Query("select coalesce(sum(l.cantidadDisponible), 0) from LoteProducto l where l.producto.idProducto = :idProducto and l.estado = 'DISPONIBLE' and l.fechaVencimiento >= current_date and l.cantidadDisponible > 0")
     Long sumDisponibleByProducto(@Param("idProducto") Integer idProducto);
 
-    @Query("select min(l.fechaVencimiento) from LoteProducto l where l.producto.idProducto = :idProducto and l.cantidadDisponible > 0")
+    @Query("select coalesce(sum(l.cantidadDisponible), 0) from LoteProducto l where l.producto.idProducto = :idProducto and l.estado <> 'ANULADO'")
+    Long sumContableByProducto(@Param("idProducto") Integer idProducto);
+
+    @Query("select min(l.fechaVencimiento) from LoteProducto l where l.producto.idProducto = :idProducto and l.estado = 'DISPONIBLE' and l.fechaVencimiento >= current_date and l.cantidadDisponible > 0")
     LocalDate findProximoVencimientoByProducto(@Param("idProducto") Integer idProducto);
 
-    @Query("select count(l) from LoteProducto l where l.producto.productoPadre.idProducto = :idProductoPadre and l.cantidadDisponible > 0")
+    @Query("select count(l) from LoteProducto l where l.producto.productoPadre.idProducto = :idProductoPadre and l.estado = 'DISPONIBLE' and l.fechaVencimiento >= current_date and l.cantidadDisponible > 0")
     Long countDisponiblesByProductoPadre(@Param("idProductoPadre") Integer idProductoPadre);
 
-    @Query("select coalesce(sum(l.cantidadDisponible), 0) from LoteProducto l where l.producto.productoPadre.idProducto = :idProductoPadre and l.cantidadDisponible > 0")
+    @Query("select coalesce(sum(l.cantidadDisponible), 0) from LoteProducto l where l.producto.productoPadre.idProducto = :idProductoPadre and l.estado = 'DISPONIBLE' and l.fechaVencimiento >= current_date and l.cantidadDisponible > 0")
     Long sumDisponibleByProductoPadre(@Param("idProductoPadre") Integer idProductoPadre);
 
-    @Query("select min(l.fechaVencimiento) from LoteProducto l where l.producto.productoPadre.idProducto = :idProductoPadre and l.cantidadDisponible > 0")
+    @Query("select min(l.fechaVencimiento) from LoteProducto l where l.producto.productoPadre.idProducto = :idProductoPadre and l.estado = 'DISPONIBLE' and l.fechaVencimiento >= current_date and l.cantidadDisponible > 0")
     LocalDate findProximoVencimientoByProductoPadre(@Param("idProductoPadre") Integer idProductoPadre);
 }

@@ -37,7 +37,17 @@ public class ReporteService {
     @SuppressWarnings("unchecked")
     public List<StockInsuficienteDto> obtenerStockInsuficiente() {
         List<Object[]> results = entityManager.createNativeQuery(
-                "SELECT producto, insumo, stock, cantidad FROM vista_stock_insuficiente"
+                "SELECT p.nombre AS producto, i.nombre AS insumo, " +
+                        "COALESCE(SUM(CASE WHEN li.estado = 'DISPONIBLE' AND li.fecha_vencimiento >= CURRENT_DATE THEN li.cantidad_disponible ELSE 0 END), 0) AS stock, " +
+                        "rp.cantidad " +
+                        "FROM receta_producto rp " +
+                        "JOIN producto p ON p.id_producto = rp.id_producto " +
+                        "JOIN insumo i ON i.id_insumo = rp.id_insumo " +
+                        "LEFT JOIN lote_insumo li ON li.id_insumo = i.id_insumo " +
+                        "WHERE p.estado = 'ACTIVO' AND i.estado = 'ACTIVO' " +
+                        "GROUP BY rp.id_receta, p.nombre, i.nombre, rp.cantidad " +
+                        "HAVING stock < rp.cantidad " +
+                        "ORDER BY p.nombre, i.nombre"
         ).getResultList();
 
         return results.stream().map(row -> new StockInsuficienteDto(
@@ -51,13 +61,32 @@ public class ReporteService {
     @SuppressWarnings("unchecked")
     public List<AlertaStockDto> obtenerAlertaStock() {
         List<Object[]> results = entityManager.createNativeQuery(
-                "SELECT nombre, stock, stock_minimo FROM vista_alerta_stock"
+                "SELECT nombre, stock, stock_minimo, tipo_recurso FROM (" +
+                        "  SELECT i.nombre, " +
+                        "         COALESCE(SUM(CASE WHEN li.estado = 'DISPONIBLE' AND li.fecha_vencimiento >= CURRENT_DATE THEN li.cantidad_disponible ELSE 0 END), 0) AS stock, " +
+                        "         i.stock_minimo, 'INSUMO' AS tipo_recurso " +
+                        "  FROM insumo i " +
+                        "  LEFT JOIN lote_insumo li ON li.id_insumo = i.id_insumo " +
+                        "  WHERE i.estado = 'ACTIVO' " +
+                        "  GROUP BY i.id_insumo, i.nombre, i.stock_minimo " +
+                        "  HAVING stock <= i.stock_minimo " +
+                        "  UNION ALL " +
+                        "  SELECT p.nombre, " +
+                        "         COALESCE(SUM(CASE WHEN lp.estado = 'DISPONIBLE' AND lp.fecha_vencimiento >= CURRENT_DATE THEN lp.cantidad_disponible ELSE 0 END), 0) AS stock, " +
+                        "         p.stock_minimo, 'PRODUCTO_DIRECTO' AS tipo_recurso " +
+                        "  FROM producto p " +
+                        "  LEFT JOIN lote_producto lp ON lp.id_producto = p.id_producto " +
+                        "  WHERE p.estado = 'ACTIVO' AND p.es_sku = TRUE AND p.tipo_producto = 'INVENTARIO_DIRECTO' " +
+                        "  GROUP BY p.id_producto, p.nombre, p.stock_minimo " +
+                        "  HAVING stock <= p.stock_minimo " +
+                        ") alerta ORDER BY tipo_recurso, nombre"
         ).getResultList();
 
         return results.stream().map(row -> new AlertaStockDto(
                 (String) row[0],
                 ((Number) row[1]).intValue(),
-                ((Number) row[2]).intValue()
+                ((Number) row[2]).intValue(),
+                (String) row[3]
         )).collect(Collectors.toList());
     }
 

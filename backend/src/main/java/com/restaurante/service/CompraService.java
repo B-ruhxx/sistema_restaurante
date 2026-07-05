@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -125,7 +126,7 @@ public class CompraService {
 
             // Recalculate weighted average cost (Costo Promedio Ponderado)
             Insumo insumo = det.getInsumo();
-            BigDecimal stockActual = insumo.getStock();
+            BigDecimal stockActual = loteInsumoRepository.sumContableByInsumo(insumo.getIdInsumo());
             BigDecimal costoPromedioActual = insumo.getCostoPromedio();
             if (costoPromedioActual == null) {
                 costoPromedioActual = BigDecimal.ZERO;
@@ -142,7 +143,6 @@ public class CompraService {
                 nuevoCostoPromedio = valorActual.add(valorNuevaCompra).divide(stockNuevo, 4, RoundingMode.HALF_UP);
             }
 
-            insumo.setStock(stockNuevo);
             insumo.setCostoPromedio(nuevoCostoPromedio.setScale(2, RoundingMode.HALF_UP));
             insumoRepository.save(insumo);
 
@@ -156,7 +156,7 @@ public class CompraService {
             lote.setCantidadDisponible(det.getCantidad());
             lote.setCostoUnitario(det.getPrecioUnitario());
             lote.setFechaVencimiento(det.getFechaVencimiento());
-            lote.setEstado(LoteInsumo.Estado.DISPONIBLE);
+            lote.setEstado(calcularEstadoLote(det.getCantidad(), det.getFechaVencimiento()));
             LoteInsumo loteGuardado = loteInsumoRepository.save(lote);
 
             // Register inventory entry movement
@@ -196,7 +196,7 @@ public class CompraService {
             Insumo insumo = insumoRepository.findById(det.getInsumo().getIdInsumo())
                     .orElseThrow(() -> new IllegalArgumentException("Insumo no encontrado."));
 
-            BigDecimal stockActual = insumo.getStock();
+            BigDecimal stockActual = loteInsumoRepository.sumContableByInsumo(insumo.getIdInsumo());
             // Validate if we have enough stock to revert
             if (stockActual.compareTo(det.getCantidad()) < 0) {
                 throw new IllegalStateException("No se puede anular la compra. El stock actual de " + insumo.getNombre() + " (" + stockActual + ") es menor que la cantidad comprada (" + det.getCantidad() + ").");
@@ -223,7 +223,6 @@ public class CompraService {
                 nuevoCostoPromedio = BigDecimal.ZERO;
             }
 
-            insumo.setStock(stockNuevo);
             insumo.setCostoPromedio(nuevoCostoPromedio.setScale(2, RoundingMode.HALF_UP));
             insumoRepository.save(insumo);
 
@@ -310,7 +309,7 @@ public class CompraService {
     private void registrarDetalleProducto(CompraInsumo compraGuardada, DetalleCompraInsumo det) {
         Producto producto = det.getProducto();
         int cantidad = toWholeUnits(det.getCantidad());
-        BigDecimal stockActual = BigDecimal.valueOf(loteProductoRepository.sumDisponibleByProducto(producto.getIdProducto()));
+        BigDecimal stockActual = BigDecimal.valueOf(loteProductoRepository.sumContableByProducto(producto.getIdProducto()));
 
         DetalleCompraInsumo detalleGuardado = detalleCompraInsumoRepository.save(det);
 
@@ -322,7 +321,7 @@ public class CompraService {
         lote.setCantidadDisponible(cantidad);
         lote.setCostoUnitario(det.getPrecioUnitario());
         lote.setFechaVencimiento(det.getFechaVencimiento());
-        lote.setEstado(LoteProducto.Estado.DISPONIBLE);
+        lote.setEstado(calcularEstadoLote(cantidad, det.getFechaVencimiento()));
         LoteProducto loteGuardado = loteProductoRepository.save(lote);
 
         MovimientoInventario mov = new MovimientoInventario();
@@ -348,7 +347,7 @@ public class CompraService {
         int disponibleLotes = lotes.stream()
                 .mapToInt(lote -> lote.getCantidadDisponible() != null ? lote.getCantidadDisponible() : 0)
                 .sum();
-        BigDecimal stockActual = BigDecimal.valueOf(loteProductoRepository.sumDisponibleByProducto(producto.getIdProducto()));
+        BigDecimal stockActual = BigDecimal.valueOf(loteProductoRepository.sumContableByProducto(producto.getIdProducto()));
         if (disponibleLotes < cantidad) {
             throw new IllegalStateException("No se puede anular la compra. Ya se consumió stock del lote de "
                     + producto.getNombre() + ".");
@@ -380,6 +379,26 @@ public class CompraService {
         } catch (ArithmeticException ex) {
             throw new IllegalArgumentException("La cantidad de producto debe ser un número entero.");
         }
+    }
+
+    private LoteInsumo.Estado calcularEstadoLote(BigDecimal cantidadDisponible, LocalDate fechaVencimiento) {
+        if (cantidadDisponible == null || cantidadDisponible.compareTo(BigDecimal.ZERO) <= 0) {
+            return LoteInsumo.Estado.AGOTADO;
+        }
+        if (fechaVencimiento != null && fechaVencimiento.isBefore(LocalDate.now())) {
+            return LoteInsumo.Estado.VENCIDO;
+        }
+        return LoteInsumo.Estado.DISPONIBLE;
+    }
+
+    private LoteProducto.Estado calcularEstadoLote(Integer cantidadDisponible, LocalDate fechaVencimiento) {
+        if (cantidadDisponible == null || cantidadDisponible <= 0) {
+            return LoteProducto.Estado.AGOTADO;
+        }
+        if (fechaVencimiento != null && fechaVencimiento.isBefore(LocalDate.now())) {
+            return LoteProducto.Estado.VENCIDO;
+        }
+        return LoteProducto.Estado.DISPONIBLE;
     }
 
     private void aplicarSnapshotEntrada(MovimientoInventario movimiento, BigDecimal stockAnterior,

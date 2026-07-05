@@ -3,6 +3,7 @@ package com.restaurante.service;
 import com.restaurante.entity.LoteProducto;
 import com.restaurante.entity.Producto;
 import com.restaurante.repository.LoteProductoRepository;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,9 +21,10 @@ public class LoteProductoService {
     @Transactional
     public List<DescuentoLoteProducto> descontarFifo(Producto producto, Integer cantidadNecesaria) {
         List<LoteProducto> lotes = loteProductoRepository
-                .findByProductoIdProductoAndCantidadDisponibleGreaterThanOrderByFechaVencimientoAscIdLoteProductoAsc(
+                .findDisponiblesFifo(
                         producto.getIdProducto(),
-                        0);
+                        0,
+                        LocalDate.now());
 
         int restante = cantidadNecesaria;
         List<DescuentoLoteProducto> descuentos = new ArrayList<>();
@@ -53,7 +55,22 @@ public class LoteProductoService {
     @Transactional
     public void devolverALote(LoteProducto lote, Integer cantidad) {
         lote.setCantidadDisponible(lote.getCantidadDisponible() + cantidad);
-        lote.setEstado(LoteProducto.Estado.DISPONIBLE);
+        actualizarEstadoDespuesDevolver(lote);
         loteProductoRepository.save(lote);
+    }
+
+    private void actualizarEstadoDespuesDevolver(LoteProducto lote) {
+        if (lote.getEstado() == LoteProducto.Estado.ANULADO) {
+            return;
+        }
+        if (lote.getCantidadDisponible() == null || lote.getCantidadDisponible() <= 0) {
+            lote.setEstado(LoteProducto.Estado.AGOTADO);
+            return;
+        }
+        if (lote.getFechaVencimiento() != null && lote.getFechaVencimiento().isBefore(LocalDate.now())) {
+            lote.setEstado(LoteProducto.Estado.VENCIDO);
+            return;
+        }
+        lote.setEstado(LoteProducto.Estado.DISPONIBLE);
     }
 }
