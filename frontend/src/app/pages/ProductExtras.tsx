@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -19,11 +18,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../components/ui/dialog';
-import { PlusCircle, Plus, Pencil, Trash2, Search, Loader2 } from 'lucide-react';
+import { PlusCircle, Plus, Pencil, Trash2, Loader2 } from 'lucide-react';
 import { toast } from '../../lib/notifications';
 import { useExtras } from '../../hooks/useExtras';
 import { useInsumos } from '../../hooks/useInsumos';
-import type { ExtraProducto } from '../../api/extras';
+import type { ExtraProducto, ExtraProductoRequest } from '../../api/extras';
 import { PageWrapper, ModuleHeader, KpiCard, FilterToolbar, EmptyState, SectionCard } from '../components/ui/erp-layout';
 
 interface ProductExtra {
@@ -114,11 +113,10 @@ export function ProductExtras() {
       return;
     }
 
-    const payload = {
+    const payload: ExtraProductoRequest = {
       nombre: formData.nombre,
       precio: parseFloat(formData.precio),
       idInsumo: Number(formData.idInsumo),
-      offsetConsumo: 0,
       cantidadConsumida,
     };
 

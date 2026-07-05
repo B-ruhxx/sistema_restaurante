@@ -1,7 +1,8 @@
 import api from './auth';
 import { DetallePedido } from './pedidos';
+import type { ApiSchemas } from './generated/openapi-types';
 
-export interface Precuenta {
+export interface Precuenta extends Omit<ApiSchemas.PrecuentaResponse, 'idPrecuenta' | 'idPedido' | 'numero' | 'fechaEmision' | 'emitidoPorNombre' | 'subtotal' | 'igv' | 'total' | 'estado' | 'detalles'> {
   idPrecuenta: number;
   idPedido: number;
   idMesa?: number;
@@ -12,7 +13,7 @@ export interface Precuenta {
   subtotal: number;
   igv: number;
   total: number;
-  estado: 'EMITIDA' | 'CONVERTIDA_VENTA' | 'INVALIDADA_POR_ADICION';
+  estado: 'EMITIDA' | 'ANULADA' | 'CONVERTIDA_VENTA' | 'INVALIDADA_POR_ADICION';
   detalles?: DetallePedido[];
 }
 

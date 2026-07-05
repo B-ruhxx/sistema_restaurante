@@ -1,6 +1,7 @@
 import api from './auth';
+import type { ApiSchemas } from './generated/openapi-types';
 
-export interface ExtraProducto {
+export interface ExtraProducto extends Omit<ApiSchemas.ExtraProductoResponse, 'idExtra' | 'nombre' | 'precio' | 'idInsumo' | 'cantidadConsumida' | 'estado'> {
   idExtra: number;
   nombre: string;
   precio: number;
@@ -11,13 +12,7 @@ export interface ExtraProducto {
   estado?: 'ACTIVO' | 'INACTIVO';
 }
 
-export interface ExtraProductoRequest {
-  nombre: string;
-  precio: number;
-  idInsumo: number;
-  cantidadConsumida: number;
-  estado?: 'ACTIVO' | 'INACTIVO';
-}
+export type ExtraProductoRequest = ApiSchemas.ExtraProductoRequest;
 
 export const extrasApi = {
   getAll: async (): Promise<ExtraProducto[]> => {

@@ -19,7 +19,6 @@ import {
   Phone,
   Mail,
   FileText,
-  DollarSign,
   Loader2,
   X,
   BadgePercent,

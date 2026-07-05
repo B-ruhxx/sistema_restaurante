@@ -6,7 +6,6 @@ import {
   Eye,
   Loader2,
   ReceiptText,
-  Search,
   CheckCircle2,
   XCircle,
 } from 'lucide-react';
@@ -15,7 +14,6 @@ import { useVentas } from '../../hooks/useVentas';
 import { ventasApi, type Venta } from '../../api/ventas';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import {
   Dialog,
   DialogContent,
@@ -24,7 +22,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../components/ui/dialog';
-import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Textarea } from '../components/ui/textarea';

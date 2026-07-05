@@ -32,7 +32,6 @@ import { Switch } from '../components/ui/switch';
 import {
   UserCog,
   Plus,
-  Search,
   Pencil,
   Trash2,
   Eye,
@@ -50,7 +49,7 @@ import { useEmpleados } from '../../hooks/useEmpleados';
 import authApi from '../../api/auth';
 import type { Empleado, EmpleadoRequest, EmpleadoRol } from '../../api/empleados';
 import { PageWrapper, ModuleHeader, KpiCard, FilterToolbar, EmptyState, SectionCard } from '../components/ui/erp-layout';
-import { cn } from '../components/ui/utils';
+import { cn, getFullImageUrl } from '../components/ui/utils';
 
 export function Employees() {
   const {
@@ -247,12 +246,6 @@ export function Employees() {
     return 'ui-surface-subtle';
   };
 
-  const getFullAvatarUrl = (url: string) => {
-    if (!url) return '';
-    if (url.startsWith('http')) return url;
-    return `http://localhost:8080${url}`;
-  };
-
   const activeCount = empleados.filter((e: Empleado) => e.estado === 'ACTIVO').length;
   const inactiveCount = empleados.filter((e: Empleado) => e.estado === 'INACTIVO').length;
 
@@ -370,11 +363,11 @@ export function Employees() {
                       <div className="flex items-center gap-3">
                         <Avatar className="w-9 h-9 border border-border">
                           {employee.avatarUrl ? (
-                            <AvatarImage
-                              src={getFullAvatarUrl(employee.avatarUrl)}
-                              alt={employee.nombre}
-                              className="object-cover"
-                            />
+                             <AvatarImage
+                               src={getFullImageUrl(employee.avatarUrl)}
+                               alt={employee.nombre}
+                               className="object-cover"
+                             />
                           ) : null}
                           <AvatarFallback className={cn('text-xs font-bold', getRoleColor(employee.nombreRol))}>
                             {employee.nombre[0]}
@@ -475,7 +468,7 @@ export function Employees() {
               <div className="col-span-2 flex flex-col items-center gap-3 pb-4 border-b border-border/40">
                 <Avatar className="w-20 h-20 border border-border/60">
                   {formData.avatarUrl ? (
-                    <AvatarImage src={getFullAvatarUrl(formData.avatarUrl)} className="object-cover" />
+                    <AvatarImage src={getFullImageUrl(formData.avatarUrl)} className="object-cover" />
                   ) : null}
                   <AvatarFallback className="text-lg font-bold">
                     {formData.nombre?.[0] || 'U'}
@@ -637,7 +630,7 @@ export function Employees() {
               <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 p-5 border border-border/60 bg-muted/10 rounded-2xl">
                 <Avatar className="w-16 h-16 border border-border/50">
                   {viewingEmployee.avatarUrl ? (
-                    <AvatarImage src={getFullAvatarUrl(viewingEmployee.avatarUrl)} className="object-cover" />
+                    <AvatarImage src={getFullImageUrl(viewingEmployee.avatarUrl)} className="object-cover" />
                   ) : null}
                   <AvatarFallback className={cn('text-sm font-bold', getRoleColor(viewingEmployee.nombreRol))}>
                     {viewingEmployee.nombre[0]}
