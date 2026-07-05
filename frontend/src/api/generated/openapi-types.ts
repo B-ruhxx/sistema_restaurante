@@ -75,9 +75,9 @@ export namespace ApiSchemas {
     observacion?: string;
     fechaApertura?: string;
     fechaCierre?: string;
-    empleadoNombre?: string;
     observacionApertura?: string;
     observacionCierre?: string;
+    empleadoNombre?: string;
   }
 
   export interface CategoriaRequest {

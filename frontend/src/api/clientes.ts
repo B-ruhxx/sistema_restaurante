@@ -1,25 +1,24 @@
 import api from './auth';
+import type { ApiSchemas } from './generated/openapi-types';
 
-export interface Cliente {
+export const CLIENTE_TIPO_DOCUMENTO_VALUES = ['DNI', 'RUC', 'CE', 'PASAPORTE', 'SIN_DOCUMENTO'] as const;
+
+export type ClienteTipoDocumento = (typeof CLIENTE_TIPO_DOCUMENTO_VALUES)[number];
+
+export interface Cliente extends Omit<ApiSchemas.ClienteResponse, 'tipoDocumento' | 'estado'> {
   idCliente: number;
   nombre: string;
-  apellido: string;
-  tipoDocumento: 'DNI' | 'RUC' | 'CE';
-  documentoIdentidad: string;
-  telefono?: string;
-  email?: string;
-  direccion?: string;
+  apellido?: string;
+  tipoDocumento?: ClienteTipoDocumento;
+  documentoIdentidad?: string;
   estado?: 'ACTIVO' | 'INACTIVO';
 }
 
-export interface ClienteRequest {
+export interface ClienteRequest extends Omit<ApiSchemas.ClienteRequest, 'tipoDocumento' | 'estado' | 'documentoIdentidad'> {
   nombre: string;
   apellido: string;
-  tipoDocumento: 'DNI' | 'RUC' | 'CE';
-  documentoIdentidad: string;
-  telefono?: string;
-  email?: string;
-  direccion?: string;
+  tipoDocumento: ClienteTipoDocumento;
+  documentoIdentidad: string | null;
   estado?: 'ACTIVO' | 'INACTIVO';
 }
 

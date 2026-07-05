@@ -1,4 +1,5 @@
 import { createContext, useContext } from 'react';
+import type { ClienteTipoDocumento } from '../../api/clientes';
 
 export interface Product {
   id: string;
@@ -55,7 +56,7 @@ export interface Order {
 export interface Customer {
   id: string;
   name: string;
-  documentType: 'DNI' | 'RUC';
+  documentType: ClienteTipoDocumento;
   documentNumber: string;
   email?: string;
   phone?: string;

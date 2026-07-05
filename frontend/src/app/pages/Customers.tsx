@@ -30,7 +30,6 @@ import { Avatar, AvatarFallback } from '../components/ui/avatar';
 import {
   Users,
   Plus,
-  Search,
   Pencil,
   Trash2,
   Eye,
@@ -45,11 +44,49 @@ import {
 } from 'lucide-react';
 import { toast } from '../../lib/notifications';
 import { useClientes } from '../../hooks/useClientes';
-import type { Cliente, ClienteRequest } from '../../api/clientes';
+import { CLIENTE_TIPO_DOCUMENTO_VALUES, type Cliente, type ClienteRequest, type ClienteTipoDocumento } from '../../api/clientes';
 import { PageWrapper, ModuleHeader, KpiCard, FilterToolbar, EmptyState, SectionCard } from '../components/ui/erp-layout';
 import { cn } from '../components/ui/utils';
 
-type TipoDoc = 'DNI' | 'RUC' | 'CE';
+const DOCUMENT_LABELS: Record<ClienteTipoDocumento, string> = {
+  DNI: 'DNI',
+  RUC: 'RUC',
+  CE: 'CE (Carné Extranjería)',
+  PASAPORTE: 'Pasaporte',
+  SIN_DOCUMENTO: 'Sin documento',
+};
+
+const DOCUMENT_INPUT_MAX_LENGTH: Record<ClienteTipoDocumento, number> = {
+  DNI: 20,
+  RUC: 11,
+  CE: 20,
+  PASAPORTE: 20,
+  SIN_DOCUMENTO: 20,
+};
+
+const isTipoDocumento = (value: string): value is ClienteTipoDocumento =>
+  CLIENTE_TIPO_DOCUMENTO_VALUES.some((tipoDocumento) => tipoDocumento === value);
+
+const getClienteDocumentLabel = (tipoDocumento?: ClienteTipoDocumento) =>
+  tipoDocumento ? DOCUMENT_LABELS[tipoDocumento] : 'Sin documento';
+
+const getClienteDocumentValue = (documentoIdentidad?: string) => documentoIdentidad || 'Sin identificador';
+
+const toClienteDocumentoPayload = (tipoDocumento: ClienteTipoDocumento, documentoIdentidad: string) => {
+  if (tipoDocumento === 'SIN_DOCUMENTO') {
+    return null;
+  }
+
+  return documentoIdentidad.trim();
+};
+
+type CustomerFormState = Omit<ClienteRequest, 'documentoIdentidad'> & {
+  documentoIdentidad: string;
+  telefono: string;
+  email: string;
+  direccion: string;
+  estado: 'ACTIVO' | 'INACTIVO';
+};
 
 const getSegmentColor = (estado: string) => {
   if (estado === 'INACTIVO') return 'ui-status-danger-soft';
@@ -67,22 +104,31 @@ export function Customers() {
   const [editingCustomer, setEditingCustomer] = useState<Cliente | null>(null);
   const [viewingCustomer, setViewingCustomer] = useState<Cliente | null>(null);
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<CustomerFormState>({
     nombre: '',
     apellido: '',
-    tipoDocumento: 'DNI' as TipoDoc,
+    tipoDocumento: 'DNI',
     documentoIdentidad: '',
     telefono: '',
     email: '',
     direccion: '',
-    estado: 'ACTIVO' as 'ACTIVO' | 'INACTIVO',
+    estado: 'ACTIVO',
   });
 
+  const handleTipoDocumentoChange = (value: string) => {
+    if (!isTipoDocumento(value)) return;
+    setFormData((current) => ({
+      ...current,
+      tipoDocumento: value,
+      documentoIdentidad: value === 'SIN_DOCUMENTO' ? '' : current.documentoIdentidad,
+    }));
+  };
+
   const filteredClientes = clientes.filter((c: Cliente) => {
-    const fullName = `${c.nombre} ${c.apellido}`.toLowerCase();
+    const fullName = `${c.nombre} ${c.apellido || ''}`.toLowerCase();
     const matchesSearch =
       fullName.includes(searchTerm.toLowerCase()) ||
-      c.documentoIdentidad.includes(searchTerm) ||
+      (c.documentoIdentidad || '').includes(searchTerm) ||
       (c.email && c.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (c.telefono && c.telefono.includes(searchTerm));
 
@@ -112,9 +158,9 @@ export function Customers() {
     setEditingCustomer(cliente);
     setFormData({
       nombre: cliente.nombre,
-      apellido: cliente.apellido,
-      tipoDocumento: cliente.tipoDocumento,
-      documentoIdentidad: cliente.documentoIdentidad,
+      apellido: cliente.apellido || '',
+      tipoDocumento: cliente.tipoDocumento || 'SIN_DOCUMENTO',
+      documentoIdentidad: cliente.documentoIdentidad || '',
       telefono: cliente.telefono || '',
       email: cliente.email || '',
       direccion: cliente.direccion || '',
@@ -132,13 +178,13 @@ export function Customers() {
     e.preventDefault();
 
     const payload: ClienteRequest = {
-      nombre: formData.nombre,
-      apellido: formData.apellido,
+      nombre: formData.nombre.trim(),
+      apellido: formData.apellido.trim(),
       tipoDocumento: formData.tipoDocumento,
-      documentoIdentidad: formData.documentoIdentidad,
-      telefono: formData.telefono || undefined,
-      email: formData.email || undefined,
-      direccion: formData.direccion || undefined,
+      documentoIdentidad: toClienteDocumentoPayload(formData.tipoDocumento, formData.documentoIdentidad),
+      telefono: formData.telefono.trim() || undefined,
+      email: formData.email.trim() || undefined,
+      direccion: formData.direccion.trim() || undefined,
       estado: formData.estado,
     };
 
@@ -163,7 +209,7 @@ export function Customers() {
   };
 
   const handleDelete = async (cliente: Cliente) => {
-    if (!confirm(`¿Desea inactivar al cliente ${cliente.nombre} ${cliente.apellido}?`)) return;
+    if (!confirm(`¿Desea inactivar al cliente ${cliente.nombre} ${cliente.apellido || ''}?`)) return;
     try {
       await deleteCliente(cliente.idCliente);
       toast.success('Cliente inactivado correctamente');
@@ -179,9 +225,9 @@ export function Customers() {
         id: cliente.idCliente,
         data: {
           nombre: cliente.nombre,
-          apellido: cliente.apellido,
-          tipoDocumento: cliente.tipoDocumento,
-          documentoIdentidad: cliente.documentoIdentidad,
+          apellido: cliente.apellido || '',
+          tipoDocumento: cliente.tipoDocumento || 'SIN_DOCUMENTO',
+          documentoIdentidad: toClienteDocumentoPayload(cliente.tipoDocumento || 'SIN_DOCUMENTO', cliente.documentoIdentidad || ''),
           telefono: cliente.telefono,
           email: cliente.email,
           direccion: cliente.direccion,
@@ -221,7 +267,7 @@ export function Customers() {
         icon={Users}
         iconColor="blue"
         title="Gestión de Clientes"
-        subtitle="Administra la base de datos de clientes, historial de facturación y datos tributarios (DNI/RUC)."
+        subtitle="Administra la base de datos de clientes, historial de facturación y datos tributarios según el tipo de documento real."
         action={
           <Button onClick={handleOpenCreate} className="h-11 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95 gap-2 font-semibold">
             <Plus className="w-4 h-4" /> Nuevo Cliente
@@ -253,9 +299,11 @@ export function Customers() {
               </SelectTrigger>
               <SelectContent className="rounded-xl">
                 <SelectItem value="all" className="rounded-lg">Todos los documentos</SelectItem>
-                <SelectItem value="DNI" className="rounded-lg">DNI</SelectItem>
-                <SelectItem value="RUC" className="rounded-lg">RUC</SelectItem>
-                <SelectItem value="CE" className="rounded-lg">CE</SelectItem>
+                {CLIENTE_TIPO_DOCUMENTO_VALUES.map((tipoDocumento) => (
+                  <SelectItem key={tipoDocumento} value={tipoDocumento} className="rounded-lg">
+                    {DOCUMENT_LABELS[tipoDocumento]}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <Select value={estadoFilter} onValueChange={(value) => setEstadoFilter(value as 'ACTIVO' | 'INACTIVO' | 'TODOS')}>
@@ -315,7 +363,7 @@ export function Customers() {
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <div className="font-bold text-foreground text-sm">{cliente.nombre} {cliente.apellido}</div>
+                          <div className="font-bold text-foreground text-sm">{cliente.nombre} {cliente.apellido || ''}</div>
                           <div className="text-xs font-semibold text-muted-foreground">ID: {cliente.idCliente}</div>
                         </div>
                       </div>
@@ -341,10 +389,10 @@ export function Customers() {
                     </TableCell>
                     <TableCell>
                       <div className="space-y-1">
-                        <Badge variant="outline" className="text-[9px] font-bold px-2 py-0 h-4.5">{cliente.tipoDocumento}</Badge>
+                        <Badge variant="outline" className="text-[9px] font-bold px-2 py-0 h-4.5">{getClienteDocumentLabel(cliente.tipoDocumento)}</Badge>
                         <div className="text-xs font-bold text-foreground flex items-center gap-1 font-mono">
                           <CreditCard className="w-3.5 h-3.5 text-muted-foreground font-sans" />
-                          {cliente.documentoIdentidad}
+                          {getClienteDocumentValue(cliente.documentoIdentidad)}
                         </div>
                       </div>
                     </TableCell>
@@ -434,6 +482,7 @@ export function Customers() {
                   id="nombre"
                   value={formData.nombre}
                   onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                  maxLength={50}
                   required
                   className="h-11 rounded-xl"
                 />
@@ -444,6 +493,7 @@ export function Customers() {
                   id="apellido"
                   value={formData.apellido}
                   onChange={(e) => setFormData({ ...formData, apellido: e.target.value })}
+                  maxLength={50}
                   required
                   className="h-11 rounded-xl"
                 />
@@ -452,28 +502,34 @@ export function Customers() {
                 <Label htmlFor="tipoDocumento" className="text-sm font-semibold">Tipo de Documento *</Label>
                 <Select
                   value={formData.tipoDocumento}
-                  onValueChange={(val) => setFormData({ ...formData, tipoDocumento: val as TipoDoc })}
+                  onValueChange={handleTipoDocumentoChange}
                 >
                   <SelectTrigger id="tipoDocumento" className="h-11 rounded-xl">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="rounded-xl">
-                    <SelectItem value="DNI" className="rounded-lg">DNI</SelectItem>
-                    <SelectItem value="RUC" className="rounded-lg">RUC</SelectItem>
-                    <SelectItem value="CE" className="rounded-lg">CE (Carné Extranjería)</SelectItem>
+                    {CLIENTE_TIPO_DOCUMENTO_VALUES.map((tipoDocumento) => (
+                      <SelectItem key={tipoDocumento} value={tipoDocumento} className="rounded-lg">
+                        {DOCUMENT_LABELS[tipoDocumento]}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="documento" className="text-sm font-semibold">Número de Documento *</Label>
-                <Input
-                  id="documento"
-                  value={formData.documentoIdentidad}
-                  onChange={(e) => setFormData({ ...formData, documentoIdentidad: e.target.value })}
-                  maxLength={formData.tipoDocumento === 'RUC' ? 11 : 12}
-                  required
-                  className="h-11 rounded-xl font-mono font-bold"
-                />
+                {formData.tipoDocumento !== 'SIN_DOCUMENTO' && (
+                  <>
+                    <Label htmlFor="documento" className="text-sm font-semibold">Número de Documento *</Label>
+                    <Input
+                      id="documento"
+                      value={formData.documentoIdentidad}
+                      onChange={(e) => setFormData({ ...formData, documentoIdentidad: e.target.value })}
+                      maxLength={DOCUMENT_INPUT_MAX_LENGTH[formData.tipoDocumento]}
+                      required
+                      className="h-11 rounded-xl font-mono font-bold"
+                    />
+                  </>
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="telefono" className="text-sm font-semibold">Teléfono</Label>
@@ -481,6 +537,7 @@ export function Customers() {
                   id="telefono"
                   value={formData.telefono}
                   onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
+                  maxLength={20}
                   className="h-11 rounded-xl"
                 />
               </div>
@@ -491,6 +548,7 @@ export function Customers() {
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  maxLength={100}
                   className="h-11 rounded-xl"
                 />
               </div>
@@ -500,6 +558,7 @@ export function Customers() {
                   id="direccion"
                   value={formData.direccion}
                   onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
+                  maxLength={255}
                   placeholder="Av. Principal 123, Lima"
                   className="h-11 rounded-xl"
                 />
@@ -534,14 +593,14 @@ export function Customers() {
                 <div className="flex-1 space-y-2">
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="text-base font-bold text-foreground">
-                      {viewingCustomer.nombre} {viewingCustomer.apellido}
+                      {viewingCustomer.nombre} {viewingCustomer.apellido || ''}
                     </h3>
-                    <Badge variant="outline" className="text-[10px] font-bold px-2 py-0 h-5">{viewingCustomer.tipoDocumento}</Badge>
+                    <Badge variant="outline" className="text-[10px] font-bold px-2 py-0 h-5">{getClienteDocumentLabel(viewingCustomer.tipoDocumento)}</Badge>
                   </div>
                   <div className="grid grid-cols-1 gap-2 text-xs font-semibold text-muted-foreground">
                     <div className="flex items-center gap-2 text-foreground/90">
                       <CreditCard className="w-4 h-4 text-muted-foreground" />
-                      <span className="font-mono font-bold">{viewingCustomer.documentoIdentidad}</span>
+                      <span className="font-mono font-bold">{getClienteDocumentValue(viewingCustomer.documentoIdentidad)}</span>
                     </div>
                     {viewingCustomer.telefono && (
                       <div className="flex items-center gap-2 text-foreground/95">

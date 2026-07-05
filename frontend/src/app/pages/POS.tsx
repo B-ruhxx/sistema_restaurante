@@ -5,6 +5,7 @@ import { useERP, Product, Customer } from '../contexts/ERPContextValue';
 import { mesasApi } from '../../api/mesas';
 import { pedidosApi, Pedido } from '../../api/pedidos';
 import { precuentasApi } from '../../api/precuentas';
+import { CLIENTE_TIPO_DOCUMENTO_VALUES, type ClienteTipoDocumento } from '../../api/clientes';
 import { extrasApi, ExtraProducto } from '../../api/extras';
 import { toast } from '../../lib/notifications';
 import { Input } from '../components/ui/input';
@@ -38,6 +39,30 @@ const STATUS_META: Record<PosStatus, { label: string; color: string; icon: React
 
 /* ── Tipo cliente selector ──────────────────────────────────── */
 type CustomerMode = 'generic' | 'search' | 'create';
+
+const DOCUMENT_LABELS: Record<ClienteTipoDocumento, string> = {
+  DNI: 'DNI',
+  RUC: 'RUC',
+  CE: 'CE',
+  PASAPORTE: 'Pasaporte',
+  SIN_DOCUMENTO: 'Sin documento',
+};
+
+const DOCUMENT_PLACEHOLDERS: Record<ClienteTipoDocumento, string> = {
+  DNI: 'DNI',
+  RUC: 'RUC',
+  CE: 'CE',
+  PASAPORTE: 'Pasaporte',
+  SIN_DOCUMENTO: 'Sin documento',
+};
+
+const isTipoDocumento = (value: string): value is ClienteTipoDocumento =>
+  CLIENTE_TIPO_DOCUMENTO_VALUES.some((tipoDocumento) => tipoDocumento === value);
+
+const getCustomerDocumentSummary = (customer: Pick<Customer, 'documentType' | 'documentNumber'>) => {
+  const documentValue = customer.documentNumber || 'Sin identificador';
+  return `${customer.documentType} · ${documentValue}`;
+};
 
 export function POS() {
   const navigate = useNavigate();
@@ -123,7 +148,17 @@ export function POS() {
   const [customerMode, setCustomerMode]       = useState<CustomerMode>('generic');
   const [customerSearch, setCustomerSearch]   = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-  const [newCustomer, setNewCustomer]         = useState({ name: '', doc: '', phone: '' });
+  const [newCustomer, setNewCustomer] = useState<{
+    name: string;
+    documentType: ClienteTipoDocumento;
+    doc: string;
+    phone: string;
+  }>({
+    name: '',
+    documentType: 'DNI',
+    doc: '',
+    phone: '',
+  });
   const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);
 
   const filteredProducts = products.filter(p => {
@@ -324,25 +359,23 @@ export function POS() {
       return;
     }
 
-    if (!documentNumber) {
-      toast.error('Ingresa DNI o RUC del cliente');
+    if (newCustomer.documentType !== 'SIN_DOCUMENTO' && !documentNumber) {
+      toast.error('Ingresa el documento del cliente');
       return;
     }
-
-    const documentType: Customer['documentType'] = documentNumber.length === 11 ? 'RUC' : 'DNI';
 
     try {
       setIsCreatingCustomer(true);
       const customer = await createCustomer({
         name,
-        documentType,
-        documentNumber,
+        documentType: newCustomer.documentType,
+        documentNumber: newCustomer.documentType === 'SIN_DOCUMENTO' ? '' : documentNumber,
         phone: phone || undefined,
       });
       setSelectedCustomer(customer);
       setCustomerMode('search');
       setCustomerSearch('');
-      setNewCustomer({ name: '', doc: '', phone: '' });
+      setNewCustomer({ name: '', documentType: 'DNI', doc: '', phone: '' });
       toast.success('Cliente guardado correctamente');
     } catch (error) {
       console.error(error);
@@ -769,8 +802,8 @@ function CustomerSelector({
   customerSearch: string; setCustomerSearch: (s: string) => void;
   filteredCustomers: Customer[]; selectedCustomer: Customer | null;
   setSelectedCustomer: (c: Customer | null) => void;
-  newCustomer: { name: string; doc: string; phone: string };
-  setNewCustomer: (v: { name: string; doc: string; phone: string }) => void;
+  newCustomer: { name: string; documentType: ClienteTipoDocumento; doc: string; phone: string };
+  setNewCustomer: (v: { name: string; documentType: ClienteTipoDocumento; doc: string; phone: string }) => void;
   onCreateCustomer: () => void;
   isCreatingCustomer: boolean;
 }) {
@@ -831,7 +864,9 @@ function CustomerSelector({
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-semibold truncate">{selectedCustomer.name}</p>
-                <p className="text-[10px] text-muted-foreground">{selectedCustomer.documentNumber}</p>
+                <p className="text-[10px] text-muted-foreground">
+                  {getCustomerDocumentSummary(selectedCustomer)}
+                </p>
               </div>
               <button onClick={() => setSelectedCustomer(null)} className="text-muted-foreground hover:text-[var(--status-info)]">
                 <X className="w-3 h-3" />
@@ -859,7 +894,7 @@ function CustomerSelector({
                       onClick={() => { setSelectedCustomer(c); setCustomerSearch(''); }}
                     >
                       <p className="text-xs font-medium">{c.name}</p>
-                      <p className="text-[10px] text-muted-foreground">{c.documentNumber}</p>
+                      <p className="text-[10px] text-muted-foreground">{getCustomerDocumentSummary(c)}</p>
                     </button>
                   ))}
                 </div>
@@ -876,19 +911,47 @@ function CustomerSelector({
             className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-border bg-background focus:outline-none focus:ring-1 focus:ring-[var(--action-primary)]/30"
             placeholder="Nombre completo"
             value={newCustomer.name}
+            maxLength={50}
             onChange={e => setNewCustomer({ ...newCustomer, name: e.target.value })}
           />
+          <select
+            className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-border bg-background focus:outline-none focus:ring-1 focus:ring-[var(--action-primary)]/30"
+            value={newCustomer.documentType}
+            onChange={event => {
+              const value = event.target.value;
+              if (!isTipoDocumento(value)) return;
+              setNewCustomer({
+                ...newCustomer,
+                documentType: value,
+                doc: value === 'SIN_DOCUMENTO' ? '' : newCustomer.doc,
+              });
+            }}
+          >
+            {CLIENTE_TIPO_DOCUMENTO_VALUES.map((tipoDocumento) => (
+              <option key={tipoDocumento} value={tipoDocumento}>
+                {DOCUMENT_LABELS[tipoDocumento]}
+              </option>
+            ))}
+          </select>
           <div className="grid grid-cols-2 gap-1.5">
-            <input
-              className="px-2.5 py-1.5 text-xs rounded-lg border border-border bg-background focus:outline-none focus:ring-1 focus:ring-[var(--action-primary)]/30"
-              placeholder="DNI / RUC"
-              value={newCustomer.doc}
-              onChange={e => setNewCustomer({ ...newCustomer, doc: e.target.value })}
-            />
+            {newCustomer.documentType !== 'SIN_DOCUMENTO' ? (
+              <input
+                className="px-2.5 py-1.5 text-xs rounded-lg border border-border bg-background focus:outline-none focus:ring-1 focus:ring-[var(--action-primary)]/30"
+                placeholder={DOCUMENT_PLACEHOLDERS[newCustomer.documentType]}
+                value={newCustomer.doc}
+                maxLength={20}
+                onChange={e => setNewCustomer({ ...newCustomer, doc: e.target.value })}
+              />
+            ) : (
+              <div className="px-2.5 py-1.5 text-xs rounded-lg border border-dashed border-border bg-muted/30 text-muted-foreground flex items-center">
+                Sin documento
+              </div>
+            )}
             <input
               className="px-2.5 py-1.5 text-xs rounded-lg border border-border bg-background focus:outline-none focus:ring-1 focus:ring-[var(--action-primary)]/30"
               placeholder="Teléfono"
               value={newCustomer.phone}
+              maxLength={20}
               onChange={e => setNewCustomer({ ...newCustomer, phone: e.target.value })}
             />
           </div>

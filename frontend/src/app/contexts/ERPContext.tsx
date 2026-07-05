@@ -6,6 +6,7 @@ import { useClientes } from '../../hooks/useClientes';
 import { usePedidos } from '../../hooks/usePedidos';
 import { useCaja } from '../../hooks/useCaja';
 import { usePrivateQueryEnabled } from '../../hooks/usePrivateQuery';
+import type { ClienteTipoDocumento } from '../../api/clientes';
 import { productosApi } from '../../api/productos';
 import { extrasApi, ExtraProducto } from '../../api/extras';
 import { toast } from '../../lib/notifications';
@@ -35,15 +36,15 @@ const mapClienteToCustomer = (cliente: {
   idCliente: number;
   nombre: string;
   apellido?: string;
-  tipoDocumento?: string;
-  documentoIdentidad: string;
+  tipoDocumento?: ClienteTipoDocumento;
+  documentoIdentidad?: string;
   email?: string;
   telefono?: string;
 }): Customer => ({
   id: String(cliente.idCliente),
   name: `${cliente.nombre} ${cliente.apellido || ''}`.trim(),
-  documentType: cliente.tipoDocumento === 'RUC' ? 'RUC' : 'DNI',
-  documentNumber: cliente.documentoIdentidad,
+  documentType: cliente.tipoDocumento ?? 'SIN_DOCUMENTO',
+  documentNumber: cliente.documentoIdentidad ?? '',
   email: cliente.email,
   phone: cliente.telefono,
 });
@@ -54,6 +55,14 @@ const splitCustomerName = (fullName: string) => {
     nombre: parts[0] || 'Cliente',
     apellido: parts.slice(1).join(' ') || 'Genérico',
   };
+};
+
+const toClienteDocumentoPayload = (documentType: ClienteTipoDocumento, documentNumber: string) => {
+  if (documentType === 'SIN_DOCUMENTO') {
+    return null;
+  }
+
+  return documentNumber.trim();
 };
 
 const resolveCashMovementMethod = (concepto?: string): CashMovement['method'] => {
@@ -362,15 +371,19 @@ export function ERPProvider({ children }: { children: React.ReactNode }) {
   };
 
   const createCustomer = async (customer: Omit<Customer, 'id'>) => {
-    const cleanDoc = customer.documentNumber.trim();
-    const existing = clientes.find(c => c.documentoIdentidad === cleanDoc);
+    const cleanDoc = toClienteDocumentoPayload(customer.documentType, customer.documentNumber);
+    const existing = cleanDoc === null
+      ? undefined
+      : clientes.find(
+          c => c.tipoDocumento === customer.documentType && (c.documentoIdentidad ?? '') === cleanDoc
+        );
     if (existing) return mapClienteToCustomer(existing);
 
     const { nombre, apellido } = splitCustomerName(customer.name);
     const created = await createCliente({
       nombre,
       apellido,
-      tipoDocumento: customer.documentType === 'RUC' ? 'RUC' : 'DNI',
+      tipoDocumento: customer.documentType,
       documentoIdentidad: cleanDoc,
       email: customer.email,
       telefono: customer.phone,
