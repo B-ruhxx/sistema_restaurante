@@ -5,44 +5,24 @@ import { useConfigStore } from '../../store/configStore';
 import { useAuthStore } from '../../store/authStore';
 import { useNotificationStore, AppNotificationType } from '../../store/notificationStore';
 import { useAuth } from '../../hooks/useAuth';
-import { PERMISSIONS, type PermissionCode } from '../../config/permissions';
 import {
-  LayoutDashboard,
-  ShoppingCart,
-  ClipboardList,
+  getProtectedRouteLabel,
+  PROTECTED_NAV_GROUPS,
+  hasRequiredPermission,
+} from '../../config/protectedNavigation';
+import {
   ChefHat,
-  Wallet,
   X,
   Sun,
   Moon,
   LogOut,
   Settings,
   Bell,
-  Tag,
-  Package,
-  FlaskConical,
-  Boxes,
-  BookOpen,
-  PackageSearch,
-  Truck,
-  ShoppingBag,
-  Gift,
   ChevronDown,
   ChevronRight,
-  Users,
-  UserCog,
-  Shield,
-  CreditCard,
-  PlusCircle,
-  FileText,
-  History,
-  Building2,
-  Lock,
-  TrendingUp,
   CheckCircle2,
   AlertTriangle,
   Info,
-  Armchair,
   Menu,
 } from 'lucide-react';
 import { Button } from './ui/button';
@@ -56,80 +36,6 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import { useERP } from '../contexts/ERPContextValue';
-
-interface NavItem {
-  path: string;
-  icon: React.ElementType;
-  label: string;
-  badge?: number;
-  permiso?: PermissionCode | PermissionCode[];
-}
-
-interface NavGroup {
-  label: string;
-  items: NavItem[];
-}
-
-const navGroups: NavGroup[] = [
-  {
-    label: 'Operaciones',
-    items: [
-      { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
-      { path: '/mesas', icon: Armchair, label: 'Mesas', permiso: PERMISSIONS.GESTION_MESAS },
-      { path: '/pos', icon: ShoppingCart, label: 'Punto de Venta', permiso: PERMISSIONS.GESTION_POS },
-      { path: '/pedidos', icon: ClipboardList, label: 'Pedidos', permiso: PERMISSIONS.GESTION_POS },
-      { path: '/cocina', icon: ChefHat, label: 'Cocina', permiso: PERMISSIONS.GESTION_COCINA },
-      { path: '/caja', icon: Wallet, label: 'Caja', permiso: PERMISSIONS.GESTION_CAJA },
-    ],
-  },
-  {
-    label: 'Catálogo',
-    items: [
-      { path: '/categorias', icon: Tag, label: 'Categorías', permiso: PERMISSIONS.ACCESO_TOTAL },
-      { path: '/productos', icon: Package, label: 'Productos', permiso: PERMISSIONS.ACCESO_TOTAL },
-      { path: '/combos', icon: Gift, label: 'Combos y Promos', permiso: PERMISSIONS.ACCESO_TOTAL },
-      { path: '/extras', icon: PlusCircle, label: 'Extras', permiso: PERMISSIONS.ACCESO_TOTAL },
-    ],
-  },
-  {
-    label: 'Producción',
-    items: [
-      { path: '/recetas', icon: FlaskConical, label: 'Recetas', permiso: PERMISSIONS.ACCESO_TOTAL },
-      { path: '/insumos', icon: Boxes, label: 'Insumos', permiso: PERMISSIONS.ACCESO_TOTAL },
-      { path: '/kardex', icon: BookOpen, label: 'Kardex', permiso: [PERMISSIONS.ACCESO_TOTAL, PERMISSIONS.GESTION_REPORTES] },
-      { path: '/inventario', icon: PackageSearch, label: 'Inv. Directos', permiso: PERMISSIONS.ACCESO_TOTAL },
-    ],
-  },
-  {
-    label: 'Compras',
-    items: [
-      { path: '/proveedores', icon: Truck, label: 'Proveedores', permiso: PERMISSIONS.GESTION_COMPRAS },
-      { path: '/compras', icon: ShoppingBag, label: 'Compras', permiso: PERMISSIONS.GESTION_COMPRAS },
-    ],
-  },
-  {
-    label: 'Administración',
-    items: [
-      { path: '/dashboard-gerencial', icon: TrendingUp, label: 'Dashboard Gerencial', permiso: PERMISSIONS.GESTION_REPORTES },
-      { path: '/reportes', icon: FileText, label: 'Reportes', permiso: PERMISSIONS.GESTION_REPORTES },
-      { path: '/clientes', icon: Users, label: 'Clientes', permiso: [PERMISSIONS.ACCESO_TOTAL, PERMISSIONS.GESTION_VENTAS] },
-      { path: '/ventas', icon: FileText, label: 'Ventas', permiso: [PERMISSIONS.GESTION_VENTAS, PERMISSIONS.GESTION_CAJA] },
-      { path: '/empleados', icon: UserCog, label: 'Empleados', permiso: PERMISSIONS.GESTION_EMPLEADOS },
-      { path: '/roles', icon: Shield, label: 'Roles y Permisos', permiso: PERMISSIONS.ACCESO_TOTAL },
-      { path: '/metodos-pago', icon: CreditCard, label: 'Métodos de Pago', permiso: [PERMISSIONS.ACCESO_TOTAL, PERMISSIONS.GESTION_CAJA] },
-      { path: '/configuracion', icon: Building2, label: 'Configuración', permiso: PERMISSIONS.GESTION_CONFIGURACION },
-      { path: '/auditoria', icon: History, label: 'Auditoría', permiso: PERMISSIONS.GESTION_REPORTES },
-      { path: '/seguridad', icon: Lock, label: 'Seguridad', permiso: PERMISSIONS.ACCESO_TOTAL },
-    ],
-  },
-];
-
-const canAccessItem = (userPermisos: string[], permiso?: PermissionCode | PermissionCode[]) => {
-  if (!permiso) return true;
-  if (userPermisos.includes(PERMISSIONS.ACCESO_TOTAL)) return true;
-  const required = Array.isArray(permiso) ? permiso : [permiso];
-  return required.some((p) => userPermisos.includes(p));
-};
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -253,9 +159,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-3 px-2 scrollbar-thin">
-          {navGroups.map((group, gi) => {
+          {PROTECTED_NAV_GROUPS.map((group, gi) => {
             const userPermisos = user?.permisos || [];
-            const visibleItems = group.items.filter(item => canAccessItem(userPermisos, item.permiso));
+            const visibleItems = group.items.filter(item => hasRequiredPermission(userPermisos, item.permiso));
 
             if (visibleItems.length === 0) return null;
 
@@ -340,9 +246,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             )}
             <div>
               <p className="font-semibold text-sm tracking-tight">
-                {navGroups
-                  .flatMap(g => g.items)
-                  .find(item => item.path === location.pathname)?.label || 'Dashboard'}
+                {getProtectedRouteLabel(location.pathname) || 'Dashboard'}
               </p>
               {cashRegister?.status === 'abierta' && (
                 <p className="text-[11px] text-muted-foreground flex items-center gap-1">
