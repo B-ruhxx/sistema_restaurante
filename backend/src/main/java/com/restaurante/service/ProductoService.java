@@ -109,7 +109,7 @@ public class ProductoService {
     }
 
     public ProductoDetalleResponse getProductoById(Integer id) {
-        Producto producto = productoRepository.findById(id)
+        Producto producto = productoRepository.findDetalleByIdProducto(id)
                 .orElseThrow(() -> new IllegalArgumentException("Producto no encontrado con ID: " + id));
 
         ProductoDetalleResponse response = new ProductoDetalleResponse();

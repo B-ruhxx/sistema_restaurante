@@ -196,6 +196,68 @@ class SmokeApiIntegrationTest {
         assertSecurityGuards(auth, skuCode, idPedido);
     }
 
+    @Test
+    void getProductoByIdDevuelveDetalleParaSkusDirectosYPreparados() {
+        String token = login();
+        HttpHeaders auth = authHeaders(token);
+        String suffix = String.valueOf(System.nanoTime());
+
+        Map<String, Object> padreDirecto = post(auth, "/api/v1/productos/padres", Map.of(
+                "nombre", "Detalle padre directo " + suffix,
+                "descripcion", "Padre directo detalle"), HttpStatus.OK);
+        int idPadreDirecto = id(padreDirecto, "producto", "idProducto");
+
+        Map<String, Object> skuDirecto = post(auth, "/api/v1/productos/" + idPadreDirecto + "/skus", Map.of(
+                "nombre", "Detalle SKU directo " + suffix,
+                "sku", "DET-DIR-" + suffix,
+                "precio", new BigDecimal("7.50"),
+                "tipoProducto", "INVENTARIO_DIRECTO",
+                "stockMinimo", new BigDecimal("2.000")), HttpStatus.OK);
+        int idSkuDirecto = id(skuDirecto, "producto", "idProducto");
+
+        Map<String, Object> insumo = post(auth, "/api/v1/insumos", Map.of(
+                "nombre", "Insumo detalle " + suffix,
+                "unidad", "kg",
+                "stock", BigDecimal.TEN,
+                "stockMinimo", new BigDecimal("1.000"),
+                "costoPromedio", new BigDecimal("2.50"),
+                "estado", "ACTIVO"), HttpStatus.OK);
+        int idInsumo = id(insumo, "idInsumo");
+
+        Map<String, Object> padrePreparado = post(auth, "/api/v1/productos/padres", Map.of(
+                "nombre", "Detalle padre preparado " + suffix,
+                "descripcion", "Padre preparado detalle"), HttpStatus.OK);
+        int idPadrePreparado = id(padrePreparado, "producto", "idProducto");
+
+        Map<String, Object> skuPreparado = post(auth, "/api/v1/productos/" + idPadrePreparado + "/skus", Map.of(
+                "nombre", "Detalle SKU preparado " + suffix,
+                "sku", "DET-PREP-" + suffix,
+                "precio", new BigDecimal("13.00"),
+                "tipoProducto", "PREPARADO",
+                "tiempoPreparacionMinutos", 8,
+                "receta", List.of(Map.of(
+                        "idInsumo", idInsumo,
+                        "cantidad", new BigDecimal("0.500")))), HttpStatus.OK);
+        int idSkuPreparado = id(skuPreparado, "producto", "idProducto");
+
+        Map<String, Object> detalleDirecto = getMap(auth, "/api/v1/productos/" + idSkuDirecto, HttpStatus.OK);
+        Map<String, Object> productoDirecto = (Map<String, Object>) detalleDirecto.get("producto");
+        assertEquals(idPadreDirecto, id(productoDirecto, "idProductoPadre"));
+        assertEquals("Detalle padre directo " + suffix, productoDirecto.get("nombreProductoPadre"));
+        assertEquals("INVENTARIO_DIRECTO", productoDirecto.get("tipoProducto"));
+        assertEquals(null, detalleDirecto.get("receta"));
+
+        Map<String, Object> detallePreparado = getMap(auth, "/api/v1/productos/" + idSkuPreparado, HttpStatus.OK);
+        Map<String, Object> productoPreparado = (Map<String, Object>) detallePreparado.get("producto");
+        assertEquals(idPadrePreparado, id(productoPreparado, "idProductoPadre"));
+        assertEquals("Detalle padre preparado " + suffix, productoPreparado.get("nombreProductoPadre"));
+        assertEquals("PREPARADO", productoPreparado.get("tipoProducto"));
+        List<Map<String, Object>> receta = (List<Map<String, Object>>) detallePreparado.get("receta");
+        assertNotNull(receta);
+        assertFalse(receta.isEmpty());
+        assertEquals(idInsumo, id(receta.get(0), "idInsumo"));
+    }
+
     private void assertReportesStock(HttpHeaders auth) {
         String suffix = String.valueOf(System.nanoTime());
 
@@ -509,6 +571,16 @@ class SmokeApiIntegrationTest {
                 HttpMethod.GET,
                 new HttpEntity<>(headers),
                 (Class<List<Map<String, Object>>>) (Class<?>) List.class);
+        assertEquals(expectedStatus, response.getStatusCode(), "GET " + path + " -> " + response.getBody());
+        return response.getBody();
+    }
+
+    private Map<String, Object> getMap(HttpHeaders headers, String path, HttpStatus expectedStatus) {
+        ResponseEntity<Map<String, Object>> response = rest.exchange(
+                url(path),
+                HttpMethod.GET,
+                new HttpEntity<>(headers),
+                (Class<Map<String, Object>>) (Class<?>) Map.class);
         assertEquals(expectedStatus, response.getStatusCode(), "GET " + path + " -> " + response.getBody());
         return response.getBody();
     }
