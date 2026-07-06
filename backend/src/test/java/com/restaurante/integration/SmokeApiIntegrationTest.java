@@ -11,6 +11,8 @@ import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.hibernate.SessionFactory;
+import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +27,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+
+import jakarta.persistence.EntityManagerFactory;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @EnabledIfEnvironmentVariable(named = "RUN_MARIADB_INTEGRATION", matches = "true")
@@ -48,6 +52,9 @@ class SmokeApiIntegrationTest {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    @Autowired
+    private EntityManagerFactory entityManagerFactory;
+
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
         resetDatabase();
@@ -58,6 +65,7 @@ class SmokeApiIntegrationTest {
         registry.add("spring.data.redis.host", () -> env("TEST_REDIS_HOST", "127.0.0.1"));
         registry.add("spring.data.redis.port", () -> env("TEST_REDIS_PORT", "6379"));
         registry.add("app.seed.demo-data", () -> "false");
+        registry.add("spring.jpa.properties.hibernate.generate_statistics", () -> "true");
     }
 
     @Test
@@ -256,6 +264,86 @@ class SmokeApiIntegrationTest {
         assertNotNull(receta);
         assertFalse(receta.isEmpty());
         assertEquals(idInsumo, id(receta.get(0), "idInsumo"));
+    }
+
+    @Test
+    void listadosDeProductosMantienenConteoDeQueriesYCamposAlCrecerElCatalogo() {
+        String token = login();
+        HttpHeaders auth = authHeaders(token);
+        String suffix = String.valueOf(System.nanoTime());
+
+        Map<String, Object> categoria = post(auth, "/api/v1/categorias", Map.of(
+                "nombre", "Categoria N+1 " + suffix,
+                "descripcion", "Categoria para auditoria"), HttpStatus.OK);
+        int idCategoria = id(categoria, "idCategoria");
+
+        int[] padres = new int[3];
+        for (int i = 0; i < 3; i++) {
+            int idPadre = crearPadreConSku(auth, idCategoria, suffix, i);
+            padres[i] = idPadre;
+        }
+
+        List<Map<String, Object>> productos3 = getList(auth, "/api/v1/productos", HttpStatus.OK);
+        Map<String, Object> sku3 = productos3.stream()
+                .filter(item -> ("SKU N+1 " + suffix + "-P0-0").equals(item.get("nombre")))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("No se encontró el SKU en el listado general."));
+        assertEquals(idCategoria, id(sku3, "idCategoria"));
+        assertEquals("Categoria N+1 " + suffix, sku3.get("nombreCategoria"));
+        assertEquals(padres[0], id(sku3, "idProductoPadre"));
+        assertEquals("Padre N+1 " + suffix + "-P0", sku3.get("nombreProductoPadre"));
+        assertEquals(2, intField(sku3, "stockActual"));
+        assertEquals(1, intField(sku3, "lotesDisponibles"));
+
+        List<Map<String, Object>> padres3 = getList(auth, "/api/v1/productos/padres", HttpStatus.OK);
+        assertEquals(3, padres3.size());
+        for (Map<String, Object> p : padres3) {
+            assertTrue(Boolean.TRUE.equals(p.get("tieneSkus")),
+                    "Cada padre debe tener tieneSkus=true: " + p.get("nombre"));
+            assertEquals(2, intField(p, "stockActual"));
+            assertEquals(1, intField(p, "lotesDisponibles"));
+            assertNotNull(p.get("proximoVencimiento"));
+        }
+
+        for (int idPadre : padres) {
+            List<Map<String, Object>> skus = getList(auth, "/api/v1/productos/" + idPadre + "/skus", HttpStatus.OK);
+            assertEquals(1, skus.size());
+            assertTrue(skus.stream().allMatch(item -> Boolean.FALSE.equals(item.get("tieneSkus"))));
+        }
+
+        long productosQueries3 = preparedStatementsFor(auth, "/api/v1/productos");
+        long padresQueries3 = preparedStatementsFor(auth, "/api/v1/productos/padres");
+        long skusQueries3 = preparedStatementsFor(auth, "/api/v1/productos/" + padres[0] + "/skus");
+        long todosQueries3 = preparedStatementsFor(auth, "/api/v1/productos?estado=TODOS");
+
+        assertTrue(productosQueries3 <= 12, "GET /api/v1/productos excedió el umbral: " + productosQueries3);
+        assertTrue(padresQueries3 <= 10, "GET /api/v1/productos/padres excedió el umbral: " + padresQueries3);
+        assertTrue(skusQueries3 <= 10, "GET /api/v1/productos/{id}/skus excedió el umbral: " + skusQueries3);
+        assertTrue(todosQueries3 <= 12, "GET /api/v1/productos?estado=TODOS excedió el umbral: " + todosQueries3);
+
+        for (int i = 3; i < 6; i++) {
+            crearPadreConSku(auth, idCategoria, suffix, i);
+        }
+
+        assertEquals(productosQueries3, preparedStatementsFor(auth, "/api/v1/productos"),
+                "N+1 en GET /api/v1/productos al duplicar catálogo");
+        assertEquals(padresQueries3, preparedStatementsFor(auth, "/api/v1/productos/padres"),
+                "N+1 en GET /api/v1/productos/padres al duplicar padres");
+        assertEquals(skusQueries3, preparedStatementsFor(auth, "/api/v1/productos/" + padres[0] + "/skus"),
+                "N+1 en GET /api/v1/productos/{id}/skus al duplicar SKUs");
+        assertEquals(todosQueries3, preparedStatementsFor(auth, "/api/v1/productos?estado=TODOS"),
+                "N+1 en GET /api/v1/productos?estado=TODOS al duplicar catálogo");
+
+        List<Map<String, Object>> padres6 = getList(auth, "/api/v1/productos/padres", HttpStatus.OK);
+        assertEquals(6, padres6.size());
+        Map<String, Object> padreFinal = padres6.stream()
+                .filter(p -> ("Padre N+1 " + suffix + "-P5").equals(p.get("nombre")))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("El padre recién creado debe aparecer en el listado."));
+        assertTrue(Boolean.TRUE.equals(padreFinal.get("tieneSkus")));
+        assertEquals(2, intField(padreFinal, "stockActual"));
+        assertEquals(1, intField(padreFinal, "lotesDisponibles"));
+        assertNotNull(padreFinal.get("proximoVencimiento"));
     }
 
     private void assertReportesStock(HttpHeaders auth) {
@@ -538,6 +626,47 @@ class SmokeApiIntegrationTest {
                 "ruc", "20" + String.valueOf(System.nanoTime()).substring(0, 9),
                 "contacto", "QA"), HttpStatus.OK);
         return id(proveedor, "idProveedor");
+    }
+
+    private int crearPadreConSku(HttpHeaders auth, int idCategoria, String suffix, int index) {
+        Map<String, Object> padre = post(auth, "/api/v1/productos/padres", Map.of(
+                "nombre", "Padre N+1 " + suffix + "-P" + index,
+                "descripcion", "Padre para auditoria",
+                "idCategoria", idCategoria), HttpStatus.OK);
+        int idPadre = id(padre, "producto", "idProducto");
+        crearSkusConLotes(auth, idPadre, idCategoria, suffix + "-P" + index, 1, 0);
+        return idPadre;
+    }
+
+    private void crearSkusConLotes(HttpHeaders auth, int idPadre, int idCategoria, String suffix, int cantidad, int offset) {
+        for (int i = 0; i < cantidad; i++) {
+            int index = offset + i;
+            Map<String, Object> sku = post(auth, "/api/v1/productos/" + idPadre + "/skus", Map.of(
+                    "nombre", "SKU N+1 " + suffix + "-" + index,
+                    "sku", "N1-" + suffix + "-" + index,
+                    "precio", new BigDecimal("5.00"),
+                    "tipoProducto", "INVENTARIO_DIRECTO",
+                    "stockMinimo", new BigDecimal("1.000"),
+                    "idCategoria", idCategoria), HttpStatus.OK);
+            int idSku = id(sku, "producto", "idProducto");
+
+            post(auth, "/api/v1/compras", Map.of(
+                    "idProveedor", crearProveedor(auth),
+                    "detalles", List.of(Map.of(
+                            "idProducto", idSku,
+                            "numeroLote", "N1-LOTE-" + suffix + "-" + index,
+                            "cantidad", 2,
+                            "precioUnitario", new BigDecimal("2.10"),
+                            "fechaVencimiento", LocalDate.now().plusMonths(1 + (index % 3)).toString())),
+                    "observacion", "Compra N+1 " + suffix + "-" + index), HttpStatus.OK);
+        }
+    }
+
+    private long preparedStatementsFor(HttpHeaders headers, String path) {
+        Statistics statistics = entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
+        statistics.clear();
+        getList(headers, path, HttpStatus.OK);
+        return statistics.getPrepareStatementCount();
     }
 
     private String login() {

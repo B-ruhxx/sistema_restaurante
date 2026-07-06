@@ -22,7 +22,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -59,27 +62,26 @@ public class ProductoService {
         return getAllProductos("ACTIVO");
     }
 
+    @Transactional(readOnly = true)
     public List<ProductoResponse> getAllProductos(String estado) {
         String normalized = estado == null ? "ACTIVO" : estado.trim().toUpperCase();
         List<Producto> productos;
         if ("TODOS".equals(normalized)) {
             productos = productoRepository.findAll();
         } else {
-            productos = productoRepository.findByEstado(Producto.Estado.valueOf(normalized));
+            productos = productoRepository.findAllWithGraphByEstado(Producto.Estado.valueOf(normalized));
         }
 
-        return productos.stream()
-                .map(this::toResponseWithHierarchy)
-                .collect(Collectors.toList());
+        return toResponseListBatch(productos);
     }
 
+    @Transactional(readOnly = true)
     public List<ProductoResponse> getProductosPadre(String estado) {
         Producto.Estado estadoProducto = parseEstadoOrDefault(estado);
-        return productoRepository.findByEsSkuFalseAndEstado(estadoProducto).stream()
-                .map(this::toResponseWithHierarchy)
-                .collect(Collectors.toList());
+        return toResponseListBatch(productoRepository.findAllWithGraphByEsSkuFalseAndEstado(estadoProducto));
     }
 
+    @Transactional(readOnly = true)
     public List<ProductoResponse> getSkusByPadre(Integer idPadre, String estado) {
         Producto padre = productoRepository.findById(idPadre)
                 .orElseThrow(() -> new IllegalArgumentException("Producto padre no encontrado con ID: " + idPadre));
@@ -88,9 +90,7 @@ public class ProductoService {
         }
 
         Producto.Estado estadoProducto = parseEstadoOrDefault(estado);
-        return productoRepository.findByProductoPadreIdProductoAndEstado(idPadre, estadoProducto).stream()
-                .map(this::toResponseWithHierarchy)
-                .collect(Collectors.toList());
+        return toResponseListBatch(productoRepository.findAllWithGraphByProductoPadreIdProductoAndEstado(idPadre, estadoProducto));
     }
 
     public Map<String, Object> getStockProducto(Integer idProducto) {
@@ -308,6 +308,118 @@ public class ProductoService {
         return response;
     }
 
+    private List<ProductoResponse> toResponseListBatch(List<Producto> productos) {
+        if (productos.isEmpty()) {
+            return List.of();
+        }
+
+        List<Integer> skuIds = productos.stream()
+                .filter(producto -> Boolean.TRUE.equals(producto.getEsSku()))
+                .map(Producto::getIdProducto)
+                .toList();
+        List<Integer> padreIds = productos.stream()
+                .filter(producto -> Boolean.FALSE.equals(producto.getEsSku()))
+                .map(Producto::getIdProducto)
+                .toList();
+
+        Map<Integer, Boolean> tieneSkusMap = buildTieneSkusMap(padreIds);
+        Map<Integer, StockAgg> stockSkuMap = buildStockMapByProducto(skuIds);
+        Map<Integer, StockAgg> stockPadreMap = buildStockMapByPadre(padreIds);
+
+        return productos.stream()
+                .map(producto -> toResponseBatch(producto, tieneSkusMap, stockSkuMap, stockPadreMap))
+                .collect(Collectors.toList());
+    }
+
+    private Map<Integer, Boolean> buildTieneSkusMap(List<Integer> padreIds) {
+        if (padreIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        Map<Integer, Boolean> result = new HashMap<>();
+        for (Integer padreId : padreIds) {
+            result.put(padreId, false);
+        }
+        for (ProductoRepository.TieneSkusRow row : productoRepository.findTieneSkusByIds(padreIds)) {
+            result.put(row.getIdProducto(), row.getSkuCount() > 0);
+        }
+        return result;
+    }
+
+    private Map<Integer, StockAgg> buildStockMapByProducto(List<Integer> productoIds) {
+        if (productoIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        return buildStockMap(
+                productoIds,
+                loteProductoRepository.sumDisponibleByProductos(productoIds),
+                loteProductoRepository.countDisponiblesByProductos(productoIds),
+                loteProductoRepository.findProximoVencimientoByProductos(productoIds));
+    }
+
+    private Map<Integer, StockAgg> buildStockMapByPadre(List<Integer> padreIds) {
+        if (padreIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        return buildStockMap(
+                padreIds,
+                loteProductoRepository.sumDisponibleByProductosPadre(padreIds),
+                loteProductoRepository.countDisponiblesByProductosPadre(padreIds),
+                loteProductoRepository.findProximoVencimientoByProductosPadre(padreIds));
+    }
+
+    private Map<Integer, StockAgg> buildStockMap(
+            List<Integer> ids,
+            List<LoteProductoRepository.StockLongRow> stockRows,
+            List<LoteProductoRepository.StockLongRow> loteRows,
+            List<LoteProductoRepository.StockDateRow> vencimientoRows) {
+        Map<Integer, StockAgg> result = new HashMap<>();
+        for (Integer id : ids) {
+            result.put(id, new StockAgg(0, 0, null));
+        }
+        for (LoteProductoRepository.StockLongRow row : stockRows) {
+            StockAgg current = result.getOrDefault(row.getId(), new StockAgg(0, 0, null));
+            result.put(row.getId(), new StockAgg(toInt(row.getValue()), current.lotesDisponibles(), current.proximoVencimiento()));
+        }
+        for (LoteProductoRepository.StockLongRow row : loteRows) {
+            StockAgg current = result.getOrDefault(row.getId(), new StockAgg(0, 0, null));
+            result.put(row.getId(), new StockAgg(current.stockDisponible(), toInt(row.getValue()), current.proximoVencimiento()));
+        }
+        for (LoteProductoRepository.StockDateRow row : vencimientoRows) {
+            StockAgg current = result.getOrDefault(row.getId(), new StockAgg(0, 0, null));
+            result.put(row.getId(), new StockAgg(current.stockDisponible(), current.lotesDisponibles(), row.getValue()));
+        }
+        return result;
+    }
+
+    private ProductoResponse toResponseBatch(
+            Producto producto,
+            Map<Integer, Boolean> tieneSkusMap,
+            Map<Integer, StockAgg> stockSkuMap,
+            Map<Integer, StockAgg> stockPadreMap) {
+        ProductoResponse response = productoMapper.toResponse(producto);
+
+        if (Boolean.FALSE.equals(producto.getEsSku())) {
+            StockAgg stock = stockPadreMap.getOrDefault(producto.getIdProducto(), new StockAgg(0, 0, null));
+            response.setTieneSkus(tieneSkusMap.getOrDefault(producto.getIdProducto(), false));
+            response.setStockTotal(stock.stockDisponible());
+            response.setStockActual(stock.stockDisponible());
+            response.setLotesDisponibles(stock.lotesDisponibles());
+            response.setProximoVencimiento(stock.proximoVencimiento());
+            return response;
+        }
+
+        StockAgg stock = stockSkuMap.getOrDefault(producto.getIdProducto(), new StockAgg(0, 0, null));
+        response.setTieneSkus(false);
+        response.setStockActual(stock.stockDisponible());
+        response.setStockTotal(stock.stockDisponible());
+        response.setLotesDisponibles(stock.lotesDisponibles());
+        response.setProximoVencimiento(stock.proximoVencimiento());
+        return response;
+    }
+
     private LoteProductoResponse toLoteProductoResponse(LoteProducto lote) {
         LoteProductoResponse response = new LoteProductoResponse();
         response.setIdLoteProducto(lote.getIdLoteProducto());
@@ -336,6 +448,9 @@ public class ProductoService {
 
     private Integer toInt(Long value) {
         return value == null ? 0 : value.intValue();
+    }
+
+    private record StockAgg(Integer stockDisponible, Integer lotesDisponibles, LocalDate proximoVencimiento) {
     }
 
     private Producto.Estado parseEstadoOrDefault(String estado) {
