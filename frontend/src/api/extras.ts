@@ -4,7 +4,7 @@ import type { ApiSchemas } from './generated/openapi-types';
 export interface ExtraProducto extends Omit<ApiSchemas.ExtraProductoResponse, 'idExtra' | 'nombre' | 'precio' | 'idInsumo' | 'cantidadConsumida' | 'estado'> {
   idExtra: number;
   nombre: string;
-  precio: number;
+  precio: number | null;
   idInsumo: number;
   nombreInsumo?: string;
   unidadMedidaInsumo?: string;

@@ -274,7 +274,7 @@ function DirectProductCard({ product, onAdjust, onHistory, onLots }: CardProps) 
         </div>
 
         <div className="flex justify-between items-center text-xs">
-          <span className="font-bold text-foreground ui-tabular">S/ {product.precio.toFixed(2)}</span>
+          <span className="font-bold text-foreground ui-tabular">S/ {product.precio != null ? product.precio.toFixed(2) : '—'}</span>
           <div className="text-right text-muted-foreground font-semibold space-y-0.5">
             <p>{lotesDisponibles} lotes disponibles</p>
             {proximoVencimiento && (

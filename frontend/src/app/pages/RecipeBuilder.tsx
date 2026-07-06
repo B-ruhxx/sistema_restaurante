@@ -343,7 +343,7 @@ export function RecipeBuilder() {
                 >
                   <p className="text-sm font-bold text-foreground leading-snug">{p.nombre}</p>
                   <div className="flex justify-between items-center text-xs text-muted-foreground font-semibold mt-0.5">
-                    <span className="ui-tabular">S/ {p.precio.toFixed(2)}</span>
+                    <span className="ui-tabular">S/ {p.precio != null ? p.precio.toFixed(2) : '—'}</span>
                     {p.nombreCategoria && <span className="text-[10px] bg-muted/65 border border-border/40 px-1.5 py-0.5 rounded-md font-bold">{p.nombreCategoria}</span>}
                   </div>
                 </button>
@@ -379,7 +379,7 @@ export function RecipeBuilder() {
                           <option value="base">Producto base</option>
                           {activeVariants.map(variant => (
                             <option key={variant.idProducto} value={String(variant.idProducto)}>
-                              {variant.nombre} - S/ {variant.precio.toFixed(2)}
+                              {variant.nombre} - S/ {variant.precio != null ? variant.precio.toFixed(2) : '—'}
                             </option>
                           ))}
                         </select>

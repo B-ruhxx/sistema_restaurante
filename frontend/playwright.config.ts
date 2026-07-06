@@ -35,9 +35,17 @@ export default defineConfig({
     {
       name: 'chromium',
       dependencies: ['setup'],
+      testIgnore: /pos-pricing\.spec\.ts/,
       use: {
         ...devices['Desktop Chrome'],
         storageState: path.resolve('e2e/.auth/user.json'),
+      },
+    },
+    {
+      name: 'pos-pricing',
+      testMatch: /pos-pricing\.spec\.ts/,
+      use: {
+        ...devices['Desktop Chrome'],
       },
     },
   ],

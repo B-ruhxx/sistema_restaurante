@@ -5,7 +5,7 @@ export interface Producto {
   nombre: string;
   descripcion?: string;
   imagenUrl?: string;
-  precio: number;
+  precio: number | null;
   tipoProducto: 'PREPARADO' | 'INVENTARIO_DIRECTO';
   tiempoPreparacionMinutos?: number;
   estado: 'ACTIVO' | 'INACTIVO';
@@ -32,7 +32,7 @@ export interface ProductoRequest {
   nombre: string;
   descripcion?: string;
   imagenUrl?: string;
-  precio: number;
+  precio: number | null;
   tipoProducto: 'PREPARADO' | 'INVENTARIO_DIRECTO';
   tiempoPreparacionMinutos?: number;
   estado?: 'ACTIVO' | 'INACTIVO';

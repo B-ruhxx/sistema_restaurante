@@ -5,7 +5,7 @@ export interface Product {
   id: string;
   name: string;
   category: string;
-  price: number;
+  price: number | null;
   image: string;
   stock: number;
   type: 'PREPARADO' | 'INVENTARIO_DIRECTO';
@@ -15,7 +15,7 @@ export interface Product {
   variants?: {
     id?: number;
     name: string;
-    price: number;
+    price: number | null;
     skuProductId?: number;
     skuCode?: string;
     stock: number;
@@ -23,7 +23,7 @@ export interface Product {
     active: boolean;
     isAvailable: boolean;
   }[];
-  extras?: { name: string; price: number }[];
+  extras?: { name: string; price: number | null }[];
 }
 
 export interface CartItem {

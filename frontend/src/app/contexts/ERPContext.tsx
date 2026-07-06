@@ -11,6 +11,7 @@ import { productosApi } from '../../api/productos';
 import { extrasApi, ExtraProducto } from '../../api/extras';
 import { toast } from '../../lib/notifications';
 import { getFullImageUrl } from '../components/ui/utils';
+import { buildCartAddition, productUsesDirectInventoryStock } from './cart-utils';
 import {
   CartItem,
   CashMovement,
@@ -128,7 +129,7 @@ export function ERPProvider({ children }: { children: React.ReactNode }) {
             const stock = sku.stockActual ?? sku.stockTotal ?? (sku.tipoProducto === 'PREPARADO' ? Number.MAX_SAFE_INTEGER : 0);
             return {
               name: sku.nombre,
-              price: sku.precio,
+              price: sku.precio ?? null,
               skuProductId: sku.idProducto,
               skuCode: sku.sku,
               stock,
@@ -145,7 +146,7 @@ export function ERPProvider({ children }: { children: React.ReactNode }) {
                 .filter(e => e.estado !== 'INACTIVO' && e.idInsumo && e.cantidadConsumida > 0)
                 .map(e => ({
                   name: e.nombre,
-                  price: e.precio,
+                  price: e.precio ?? null,
                 }))
             : [];
 
@@ -167,8 +168,9 @@ export function ERPProvider({ children }: { children: React.ReactNode }) {
 
           const availableVariantPrices = (variants || [])
             .filter(variant => variant.isAvailable)
-            .map(variant => variant.price);
-          const displayPrice = p.esSku === false && availableVariantPrices.length
+            .map(variant => variant.price)
+            .filter((p): p is number => p != null);
+          const displayPrice: number | null = p.esSku === false && availableVariantPrices.length
             ? Math.min(...availableVariantPrices)
             : p.precio;
 
@@ -188,7 +190,7 @@ export function ERPProvider({ children }: { children: React.ReactNode }) {
           };
         })
       );
-      setMappedProducts(items.filter(item => item.isCatalogParent && !!item.variants?.length));
+      setMappedProducts(items.filter(item => item.isCatalogParent));
     };
 
     loadProductsData();
@@ -272,71 +274,13 @@ export function ERPProvider({ children }: { children: React.ReactNode }) {
 
   // Cart operations
   const addToCart = (product: Product, variant?: string, extras?: string[], notes?: string) => {
-    // Check if the item already exists in the cart (same product, variant, and extras)
-    const existingIndex = cart.findIndex(item => 
-      item.productId === product.id && 
-      item.variant === variant && 
-      JSON.stringify(item.extras || []) === JSON.stringify(extras || [])
-    );
-
-    if (existingIndex > -1) {
-      const existingItem = cart[existingIndex];
-      const variantMeta = product.variants?.find(v => v.skuProductId === existingItem.variantSkuProductId || v.name === existingItem.variant);
-      if (variantMeta && existingItem.quantity + 1 > variantMeta.stock) {
-        toast.warning(`No hay suficiente stock. Solo quedan ${variantMeta.stock} unidades de ${variantMeta.name}`);
-        return;
-      }
-      if (!product.isCatalogParent && product.type === 'INVENTARIO_DIRECTO' && existingItem.quantity + 1 > product.stock) {
-        toast.warning(`No hay suficiente stock. Solo quedan ${product.stock} unidades de ${product.name}`);
-        return;
-      }
-      const newCart = [...cart];
-      newCart[existingIndex] = { ...existingItem, quantity: existingItem.quantity + 1 };
-      setCart(newCart);
-      toast.success(`Se aumentó la cantidad de ${product.name}`);
+    const result = buildCartAddition(cart, product, variant, extras || [], notes, createCartItemId);
+    if (!result.ok) {
+      toast.warning(result.message);
       return;
     }
-
-    if (!product.isCatalogParent && product.type === 'INVENTARIO_DIRECTO' && product.stock <= 0) {
-      toast.warning(`El producto ${product.name} está agotado`);
-      return;
-    }
-
-    const variantMeta = variant ? product.variants?.find(v => v.name === variant) : undefined;
-    if (product.isCatalogParent && !variantMeta?.skuProductId) {
-      toast.warning('Selecciona un SKU válido antes de agregar al pedido');
-      return;
-    }
-    if (variantMeta && !variantMeta.isAvailable) {
-      toast.warning(`La opción ${variantMeta.name} no tiene stock disponible`);
-      return;
-    }
-    const variantPrice = variant 
-      ? variantMeta?.price || product.price
-      : product.price;
-    
-    const extrasPrice = extras 
-      ? extras.reduce((sum, extra) => {
-          const extraPrice = product.extras?.find(e => e.name === extra)?.price || 0;
-          return sum + extraPrice;
-        }, 0)
-      : 0;
-
-    const newItem: CartItem = {
-      id: createCartItemId(),
-      productId: product.id,
-      name: product.name,
-      price: variantPrice + extrasPrice,
-      quantity: 1,
-      variant,
-      variantId: variantMeta?.id,
-      variantSkuProductId: variantMeta?.skuProductId,
-      extras,
-      notes
-    };
-
-    setCart([...cart, newItem]);
-    toast.success(`Se agregó ${product.name} al pedido`);
+    setCart(result.cart);
+    toast.success(result.message);
   };
 
   const updateCartItem = (itemId: string, quantity: number) => {
@@ -352,7 +296,7 @@ export function ERPProvider({ children }: { children: React.ReactNode }) {
         toast.warning(`No hay suficiente stock. Solo quedan ${variantMeta.stock} unidades de ${variantMeta.name}`);
         return;
       }
-      if (prod && !prod.isCatalogParent && prod.type === 'INVENTARIO_DIRECTO' && quantity > prod.stock) {
+      if (prod && productUsesDirectInventoryStock(prod) && quantity > prod.stock) {
         toast.warning(`No hay suficiente stock. Solo quedan ${prod.stock} unidades de ${prod.name}`);
         return;
       }

@@ -8,7 +8,10 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "test:smoke": "node scripts/smoke-rf-check.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "test:e2e:audit": "playwright test --config=playwright.config.ts",
+    "test:pos-pricing": "playwright test e2e/pos-pricing.spec.ts --config=playwright.config.ts --project=pos-pricing",
     "visual:validate": "node scripts/visual-validate.mjs",
     "contracts:generate": "node scripts/generate-openapi-types.mjs",
     "contracts:check": "node scripts/generate-openapi-types.mjs --check",
@@ -94,6 +97,7 @@
     "tailwindcss": "^4.3.0",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.59.2",
-    "vite": "^8.0.12"
+    "vite": "^8.0.12",
+    "vitest": "^4.1.9"
   }
 }

@@ -23,7 +23,17 @@ import {
   Clock, Flame, CheckCircle2, Package, BadgeCheck, ChefHat,
   ShoppingCart, AlertTriangle,
 } from 'lucide-react';
+import {
+  formatPrice,
+  getPriceConfigurationLabel,
+  getProductSelectionBlockReason,
+  getVariantLabel,
+  isExtraSelectable,
+  isVariantSelectable,
+  resolveProductSelection,
+} from './pos-utils';
 import { cn } from '../components/ui/utils';
+import { productUsesDirectInventoryStock } from '../contexts/cart-utils';
 
 /* ── Estados del pedido ─────────────────────────────────────── */
 type PosStatus = 'draft' | 'pendiente' | 'en-cocina' | 'listo' | 'entregado' | 'cobrado';
@@ -167,6 +177,10 @@ export function POS() {
     return matchCat && matchSearch;
   });
 
+  const pendingSelection = editProduct
+    ? resolveProductSelection(editProduct, editVariant, editExtras)
+    : null;
+
   const cartTotal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
 
   /* abrir modal customización */
@@ -176,13 +190,14 @@ export function POS() {
       toast.error('Selecciona una mesa antes de armar el pedido');
       return;
     }
-    if (product.variants?.length && !product.variants.some(variant => variant.isAvailable)) {
-      toast.warning('No hay SKUs disponibles para este producto');
+    const blockedReason = getProductSelectionBlockReason(product);
+    if (blockedReason) {
+      toast.warning(blockedReason);
       return;
     }
     if (product.variants || product.extras) {
       setEditProduct(product);
-      setEditVariant(product.variants?.find(variant => variant.isAvailable)?.name || product.variants?.[0]?.name || '');
+      setEditVariant(product.variants?.find(isVariantSelectable)?.name || '');
       setEditExtras([]);
       setEditNotes('');
     } else {
@@ -192,9 +207,9 @@ export function POS() {
 
   const confirmAdd = () => {
     if (!editProduct) return;
-    const selectedVariant = editProduct.variants?.find(variant => variant.name === editVariant);
-    if (editProduct.variants?.length && !selectedVariant?.isAvailable) {
-      toast.warning('Selecciona un SKU con stock disponible');
+    const selection = resolveProductSelection(editProduct, editVariant, editExtras);
+    if (!selection.ok) {
+      toast.warning(selection.message);
       return;
     }
     addToCart(editProduct, editVariant, editExtras, editNotes);
@@ -561,7 +576,7 @@ export function POS() {
                     </div>
                     <div className="flex flex-col items-end gap-1 shrink-0">
                       <span className="text-sm font-bold text-[var(--status-danger)]">
-                        S/ {(item.price * item.quantity).toFixed(2)}
+                        {formatPrice(item.price * item.quantity)}
                       </span>
                       {canEdit && (
                         <div className="flex items-center gap-1">
@@ -636,7 +651,7 @@ export function POS() {
               <span className="text-sm text-muted-foreground">
                 {cart.length} {cart.length === 1 ? 'producto' : 'productos'}
               </span>
-              <span className="text-xl font-extrabold text-[var(--text-primary)] tabular-nums">S/ {cartTotal.toFixed(2)}</span>
+              <span className="text-xl font-extrabold text-[var(--text-primary)] tabular-nums">{formatPrice(cartTotal)}</span>
             </div>
 
             {/* Botón principal de acción */}
@@ -700,16 +715,16 @@ export function POS() {
                   <Tabs value={editVariant} onValueChange={setEditVariant}>
                     <TabsList
                       className="grid w-full"
-                      style={{ gridTemplateColumns: `repeat(${editProduct.variants.length}, minmax(0, 1fr))` }}
-                    >
-                      {editProduct.variants.map(v => (
-                        <TabsTrigger key={v.name} value={v.name} disabled={!v.isAvailable}>
+                        style={{ gridTemplateColumns: `repeat(${editProduct.variants.length}, minmax(0, 1fr))` }}
+                      >
+                        {editProduct.variants.map(v => (
+                        <TabsTrigger key={v.name} value={v.name} disabled={!isVariantSelectable(v)}>
                           {v.name}<br />
                           <span className="text-[10px]">
-                            {v.isAvailable ? `S/ ${v.price.toFixed(2)}` : 'Agotado'}
+                            {getVariantLabel(v)}
                           </span>
                         </TabsTrigger>
-                      ))}
+                       ))}
                     </TabsList>
                   </Tabs>
                 ) : (
@@ -719,8 +734,8 @@ export function POS() {
                     onChange={(event) => setEditVariant(event.target.value)}
                   >
                     {editProduct.variants.map(v => (
-                      <option key={v.name} value={v.name} disabled={!v.isAvailable}>
-                        {v.name} - {v.isAvailable ? `S/ ${v.price.toFixed(2)}` : 'Agotado'}
+                      <option key={v.name} value={v.name} disabled={!isVariantSelectable(v)}>
+                        {v.name} - {getVariantLabel(v)}
                       </option>
                     ))}
                   </select>
@@ -742,16 +757,19 @@ export function POS() {
                           type="checkbox"
                           checked={editExtras.includes(extra.name)}
                           onChange={e =>
-                            setEditExtras(e.target.checked
+                            isExtraSelectable(extra) && setEditExtras(e.target.checked
                               ? [...editExtras, extra.name]
                               : editExtras.filter(x => x !== extra.name)
                             )
                           }
+                          disabled={!isExtraSelectable(extra)}
                           className="accent-[var(--action-primary)]"
                         />
                         <span className="text-sm">{extra.name}</span>
                       </div>
-                      <span className="text-sm text-muted-foreground">+S/ {extra.price.toFixed(2)}</span>
+                      <span className="text-sm text-muted-foreground">
+                        {isExtraSelectable(extra) ? `+${formatPrice(extra.price)}` : 'Precio no configurado'}
+                      </span>
                     </label>
                   ))}
                 </div>
@@ -770,6 +788,11 @@ export function POS() {
           </div>
 
           <DialogFooter>
+            {pendingSelection && !pendingSelection.ok && (
+              <p className="mr-auto text-xs font-medium text-[var(--status-warning)]">
+                {pendingSelection.message}
+              </p>
+            )}
             <button
               className="px-4 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted transition-colors"
               onClick={() => setEditProduct(null)}
@@ -779,7 +802,7 @@ export function POS() {
             <button
               className="px-4 py-2 rounded-lg bg-[var(--action-primary)] hover:opacity-90 text-white text-sm font-semibold transition-colors"
               onClick={confirmAdd}
-              disabled={!!editProduct?.variants?.length && !editProduct.variants.find(variant => variant.name === editVariant)?.isAvailable}
+              disabled={pendingSelection ? !pendingSelection.ok : false}
             >
               Agregar al pedido
             </button>
@@ -972,10 +995,13 @@ function CustomerSelector({
 function ProductCard({
   product, onAdd, disabled,
 }: { product: Product; onAdd: (p: Product) => void; disabled: boolean }) {
-  const usesPhysicalStock = product.type === 'INVENTARIO_DIRECTO' && !product.isCatalogParent;
-  const availableVariants = product.variants?.filter(variant => variant.isAvailable) || [];
-  const isOutOfStock = product.variants?.length ? availableVariants.length === 0 : usesPhysicalStock && product.stock <= 0;
-  const isCardDisabled = disabled || isOutOfStock;
+  const usesPhysicalStock = productUsesDirectInventoryStock(product);
+  const availableVariants = product.variants?.filter(isVariantSelectable) || [];
+  const selectionBlockReason = getProductSelectionBlockReason(product);
+  const hasMissingPrice = selectionBlockReason?.includes('precio configurado') ?? false;
+  const hasNoPhysicalStock = usesPhysicalStock && product.stock <= 0;
+  const isOutOfStock = product.variants?.length ? availableVariants.length === 0 : hasNoPhysicalStock;
+  const isCardDisabled = disabled || isOutOfStock || selectionBlockReason !== null;
 
   const hasOptions = !!(product.variants?.length || product.extras?.length);
   const productKindLabel = product.variants?.length
@@ -999,13 +1025,13 @@ function ProductCard({
             !isCardDisabled && 'group-hover:scale-105'
           )}
         />
-        {isOutOfStock && (
-          <span className={cn(
-            'absolute bottom-2 left-2 max-w-[calc(100%-1rem)] rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold text-muted-foreground shadow-ui-low'
-          )}>
-            Agotado
-          </span>
-        )}
+          {(isOutOfStock || hasMissingPrice) && (
+           <span className={cn(
+             'absolute bottom-2 left-2 max-w-[calc(100%-1rem)] rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold text-muted-foreground shadow-ui-low'
+           )}>
+             {hasMissingPrice ? 'Precio no configurado' : hasNoPhysicalStock ? 'Sin stock' : 'Agotado'}
+           </span>
+         )}
       </div>
 
       <div className="p-2.5 flex flex-col flex-1 gap-1">
@@ -1017,7 +1043,7 @@ function ProductCard({
         </div>
 
         <div className="flex items-center justify-between mt-auto">
-          <span className="text-sm font-extrabold text-primary">Desde S/ {product.price.toFixed(2)}</span>
+          <span className="text-sm font-extrabold text-primary">{getPriceConfigurationLabel(product.price)}</span>
           {hasOptions ? (
             <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground font-medium">
               <BookOpen className="w-3 h-3" />
@@ -1036,9 +1062,9 @@ function ProductCard({
             <Plus className="w-3 h-3" /> Agregar
           </button>
         )}
-        {isOutOfStock && (
+        {(isOutOfStock || hasMissingPrice) && (
           <div className="w-full h-7 rounded-lg bg-muted text-muted-foreground text-xs font-semibold flex items-center justify-center gap-1 mt-0.5">
-            Agotado
+            {hasMissingPrice ? 'Precio no configurado' : hasNoPhysicalStock ? 'Sin stock' : 'Agotado'}
           </div>
         )}
       </div>

@@ -38,7 +38,7 @@ interface Product {
   name: string;
   category: string;
   idCategoria?: number;
-  price: number;
+  price: number | null;
   type: 'PREPARADO' | 'INVENTARIO_DIRECTO';
   active: boolean;
   image: string;
@@ -95,7 +95,9 @@ export function Products() {
   const mappedProducts: Product[] = useMemo(() => productos.map(p => {
     const childSkus = skusByParent.get(p.idProducto) || [];
     const activeChildSkus = childSkus.filter(sku => sku.estado === 'ACTIVO');
-    const prices = activeChildSkus.map(sku => sku.precio).filter(price => price > 0);
+    const prices = activeChildSkus
+      .map(sku => sku.precio)
+      .filter((price): price is number => price != null && price > 0);
     const isParent = p.esSku === false;
     const minPrice = prices.length ? Math.min(...prices) : 0;
     const maxPrice = prices.length ? Math.max(...prices) : 0;
@@ -108,7 +110,7 @@ export function Products() {
         : minPrice === maxPrice
           ? `S/ ${minPrice.toFixed(2)}`
           : `S/ ${minPrice.toFixed(2)} - S/ ${maxPrice.toFixed(2)}`
-      : `S/ ${p.precio.toFixed(2)}`;
+      : `S/ ${p.precio != null ? p.precio.toFixed(2) : '—'}`;
 
     return {
       id: String(p.idProducto),
@@ -615,7 +617,7 @@ export function Products() {
                             >
                               <TableCell className="font-mono text-xs font-bold">{sku.sku || 'Sin código'}</TableCell>
                               <TableCell className="font-semibold text-foreground text-sm">{sku.nombre}</TableCell>
-                              <TableCell className="font-bold text-foreground ui-tabular">S/ {sku.precio.toFixed(2)}</TableCell>
+                              <TableCell className="font-bold text-foreground ui-tabular">S/ {sku.precio != null ? sku.precio.toFixed(2) : '—'}</TableCell>
                               <TableCell className="ui-tabular text-sm">{sku.stockActual ?? sku.stockTotal ?? 0}</TableCell>
                             </TableRow>
                           );

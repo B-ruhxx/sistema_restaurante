@@ -28,7 +28,7 @@ import { PageWrapper, ModuleHeader, KpiCard, FilterToolbar, EmptyState, SectionC
 interface ProductExtra {
   id: string;
   nombre: string;
-  precio: number;
+  precio: number | null;
   idInsumo?: number;
   nombreInsumo?: string;
   unidadMedidaInsumo?: string;
@@ -244,7 +244,7 @@ export function ProductExtras() {
                         : 'Sin consumo'}
                     </TableCell>
                     <TableCell className="text-right font-bold text-foreground ui-tabular">
-                      S/ {extra.precio.toFixed(2)}
+                      S/ {extra.precio != null ? extra.precio.toFixed(2) : '—'}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1.5">

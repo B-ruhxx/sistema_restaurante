@@ -35,6 +35,7 @@ export namespace ApiSchemas {
     nombre?: string;
     stock?: number;
     stockMinimo?: number;
+    tipoRecurso?: string;
   }
 
   export interface AuditoriaResponse {
@@ -75,8 +76,8 @@ export namespace ApiSchemas {
     observacion?: string;
     fechaApertura?: string;
     fechaCierre?: string;
-    empleadoNombre?: string;
     observacionApertura?: string;
+    empleadoNombre?: string;
     observacionCierre?: string;
   }
 
