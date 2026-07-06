@@ -1,0 +1,235 @@
+{
+  "testId": "45efdff6a4d2e1f7e786-bbfab3d500a800e63006",
+  "title": "crear y editar producto",
+  "status": "timedOut",
+  "consoleErrors": [
+    {
+      "message": "Failed to load resource: the server responded with a status of 500 ()",
+      "location": "http://localhost:8080/api/v1/productos/8:0:0"
+    },
+    {
+      "message": "Failed to load resource: the server responded with a status of 500 ()",
+      "location": "http://localhost:8080/api/v1/productos/3:0:0"
+    },
+    {
+      "message": "Failed to load resource: the server responded with a status of 500 ()",
+      "location": "http://localhost:8080/api/v1/productos/2:0:0"
+    },
+    {
+      "message": "Failed to load resource: the server responded with a status of 500 ()",
+      "location": "http://localhost:8080/api/v1/productos/6:0:0"
+    },
+    {
+      "message": "Failed to load resource: the server responded with a status of 500 ()",
+      "location": "http://localhost:8080/api/v1/productos/8:0:0"
+    },
+    {
+      "message": "Failed to load resource: the server responded with a status of 500 ()",
+      "location": "http://localhost:8080/api/v1/productos/3:0:0"
+    },
+    {
+      "message": "Failed to load resource: the server responded with a status of 500 ()",
+      "location": "http://localhost:8080/api/v1/productos/2:0:0"
+    },
+    {
+      "message": "Failed to load resource: the server responded with a status of 500 ()",
+      "location": "http://localhost:8080/api/v1/productos/6:0:0"
+    },
+    {
+      "message": "Failed to load resource: the server responded with a status of 500 ()",
+      "location": "http://localhost:8080/api/v1/productos/2:0:0"
+    },
+    {
+      "message": "Failed to load resource: the server responded with a status of 500 ()",
+      "location": "http://localhost:8080/api/v1/productos/3:0:0"
+    },
+    {
+      "message": "Failed to load resource: the server responded with a status of 500 ()",
+      "location": "http://localhost:8080/api/v1/productos/6:0:0"
+    },
+    {
+      "message": "Failed to load resource: the server responded with a status of 500 ()",
+      "location": "http://localhost:8080/api/v1/productos/8:0:0"
+    },
+    {
+      "message": "Failed to load resource: the server responded with a status of 500 ()",
+      "location": "http://localhost:8080/api/v1/productos/2:0:0"
+    },
+    {
+      "message": "Failed to load resource: the server responded with a status of 500 ()",
+      "location": "http://localhost:8080/api/v1/productos/3:0:0"
+    },
+    {
+      "message": "Failed to load resource: the server responded with a status of 500 ()",
+      "location": "http://localhost:8080/api/v1/productos/6:0:0"
+    },
+    {
+      "message": "Failed to load resource: the server responded with a status of 500 ()",
+      "location": "http://localhost:8080/api/v1/productos/8:0:0"
+    }
+  ],
+  "pageErrors": [],
+  "requests": [
+    {
+      "type": "response",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/productos/8",
+      "endpoint": "/api/v1/productos/:id",
+      "status": 500,
+      "statusText": "",
+      "body": "{\"timestamp\":\"2026-07-06T01:05:05.81116785Z\",\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"Ocurrió un error inesperado. Inténtalo nuevamente.\",\"path\":\"/api/v1/productos/8\"}",
+      "allowed": false
+    },
+    {
+      "type": "response",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/productos/3",
+      "endpoint": "/api/v1/productos/:id",
+      "status": 500,
+      "statusText": "",
+      "body": "{\"timestamp\":\"2026-07-06T01:05:05.83343359Z\",\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"Ocurrió un error inesperado. Inténtalo nuevamente.\",\"path\":\"/api/v1/productos/3\"}",
+      "allowed": false
+    },
+    {
+      "type": "response",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/productos/2",
+      "endpoint": "/api/v1/productos/:id",
+      "status": 500,
+      "statusText": "",
+      "body": "{\"timestamp\":\"2026-07-06T01:05:05.86455584Z\",\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"Ocurrió un error inesperado. Inténtalo nuevamente.\",\"path\":\"/api/v1/productos/2\"}",
+      "allowed": false
+    },
+    {
+      "type": "response",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/productos/6",
+      "endpoint": "/api/v1/productos/:id",
+      "status": 500,
+      "statusText": "",
+      "body": "{\"timestamp\":\"2026-07-06T01:05:05.90884012Z\",\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"Ocurrió un error inesperado. Inténtalo nuevamente.\",\"path\":\"/api/v1/productos/6\"}",
+      "allowed": false
+    },
+    {
+      "type": "response",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/productos/8",
+      "endpoint": "/api/v1/productos/:id",
+      "status": 500,
+      "statusText": "",
+      "body": "{\"timestamp\":\"2026-07-06T01:05:06.950259561Z\",\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"Ocurrió un error inesperado. Inténtalo nuevamente.\",\"path\":\"/api/v1/productos/8\"}",
+      "allowed": false
+    },
+    {
+      "type": "response",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/productos/3",
+      "endpoint": "/api/v1/productos/:id",
+      "status": 500,
+      "statusText": "",
+      "body": "{\"timestamp\":\"2026-07-06T01:05:07.131376313Z\",\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"Ocurrió un error inesperado. Inténtalo nuevamente.\",\"path\":\"/api/v1/productos/3\"}",
+      "allowed": false
+    },
+    {
+      "type": "response",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/productos/2",
+      "endpoint": "/api/v1/productos/:id",
+      "status": 500,
+      "statusText": "",
+      "body": "{\"timestamp\":\"2026-07-06T01:05:07.137209592Z\",\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"Ocurrió un error inesperado. Inténtalo nuevamente.\",\"path\":\"/api/v1/productos/2\"}",
+      "allowed": false
+    },
+    {
+      "type": "response",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/productos/6",
+      "endpoint": "/api/v1/productos/:id",
+      "status": 500,
+      "statusText": "",
+      "body": "{\"timestamp\":\"2026-07-06T01:05:07.16877499Z\",\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"Ocurrió un error inesperado. Inténtalo nuevamente.\",\"path\":\"/api/v1/productos/6\"}",
+      "allowed": false
+    },
+    {
+      "type": "response",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/productos/2",
+      "endpoint": "/api/v1/productos/:id",
+      "status": 500,
+      "statusText": "",
+      "body": "{\"timestamp\":\"2026-07-06T01:05:09.2076049Z\",\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"Ocurrió un error inesperado. Inténtalo nuevamente.\",\"path\":\"/api/v1/productos/2\"}",
+      "allowed": false
+    },
+    {
+      "type": "response",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/productos/3",
+      "endpoint": "/api/v1/productos/:id",
+      "status": 500,
+      "statusText": "",
+      "body": "{\"timestamp\":\"2026-07-06T01:05:09.218625996Z\",\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"Ocurrió un error inesperado. Inténtalo nuevamente.\",\"path\":\"/api/v1/productos/3\"}",
+      "allowed": false
+    },
+    {
+      "type": "response",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/productos/6",
+      "endpoint": "/api/v1/productos/:id",
+      "status": 500,
+      "statusText": "",
+      "body": "{\"timestamp\":\"2026-07-06T01:05:09.272064871Z\",\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"Ocurrió un error inesperado. Inténtalo nuevamente.\",\"path\":\"/api/v1/productos/6\"}",
+      "allowed": false
+    },
+    {
+      "type": "response",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/productos/8",
+      "endpoint": "/api/v1/productos/:id",
+      "status": 500,
+      "statusText": "",
+      "body": "{\"timestamp\":\"2026-07-06T01:05:09.288826866Z\",\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"Ocurrió un error inesperado. Inténtalo nuevamente.\",\"path\":\"/api/v1/productos/8\"}",
+      "allowed": false
+    },
+    {
+      "type": "response",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/productos/2",
+      "endpoint": "/api/v1/productos/:id",
+      "status": 500,
+      "statusText": "",
+      "body": "{\"timestamp\":\"2026-07-06T01:05:10.321193765Z\",\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"Ocurrió un error inesperado. Inténtalo nuevamente.\",\"path\":\"/api/v1/productos/2\"}",
+      "allowed": false
+    },
+    {
+      "type": "response",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/productos/3",
+      "endpoint": "/api/v1/productos/:id",
+      "status": 500,
+      "statusText": "",
+      "body": "{\"timestamp\":\"2026-07-06T01:05:10.459927508Z\",\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"Ocurrió un error inesperado. Inténtalo nuevamente.\",\"path\":\"/api/v1/productos/3\"}",
+      "allowed": false
+    },
+    {
+      "type": "response",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/productos/6",
+      "endpoint": "/api/v1/productos/:id",
+      "status": 500,
+      "statusText": "",
+      "body": "{\"timestamp\":\"2026-07-06T01:05:10.585380296Z\",\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"Ocurrió un error inesperado. Inténtalo nuevamente.\",\"path\":\"/api/v1/productos/6\"}",
+      "allowed": false
+    },
+    {
+      "type": "response",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/productos/8",
+      "endpoint": "/api/v1/productos/:id",
+      "status": 500,
+      "statusText": "",
+      "body": "{\"timestamp\":\"2026-07-06T01:05:10.606858861Z\",\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"Ocurrió un error inesperado. Inténtalo nuevamente.\",\"path\":\"/api/v1/productos/8\"}",
+      "allowed": false
+    }
+  ],
+  "generatedAt": "2026-07-06T01:05:34.217Z"
+}

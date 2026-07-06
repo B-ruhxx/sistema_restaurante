@@ -1,0 +1,20 @@
+[
+  {
+    "endpoint": "/api/v1/productos/:id",
+    "methods": [
+      "GET"
+    ],
+    "hits": 108,
+    "failures": 108,
+    "statuses": {
+      "500": 108
+    },
+    "tests": [
+      "abrir caja y cobrar",
+      "consultar Kardex",
+      "crear compra",
+      "crear pedido desde POS",
+      "crear y editar producto"
+    ]
+  }
+]

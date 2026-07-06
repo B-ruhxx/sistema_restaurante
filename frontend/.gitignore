@@ -11,6 +11,10 @@ node_modules
 dist
 dist-ssr
 *.local
+playwright-report/
+test-results/
+artifacts/playwright-audit/
+e2e/.auth/
 
 # Editor directories and files
 .vscode/*

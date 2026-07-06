@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "test:smoke": "node scripts/smoke-rf-check.mjs",
+    "test:e2e:audit": "playwright test --config=playwright.config.ts",
     "visual:validate": "node scripts/visual-validate.mjs",
     "contracts:generate": "node scripts/generate-openapi-types.mjs",
     "contracts:check": "node scripts/generate-openapi-types.mjs --check",

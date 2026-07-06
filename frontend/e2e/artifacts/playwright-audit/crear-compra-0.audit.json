@@ -1,0 +1,179 @@
+{
+  "testId": "45efdff6a4d2e1f7e786-59b4f0bb376ec9b35a30",
+  "title": "crear compra",
+  "status": "timedOut",
+  "consoleErrors": [
+    {
+      "message": "Failed to load resource: the server responded with a status of 500 ()",
+      "location": "http://localhost:8080/api/v1/productos/3:0:0"
+    },
+    {
+      "message": "Failed to load resource: the server responded with a status of 500 ()",
+      "location": "http://localhost:8080/api/v1/productos/2:0:0"
+    },
+    {
+      "message": "Failed to load resource: the server responded with a status of 500 ()",
+      "location": "http://localhost:8080/api/v1/productos/6:0:0"
+    },
+    {
+      "message": "Failed to load resource: the server responded with a status of 500 ()",
+      "location": "http://localhost:8080/api/v1/productos/8:0:0"
+    },
+    {
+      "message": "Failed to load resource: the server responded with a status of 500 ()",
+      "location": "http://localhost:8080/api/v1/productos/11:0:0"
+    },
+    {
+      "message": "Failed to load resource: the server responded with a status of 500 ()",
+      "location": "http://localhost:8080/api/v1/productos/13:0:0"
+    },
+    {
+      "message": "Failed to load resource: the server responded with a status of 500 ()",
+      "location": "http://localhost:8080/api/v1/productos/3:0:0"
+    },
+    {
+      "message": "Failed to load resource: the server responded with a status of 500 ()",
+      "location": "http://localhost:8080/api/v1/productos/2:0:0"
+    },
+    {
+      "message": "Failed to load resource: the server responded with a status of 500 ()",
+      "location": "http://localhost:8080/api/v1/productos/6:0:0"
+    },
+    {
+      "message": "Failed to load resource: the server responded with a status of 500 ()",
+      "location": "http://localhost:8080/api/v1/productos/8:0:0"
+    },
+    {
+      "message": "Failed to load resource: the server responded with a status of 500 ()",
+      "location": "http://localhost:8080/api/v1/productos/11:0:0"
+    },
+    {
+      "message": "Failed to load resource: the server responded with a status of 500 ()",
+      "location": "http://localhost:8080/api/v1/productos/13:0:0"
+    }
+  ],
+  "pageErrors": [],
+  "requests": [
+    {
+      "type": "response",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/productos/3",
+      "endpoint": "/api/v1/productos/:id",
+      "status": 500,
+      "statusText": "",
+      "body": "{\"timestamp\":\"2026-07-06T01:05:39.887370179Z\",\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"Ocurrió un error inesperado. Inténtalo nuevamente.\",\"path\":\"/api/v1/productos/3\"}",
+      "allowed": false
+    },
+    {
+      "type": "response",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/productos/2",
+      "endpoint": "/api/v1/productos/:id",
+      "status": 500,
+      "statusText": "",
+      "body": "{\"timestamp\":\"2026-07-06T01:05:39.892587683Z\",\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"Ocurrió un error inesperado. Inténtalo nuevamente.\",\"path\":\"/api/v1/productos/2\"}",
+      "allowed": false
+    },
+    {
+      "type": "response",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/productos/6",
+      "endpoint": "/api/v1/productos/:id",
+      "status": 500,
+      "statusText": "",
+      "body": "{\"timestamp\":\"2026-07-06T01:05:40.050365356Z\",\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"Ocurrió un error inesperado. Inténtalo nuevamente.\",\"path\":\"/api/v1/productos/6\"}",
+      "allowed": false
+    },
+    {
+      "type": "response",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/productos/8",
+      "endpoint": "/api/v1/productos/:id",
+      "status": 500,
+      "statusText": "",
+      "body": "{\"timestamp\":\"2026-07-06T01:05:40.057381726Z\",\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"Ocurrió un error inesperado. Inténtalo nuevamente.\",\"path\":\"/api/v1/productos/8\"}",
+      "allowed": false
+    },
+    {
+      "type": "response",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/productos/11",
+      "endpoint": "/api/v1/productos/:id",
+      "status": 500,
+      "statusText": "",
+      "body": "{\"timestamp\":\"2026-07-06T01:05:40.079355928Z\",\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"Ocurrió un error inesperado. Inténtalo nuevamente.\",\"path\":\"/api/v1/productos/11\"}",
+      "allowed": false
+    },
+    {
+      "type": "response",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/productos/13",
+      "endpoint": "/api/v1/productos/:id",
+      "status": 500,
+      "statusText": "",
+      "body": "{\"timestamp\":\"2026-07-06T01:05:40.107375436Z\",\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"Ocurrió un error inesperado. Inténtalo nuevamente.\",\"path\":\"/api/v1/productos/13\"}",
+      "allowed": false
+    },
+    {
+      "type": "response",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/productos/3",
+      "endpoint": "/api/v1/productos/:id",
+      "status": 500,
+      "statusText": "",
+      "body": "{\"timestamp\":\"2026-07-06T01:05:41.272797452Z\",\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"Ocurrió un error inesperado. Inténtalo nuevamente.\",\"path\":\"/api/v1/productos/3\"}",
+      "allowed": false
+    },
+    {
+      "type": "response",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/productos/2",
+      "endpoint": "/api/v1/productos/:id",
+      "status": 500,
+      "statusText": "",
+      "body": "{\"timestamp\":\"2026-07-06T01:05:41.390348818Z\",\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"Ocurrió un error inesperado. Inténtalo nuevamente.\",\"path\":\"/api/v1/productos/2\"}",
+      "allowed": false
+    },
+    {
+      "type": "response",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/productos/6",
+      "endpoint": "/api/v1/productos/:id",
+      "status": 500,
+      "statusText": "",
+      "body": "{\"timestamp\":\"2026-07-06T01:05:41.396060771Z\",\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"Ocurrió un error inesperado. Inténtalo nuevamente.\",\"path\":\"/api/v1/productos/6\"}",
+      "allowed": false
+    },
+    {
+      "type": "response",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/productos/11",
+      "endpoint": "/api/v1/productos/:id",
+      "status": 500,
+      "statusText": "",
+      "body": "{\"timestamp\":\"2026-07-06T01:05:41.574191986Z\",\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"Ocurrió un error inesperado. Inténtalo nuevamente.\",\"path\":\"/api/v1/productos/11\"}",
+      "allowed": false
+    },
+    {
+      "type": "response",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/productos/8",
+      "endpoint": "/api/v1/productos/:id",
+      "status": 500,
+      "statusText": "",
+      "body": "{\"timestamp\":\"2026-07-06T01:05:41.550377862Z\",\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"Ocurrió un error inesperado. Inténtalo nuevamente.\",\"path\":\"/api/v1/productos/8\"}",
+      "allowed": false
+    },
+    {
+      "type": "response",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/productos/13",
+      "endpoint": "/api/v1/productos/:id",
+      "status": 500,
+      "statusText": "",
+      "body": "{\"timestamp\":\"2026-07-06T01:05:41.585972425Z\",\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"Ocurrió un error inesperado. Inténtalo nuevamente.\",\"path\":\"/api/v1/productos/13\"}",
+      "allowed": false
+    }
+  ],
+  "generatedAt": "2026-07-06T01:06:08.709Z"
+}
