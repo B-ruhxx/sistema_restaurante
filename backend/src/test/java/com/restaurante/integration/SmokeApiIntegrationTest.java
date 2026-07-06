@@ -8,9 +8,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.math.BigDecimal;
 import java.sql.DriverManager;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.hibernate.SessionFactory;
 import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.Test;
@@ -158,6 +163,13 @@ class SmokeApiIntegrationTest {
                         "monto", new BigDecimal("25.00")))), HttpStatus.OK);
         int idVenta = id(venta, "idVenta");
         assertEquals("EMITIDA", venta.get("estado"));
+        assertNotNull(venta.get("numero"), "El numero de comprobante no debe ser nulo");
+        assertNotNull(venta.get("serie"), "La serie de comprobante no debe ser nula");
+        assertFalse(((String) venta.get("numero")).isBlank(), "El numero de comprobante no debe estar vacio");
+
+        List<Map<String, Object>> pendientes = getList(auth, "/api/v1/cajas/pedidos-pendientes", HttpStatus.OK);
+        assertTrue(pendientes.stream().noneMatch(p -> ((Number) p.get("idPedido")).intValue() == idPedido),
+                "El pedido cobrado no debe aparecer como pendiente");
 
         List<Map<String, Object>> lotesDespuesVenta = getList(auth, "/api/v1/productos/" + idSku + "/lotes", HttpStatus.OK);
         assertEquals(0, intField(lotesDespuesVenta.get(0), "cantidadDisponible"),
@@ -344,6 +356,88 @@ class SmokeApiIntegrationTest {
         assertEquals(2, intField(padreFinal, "stockActual"));
         assertEquals(1, intField(padreFinal, "lotesDisponibles"));
         assertNotNull(padreFinal.get("proximoVencimiento"));
+    }
+
+    @Test
+    void correlativosDeVentasSonTransaccionalesYConcurrentes() throws Exception {
+        String token = login();
+        HttpHeaders auth = authHeaders(token);
+        asegurarCajaAbierta(auth);
+        String suffix = "CORR-" + System.nanoTime();
+
+        int idSkuConsecutivo = crearSkuDirectoConStock(auth, suffix + "-CONSEC", 2);
+        int antesConsecutivo = ultimoCorrelativo("TICKET", "T001");
+        Map<String, Object> primera = cobrarPedido(auth,
+                crearPedidoCuenta(auth, idSkuConsecutivo, 1, suffix + "-C1"),
+                "TICKET",
+                new BigDecimal("5.00"),
+                HttpStatus.OK);
+        Map<String, Object> segunda = cobrarPedido(auth,
+                crearPedidoCuenta(auth, idSkuConsecutivo, 1, suffix + "-C2"),
+                "TICKET",
+                new BigDecimal("5.00"),
+                HttpStatus.OK);
+        assertEquals(antesConsecutivo + 1, numeroComprobante(primera));
+        assertEquals(antesConsecutivo + 2, numeroComprobante(segunda));
+        assertEquals(antesConsecutivo + 2, ultimoCorrelativo("TICKET", "T001"));
+
+        int idSkuSinStock = crearSkuDirectoConStock(auth, suffix + "-ROLLBACK", 0);
+        int idPedidoSinStock = crearPedidoCuenta(auth, idSkuSinStock, 1, suffix + "-RB");
+        int correlativoAntesRollback = ultimoCorrelativo("TICKET", "T001");
+        int ventasAntesRollback = countRows("venta");
+        int movimientosAntesRollback = countRows("movimiento_caja");
+        cobrarPedido(auth, idPedidoSinStock, "TICKET", new BigDecimal("5.00"), HttpStatus.CONFLICT);
+        assertEquals(correlativoAntesRollback, ultimoCorrelativo("TICKET", "T001"));
+        assertEquals(ventasAntesRollback, countRows("venta"));
+        assertEquals(movimientosAntesRollback, countRows("movimiento_caja"));
+
+        int idSkuConcurrente = crearSkuDirectoConStock(auth, suffix + "-CONC", 2);
+        int pedidoConcurrente1 = crearPedidoCuenta(auth, idSkuConcurrente, 1, suffix + "-P1");
+        int pedidoConcurrente2 = crearPedidoCuenta(auth, idSkuConcurrente, 1, suffix + "-P2");
+        int antesConcurrente = ultimoCorrelativo("TICKET", "T001");
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            Future<Map<String, Object>> future1 = executor.submit(() -> cobrarPedido(
+                    authHeaders(token), pedidoConcurrente1, "TICKET", new BigDecimal("5.00"), HttpStatus.OK));
+            Future<Map<String, Object>> future2 = executor.submit(() -> cobrarPedido(
+                    authHeaders(token), pedidoConcurrente2, "TICKET", new BigDecimal("5.00"), HttpStatus.OK));
+            List<Integer> numeros = new ArrayList<>(List.of(numeroComprobante(future1.get()), numeroComprobante(future2.get())));
+            numeros.sort(Integer::compareTo);
+            assertEquals(List.of(antesConcurrente + 1, antesConcurrente + 2), numeros);
+        } finally {
+            executor.shutdownNow();
+            executor.awaitTermination(10, TimeUnit.SECONDS);
+        }
+
+        int idSkuPostVentas = crearSkuDirectoConStock(auth, suffix + "-POST", 1);
+        int idPedidoPostVentas = crearPedidoCuenta(auth, idSkuPostVentas, 1, suffix + "-POST");
+        Map<String, Object> ventaPost = post(auth, "/api/v1/ventas", Map.of(
+                "idPedido", idPedidoPostVentas,
+                "tipoComprobante", "BOLETA",
+                "serie", "ZZZ999",
+                "numero", "999999",
+                "pagos", List.of(Map.of(
+                        "idMetodoPago", 1,
+                        "monto", new BigDecimal("5.00")))), HttpStatus.OK);
+        assertEquals("B001", ventaPost.get("serie"));
+        assertFalse("999999".equals(ventaPost.get("numero")), "POST /ventas no debe persistir numero enviado por cliente");
+
+        String serieNoSembrada = "B" + String.valueOf(System.nanoTime()).substring(0, 6);
+        jdbcTemplate.update("UPDATE configuracion_empresa SET serie_boleta = ? WHERE id_configuracion = 1", serieNoSembrada);
+        jdbcTemplate.update("DELETE FROM correlativo_documento WHERE tipo_comprobante = 'BOLETA' AND serie = ?", serieNoSembrada);
+        try {
+            int idSkuSerieNueva = crearSkuDirectoConStock(auth, suffix + "-SERIE", 1);
+            Map<String, Object> ventaSerieNueva = cobrarPedido(auth,
+                    crearPedidoCuenta(auth, idSkuSerieNueva, 1, suffix + "-SERIE"),
+                    "BOLETA",
+                    new BigDecimal("5.00"),
+                    HttpStatus.OK);
+            assertEquals(serieNoSembrada, ventaSerieNueva.get("serie"));
+            assertEquals(1, numeroComprobante(ventaSerieNueva));
+            assertEquals(1, ultimoCorrelativo("BOLETA", serieNoSembrada));
+        } finally {
+            jdbcTemplate.update("UPDATE configuracion_empresa SET serie_boleta = 'B001' WHERE id_configuracion = 1");
+        }
     }
 
     private void assertReportesStock(HttpHeaders auth) {
@@ -626,6 +720,88 @@ class SmokeApiIntegrationTest {
                 "ruc", "20" + String.valueOf(System.nanoTime()).substring(0, 9),
                 "contacto", "QA"), HttpStatus.OK);
         return id(proveedor, "idProveedor");
+    }
+
+    private int crearSkuDirectoConStock(HttpHeaders auth, String suffix, int stock) {
+        Map<String, Object> padre = post(auth, "/api/v1/productos/padres", Map.of(
+                "nombre", "Padre " + suffix,
+                "descripcion", "Padre correlativo"), HttpStatus.OK);
+        int idPadre = id(padre, "producto", "idProducto");
+
+        Map<String, Object> sku = post(auth, "/api/v1/productos/" + idPadre + "/skus", Map.of(
+                "nombre", "SKU " + suffix,
+                "sku", "SKU-" + suffix,
+                "precio", new BigDecimal("5.00"),
+                "tipoProducto", "INVENTARIO_DIRECTO"), HttpStatus.OK);
+        int idSku = id(sku, "producto", "idProducto");
+
+        if (stock > 0) {
+            post(auth, "/api/v1/compras", Map.of(
+                    "idProveedor", crearProveedor(auth),
+                    "detalles", List.of(Map.of(
+                            "idProducto", idSku,
+                            "cantidad", stock,
+                            "precioUnitario", new BigDecimal("2.00"),
+                            "fechaVencimiento", LocalDate.now().plusMonths(6).toString())),
+                    "observacion", "Stock correlativo " + suffix), HttpStatus.OK);
+        }
+        return idSku;
+    }
+
+    private int crearPedidoCuenta(HttpHeaders auth, int idSku, int cantidad, String suffix) {
+        int idMesa = id(post(auth, "/api/v1/mesas", Map.of(
+                "numero", "M" + Math.abs(System.nanoTime() % 1_000_000_000_000L),
+                "capacidad", 2,
+                "ubicacion", "Correlativo"), HttpStatus.OK), "idMesa");
+        int idPedido = id(post(auth, "/api/v1/mesas/" + idMesa + "/abrir-pedido", Map.of(), HttpStatus.OK), "idPedido");
+        post(auth, "/api/v1/pedidos/" + idPedido + "/detalles", Map.of(
+                "idProducto", idSku,
+                "cantidad", cantidad,
+                "observacion", "Correlativo " + suffix), HttpStatus.OK);
+        post(auth, "/api/v1/pedidos/" + idPedido + "/enviar-cocina", Map.of(), HttpStatus.OK);
+        post(auth, "/api/v1/pedidos/" + idPedido + "/precuentas", Map.of(), HttpStatus.OK);
+        return idPedido;
+    }
+
+    private int asegurarCajaAbierta(HttpHeaders auth) {
+        ResponseEntity<Map<String, Object>> activa = rest.exchange(
+                url("/api/v1/cajas/activa"),
+                HttpMethod.GET,
+                new HttpEntity<>(auth),
+                (Class<Map<String, Object>>) (Class<?>) Map.class);
+        if (activa.getStatusCode() == HttpStatus.OK && activa.getBody() != null) {
+            return id(activa.getBody(), "idCaja");
+        }
+        return id(post(auth, "/api/v1/cajas/abrir", Map.of(
+                "montoApertura", new BigDecimal("100.00"),
+                "observacion", "Caja correlativos"), HttpStatus.OK), "idCaja");
+    }
+
+    private Map<String, Object> cobrarPedido(HttpHeaders auth, int idPedido, String tipoComprobante,
+            BigDecimal monto, HttpStatus expectedStatus) {
+        return post(auth, "/api/v1/cajas/pedidos/" + idPedido + "/cobrar", Map.of(
+                "tipoComprobante", tipoComprobante,
+                "pagos", List.of(Map.of(
+                        "idMetodoPago", 1,
+                        "monto", monto))), expectedStatus);
+    }
+
+    private int ultimoCorrelativo(String tipoComprobante, String serie) {
+        Integer value = jdbcTemplate.queryForObject(
+                "SELECT COALESCE(MAX(ultimo_numero), 0) FROM correlativo_documento WHERE tipo_comprobante = ? AND serie = ?",
+                Integer.class,
+                tipoComprobante,
+                serie);
+        return value == null ? 0 : value;
+    }
+
+    private int countRows(String table) {
+        Integer value = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM " + table, Integer.class);
+        return value == null ? 0 : value;
+    }
+
+    private static int numeroComprobante(Map<String, Object> venta) {
+        return Integer.parseInt(String.valueOf(venta.get("numero")));
     }
 
     private int crearPadreConSku(HttpHeaders auth, int idCategoria, String suffix, int index) {

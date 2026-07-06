@@ -88,6 +88,9 @@ public class VentaService {
     @Autowired
     private VentaPolicy ventaPolicy;
 
+    @Autowired
+    private CorrelativoDocumentoService correlativoDocumentoService;
+
     public VentaResponse registrarVenta(VentaRequest request, Empleado empleado) {
         // 1. Verificar sesión de Caja abierta para el empleado
         CajaResponse cajaResponse = cajaService.obtenerCajaAbiertaParaEmpleado(empleado)
@@ -105,9 +108,12 @@ public class VentaService {
         Venta venta = new Venta();
         venta.setEmpleado(empleado);
         venta.setCaja(caja);
-        venta.setTipoComprobante(Venta.TipoComprobante.valueOf(request.getTipoComprobante().toUpperCase()));
-        venta.setSerie(request.getSerie());
-        venta.setNumero(request.getNumero());
+        Venta.TipoComprobante tipo = Venta.TipoComprobante.valueOf(request.getTipoComprobante().toUpperCase());
+        venta.setTipoComprobante(tipo);
+        String serie = resolverSerie(tipo);
+        String numero = correlativoDocumentoService.generarNumero(tipo, serie);
+        venta.setSerie(serie);
+        venta.setNumero(numero);
 
         if (request.getIdPedido() != null) {
             Pedido pedido = pedidoRepository.findById(request.getIdPedido())
@@ -249,9 +255,12 @@ public class VentaService {
         venta.setEmpleado(empleado);
         venta.setCaja(caja);
         venta.setPedido(pedido);
-        venta.setTipoComprobante(Venta.TipoComprobante.valueOf(request.getTipoComprobante().toUpperCase()));
-        venta.setSerie(request.getSerie());
-        venta.setNumero(request.getNumero());
+        Venta.TipoComprobante tipo = Venta.TipoComprobante.valueOf(request.getTipoComprobante().toUpperCase());
+        venta.setTipoComprobante(tipo);
+        String serie = resolverSerie(tipo);
+        String numero = correlativoDocumentoService.generarNumero(tipo, serie);
+        venta.setSerie(serie);
+        venta.setNumero(numero);
         venta.setTotal(totalCalculado);
 
         BigDecimal cienMasIgv = BigDecimal.valueOf(100).add(igvPorcentaje);
@@ -428,6 +437,15 @@ public class VentaService {
 
     private boolean metodoAfectaCaja(MetodoPago metodoPago) {
         return metodoPago != null;
+    }
+
+    private String resolverSerie(Venta.TipoComprobante tipo) {
+        ConfiguracionEmpresa config = configuracionEmpresaRepository.findAll().stream().findFirst().orElse(null);
+        return switch (tipo) {
+            case BOLETA -> config != null && config.getSerieBoleta() != null ? config.getSerieBoleta() : "B001";
+            case FACTURA -> config != null && config.getSerieFactura() != null ? config.getSerieFactura() : "F001";
+            case TICKET -> "T001";
+        };
     }
 
     public VentaResponse anularVenta(Integer idVenta, String motivo, Empleado empleadoAnulacion) {
