@@ -138,34 +138,34 @@ export function Purchases() {
 
     const item: SelectedItem = addItem.tipoRecurso === 'INSUMO'
       ? (() => {
-          const insumo = activeInsumos.find(i => i.idInsumo === Number(addItem.idRecurso));
-          if (!insumo) throw new Error('Insumo no encontrado');
-          return {
-            tipoRecurso: 'INSUMO' as const,
-            idInsumo: insumo.idInsumo,
-            nombre: insumo.nombre,
-            unidad: insumo.unidad,
-            qty,
-            unitPrice: price,
-            expirationDate: addItem.expirationDate,
-            total: qty * price,
-          };
-        })()
+        const insumo = activeInsumos.find(i => i.idInsumo === Number(addItem.idRecurso));
+        if (!insumo) throw new Error('Insumo no encontrado');
+        return {
+          tipoRecurso: 'INSUMO' as const,
+          idInsumo: insumo.idInsumo,
+          nombre: insumo.nombre,
+          unidad: insumo.unidad,
+          qty,
+          unitPrice: price,
+          expirationDate: addItem.expirationDate,
+          total: qty * price,
+        };
+      })()
       : (() => {
-          const producto = activeProductSkus.find(p => p.idProducto === Number(addItem.idRecurso));
-          if (!producto) throw new Error('SKU producto no encontrado');
-          return {
-            tipoRecurso: 'PRODUCTO' as const,
-            idProducto: producto.idProducto,
-            nombre: producto.nombre,
-            unidad: 'uds',
-            sku: producto.sku,
-            qty,
-            unitPrice: price,
-            expirationDate: addItem.expirationDate,
-            total: qty * price,
-          };
-        })();
+        const producto = activeProductSkus.find(p => p.idProducto === Number(addItem.idRecurso));
+        if (!producto) throw new Error('SKU producto no encontrado');
+        return {
+          tipoRecurso: 'PRODUCTO' as const,
+          idProducto: producto.idProducto,
+          nombre: producto.nombre,
+          unidad: 'uds',
+          sku: producto.sku,
+          qty,
+          unitPrice: price,
+          expirationDate: addItem.expirationDate,
+          total: qty * price,
+        };
+      })();
     setNewItems(prev => [...prev, item]);
     setAddItem(a => ({ ...a, idRecurso: '', qty: '', unitPrice: '', expirationDate: '' }));
   };
@@ -378,7 +378,7 @@ export function Purchases() {
 
       {/* New Purchase Wizard */}
       <Dialog open={newOpen} onOpenChange={setNewOpen}>
-        <DialogContent className="max-w-xl rounded-2xl">
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold">Nueva Orden de Compra</DialogTitle>
             <DialogDescription className="text-xs">Completa el asistente para registrar la compra e ingresar stock al inventario.</DialogDescription>
@@ -425,71 +425,172 @@ export function Purchases() {
 
           {step === 2 && (
             <div className="space-y-4 mt-2">
-              <p className="text-xs font-semibold text-muted-foreground">Agrega insumos o SKUs de inventario directo:</p>
-              <div className="grid grid-cols-1 sm:grid-cols-[120px_1fr_80px_100px_140px_auto] gap-2 items-end">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Tipo</Label>
-                  <Select
-                    value={addItem.tipoRecurso}
-                    onValueChange={v => setAddItem(a => ({ ...a, tipoRecurso: v as 'INSUMO' | 'PRODUCTO', idRecurso: '' }))}
-                  >
-                    <SelectTrigger className="h-9 rounded-xl text-xs"><SelectValue /></SelectTrigger>
-                    <SelectContent className="rounded-xl">
-                      <SelectItem value="INSUMO" className="rounded-lg">Insumo</SelectItem>
-                      <SelectItem value="PRODUCTO" className="rounded-lg">SKU</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">{addItem.tipoRecurso === 'INSUMO' ? 'Insumo *' : 'SKU producto *'}</Label>
-                  <Select value={addItem.idRecurso} onValueChange={v => setAddItem(a => ({ ...a, idRecurso: v }))}>
-                    <SelectTrigger className="h-9 rounded-xl text-xs"><SelectValue placeholder={addItem.tipoRecurso === 'INSUMO' ? 'Insumo...' : 'SKU...'} /></SelectTrigger>
-                    <SelectContent className="rounded-xl">
-                      {addItem.tipoRecurso === 'INSUMO'
-                        ? activeInsumos.map(s => (
-                            <SelectItem key={s.idInsumo} value={String(s.idInsumo)} className="rounded-lg">{s.nombre} ({s.unidad})</SelectItem>
+              <div className="flex flex-col gap-1">
+                <p className="text-sm font-bold text-foreground">Agregar recursos a la compra</p>
+                <p className="text-xs font-semibold text-muted-foreground">
+                  Selecciona insumos o SKUs de inventario directo e indica sus datos de ingreso.
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-border bg-muted/10 p-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold">Tipo de recurso</Label>
+                    <Select
+                      value={addItem.tipoRecurso}
+                      onValueChange={v => setAddItem(a => ({
+                        ...a,
+                        tipoRecurso: v as 'INSUMO' | 'PRODUCTO',
+                        idRecurso: '',
+                      }))}
+                    >
+                      <SelectTrigger className="h-10 rounded-xl text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl">
+                        <SelectItem value="INSUMO" className="rounded-lg">Insumo</SelectItem>
+                        <SelectItem value="PRODUCTO" className="rounded-lg">SKU</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold">
+                      {addItem.tipoRecurso === 'INSUMO' ? 'Insumo *' : 'SKU producto *'}
+                    </Label>
+                    <Select
+                      value={addItem.idRecurso}
+                      onValueChange={v => setAddItem(a => ({ ...a, idRecurso: v }))}
+                    >
+                      <SelectTrigger className="h-10 rounded-xl text-xs">
+                        <SelectValue
+                          placeholder={addItem.tipoRecurso === 'INSUMO'
+                            ? 'Seleccionar insumo...'
+                            : 'Seleccionar SKU...'}
+                        />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl">
+                        {addItem.tipoRecurso === 'INSUMO'
+                          ? activeInsumos.map(s => (
+                            <SelectItem
+                              key={s.idInsumo}
+                              value={String(s.idInsumo)}
+                              className="rounded-lg"
+                            >
+                              {s.nombre} ({s.unidad})
+                            </SelectItem>
                           ))
-                        : activeProductSkus.map(p => (
-                            <SelectItem key={p.idProducto} value={String(p.idProducto)} className="rounded-lg">
+                          : activeProductSkus.map(p => (
+                            <SelectItem
+                              key={p.idProducto}
+                              value={String(p.idProducto)}
+                              className="rounded-lg"
+                            >
                               {p.nombre}{p.sku ? ` (${p.sku})` : ''}
                             </SelectItem>
                           ))}
-                    </SelectContent>
-                  </Select>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Cant.</Label>
-                  <Input placeholder="Qty" type="number" min="0.01" step="any" className="h-9 rounded-xl text-xs" value={addItem.qty} onChange={e => setAddItem(a => ({ ...a, qty: e.target.value }))} />
+
+                <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1.35fr_auto] lg:items-end">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold">Cantidad</Label>
+                    <Input
+                      placeholder="0"
+                      type="number"
+                      min="0.01"
+                      step="any"
+                      className="h-10 rounded-xl text-xs"
+                      value={addItem.qty}
+                      onChange={e => setAddItem(a => ({ ...a, qty: e.target.value }))}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold">Precio unitario</Label>
+                    <Input
+                      placeholder="0.00"
+                      type="number"
+                      min="0.01"
+                      step="any"
+                      className="h-10 rounded-xl text-xs"
+                      value={addItem.unitPrice}
+                      onChange={e => setAddItem(a => ({ ...a, unitPrice: e.target.value }))}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold">Fecha de vencimiento</Label>
+                    <Input
+                      type="date"
+                      className="h-10 rounded-xl bg-background text-xs"
+                      value={addItem.expirationDate}
+                      onChange={e => setAddItem(a => ({ ...a, expirationDate: e.target.value }))}
+                    />
+                  </div>
+
+                  <Button
+                    onClick={handleAddItem}
+                    className="h-10 w-full rounded-xl px-4 lg:w-10 lg:px-0"
+                    size="icon"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span className="ml-2 lg:hidden">Agregar recurso</span>
+                  </Button>
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">P. Unitario</Label>
-                  <Input placeholder="0.00" type="number" min="0.01" step="any" className="h-9 rounded-xl text-xs" value={addItem.unitPrice} onChange={e => setAddItem(a => ({ ...a, unitPrice: e.target.value }))} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Vencimiento</Label>
-                  <Input type="date" className="h-9 rounded-xl text-xs bg-background" value={addItem.expirationDate} onChange={e => setAddItem(a => ({ ...a, expirationDate: e.target.value }))} />
-                </div>
-                <Button onClick={handleAddItem} className="h-9 w-9 rounded-xl p-0" size="icon"><Plus className="w-4 h-4" /></Button>
               </div>
-              <div className="space-y-2 max-h-52 overflow-y-auto">
+
+              <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
                 {newItems.map((item, i) => (
-                  <div key={i} className="flex items-center gap-2.5 p-2.5 rounded-xl border border-border bg-muted/10 text-xs">
-                    <span className="text-[9px] px-2 py-0.5 rounded-lg bg-muted font-bold">{item.tipoRecurso === 'INSUMO' ? 'Insumo' : 'SKU'}</span>
-                    <span className="flex-1 font-bold text-foreground">{item.nombre}{item.sku ? ` · ${item.sku}` : ''}</span>
-                    <span className="text-muted-foreground font-semibold">{item.qty} {item.unidad}</span>
-                    <span className="text-muted-foreground font-semibold">S/ {item.unitPrice.toFixed(2)}/u</span>
-                    <span className="font-bold text-foreground">S/ {item.total.toFixed(2)}</span>
-                    <Button size="icon" variant="ghost" className="h-6 w-6 rounded-lg ui-status-danger hover:bg-[var(--status-danger-surface)]" onClick={() => setNewItems(prev => prev.filter((_, idx) => idx !== i))}>
-                      <X className="w-3 h-3" />
+                  <div
+                    key={i}
+                    className="grid grid-cols-[auto_minmax(0,1fr)_auto] gap-3 rounded-xl border border-border bg-muted/10 p-3 text-xs sm:grid-cols-[auto_minmax(0,1fr)_auto_auto_auto_auto] sm:items-center"
+                  >
+                    <span className="rounded-lg bg-muted px-2 py-1 text-[9px] font-bold">
+                      {item.tipoRecurso === 'INSUMO' ? 'Insumo' : 'SKU'}
+                    </span>
+                    <span className="min-w-0 truncate font-bold text-foreground">
+                      {item.nombre}{item.sku ? ` · ${item.sku}` : ''}
+                    </span>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7 rounded-lg ui-status-danger hover:bg-[var(--status-danger-surface)] sm:order-last"
+                      onClick={() => setNewItems(prev => prev.filter((_, idx) => idx !== i))}
+                    >
+                      <X className="h-3.5 w-3.5" />
                     </Button>
+                    <span className="col-span-2 font-semibold text-muted-foreground sm:col-span-1">
+                      {item.qty} {item.unidad}
+                    </span>
+                    <span className="font-semibold text-muted-foreground">
+                      S/ {item.unitPrice.toFixed(2)}/u
+                    </span>
+                    <span className="font-bold text-foreground sm:text-right">
+                      S/ {item.total.toFixed(2)}
+                    </span>
                   </div>
                 ))}
-                {newItems.length === 0 && <p className="text-xs text-muted-foreground text-center py-4 font-semibold">Sin recursos agregados</p>}
+
+                {newItems.length === 0 && (
+                  <div className="rounded-xl border border-dashed border-border bg-muted/5 px-4 py-8 text-center">
+                    <ShoppingCart className="mx-auto mb-2 h-5 w-5 text-muted-foreground" />
+                    <p className="text-xs font-semibold text-muted-foreground">Sin recursos agregados</p>
+                  </div>
+                )}
               </div>
+
               {newItems.length > 0 && (
-                <div className="flex justify-between items-center p-3.5 rounded-xl bg-muted/30 border border-border/40">
-                  <span className="text-sm font-bold text-foreground">Total estimado</span>
-                  <span className="text-base font-black text-primary ui-tabular">S/ {newTotal.toFixed(2)}</span>
+                <div className="flex items-center justify-between rounded-xl border border-border/40 bg-muted/30 p-3.5">
+                  <div>
+                    <span className="block text-sm font-bold text-foreground">Total estimado</span>
+                    <span className="text-[11px] font-semibold text-muted-foreground">
+                      {newItems.length} {newItems.length === 1 ? 'recurso agregado' : 'recursos agregados'}
+                    </span>
+                  </div>
+                  <span className="text-lg font-black text-primary ui-tabular">S/ {newTotal.toFixed(2)}</span>
                 </div>
               )}
             </div>
