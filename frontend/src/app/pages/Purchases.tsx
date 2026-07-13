@@ -113,6 +113,7 @@ export function Purchases() {
     .reduce((s, p) => s + Number(p.total), 0);
 
   const newTotal = newItems.reduce((s, i) => s + i.total, 0);
+  const selectedSupplier = proveedores.find(s => s.idProveedor === Number(newForm.supplierId));
 
   const handleAddItem = () => {
     const qty = parseFloat(addItem.qty);
@@ -364,7 +365,13 @@ export function Purchases() {
                       </Badge>
                     </TableCell>
                     <TableCell onClick={e => e.stopPropagation()}>
-                      <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg" onClick={() => openDetail(p)}>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 rounded-lg"
+                        aria-label={`Ver detalle de ${p.codigoCompra || `COMP-${String(p.idCompra).padStart(4, '0')}`}`}
+                        onClick={() => openDetail(p)}
+                      >
                         <Eye className="w-4 h-4 text-muted-foreground" />
                       </Button>
                     </TableCell>
@@ -378,7 +385,7 @@ export function Purchases() {
 
       {/* New Purchase Wizard */}
       <Dialog open={newOpen} onOpenChange={setNewOpen}>
-        <DialogContent className="w-[calc(100vw-2rem)] max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl">
+        <DialogContent className="max-h-[calc(100dvh-2rem)] min-w-0 w-[calc(100vw-2rem)] max-w-4xl overflow-x-hidden overflow-y-auto rounded-2xl p-4 sm:p-5">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold">Nueva Orden de Compra</DialogTitle>
             <DialogDescription className="text-xs">Completa el asistente para registrar la compra e ingresar stock al inventario.</DialogDescription>
@@ -402,29 +409,37 @@ export function Purchases() {
           </DialogHeader>
 
           {step === 1 && (
-            <div className="space-y-4 mt-2">
-              <div className="space-y-1.5">
-                <Label className="text-sm font-semibold">Proveedor *</Label>
+            <div className="min-w-0 space-y-4 mt-2">
+              <div className="min-w-0 space-y-1.5">
+                <Label htmlFor="purchase-supplier" className="text-sm font-semibold">Proveedor *</Label>
                 <Select value={newForm.supplierId} onValueChange={v => setNewForm(f => ({ ...f, supplierId: v }))}>
-                  <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Seleccionar proveedor..." /></SelectTrigger>
-                  <SelectContent className="rounded-xl">
+                  <SelectTrigger
+                    id="purchase-supplier"
+                    className="h-auto min-h-11 min-w-0 items-start rounded-xl py-2 text-left whitespace-normal [&_[data-slot=select-value]]:min-w-0 [&_[data-slot=select-value]]:line-clamp-none [&_[data-slot=select-value]]:whitespace-normal"
+                  >
+                    <SelectValue placeholder="Seleccionar proveedor..." />
+                  </SelectTrigger>
+                  <SelectContent className="w-[var(--radix-select-trigger-width)] max-w-[calc(100vw-2rem)] rounded-xl">
                     {activeSuppliers.map(s => (
-                      <SelectItem key={s.idProveedor} value={String(s.idProveedor)} className="rounded-lg">
-                        {s.razonSocial} {s.ruc ? `(${s.ruc})` : ''}
+                      <SelectItem key={s.idProveedor} value={String(s.idProveedor)} className="items-start overflow-hidden rounded-lg py-2 [&>span:last-child]:min-w-0 [&>span:last-child]:whitespace-normal">
+                        <span className="min-w-0 whitespace-normal leading-tight">
+                          <span className="block break-words font-medium">{s.razonSocial}</span>
+                          {s.ruc && <span className="mt-1 block break-all text-xs text-muted-foreground">RUC: {s.ruc}</span>}
+                        </span>
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-sm font-semibold">Notas / Observación</Label>
-                <Input placeholder="Observaciones..." value={newForm.notes} onChange={e => setNewForm(f => ({ ...f, notes: e.target.value }))} className="h-11 rounded-xl" />
+                <Label htmlFor="purchase-notes" className="text-sm font-semibold">Notas / Observación</Label>
+                <Input id="purchase-notes" placeholder="Observaciones..." value={newForm.notes} onChange={e => setNewForm(f => ({ ...f, notes: e.target.value }))} className="h-11 rounded-xl" />
               </div>
             </div>
           )}
 
           {step === 2 && (
-            <div className="space-y-4 mt-2">
+            <div className="min-w-0 space-y-4 mt-2">
               <div className="flex flex-col gap-1">
                 <p className="text-sm font-bold text-foreground">Agregar recursos a la compra</p>
                 <p className="text-xs font-semibold text-muted-foreground">
@@ -432,10 +447,10 @@ export function Purchases() {
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-border bg-muted/10 p-4">
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold">Tipo de recurso</Label>
+              <div className="min-w-0 rounded-2xl border border-border bg-muted/10 p-4">
+                <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                  <div className="min-w-0 space-y-1.5">
+                    <Label htmlFor="purchase-resource-type" className="text-xs font-semibold">Tipo de recurso</Label>
                     <Select
                       value={addItem.tipoRecurso}
                       onValueChange={v => setAddItem(a => ({
@@ -444,49 +459,58 @@ export function Purchases() {
                         idRecurso: '',
                       }))}
                     >
-                      <SelectTrigger className="h-10 rounded-xl text-xs">
+                      <SelectTrigger id="purchase-resource-type" className="h-10 min-w-0 rounded-xl text-xs">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent className="rounded-xl">
+                      <SelectContent className="w-[var(--radix-select-trigger-width)] max-w-[calc(100vw-2rem)] rounded-xl">
                         <SelectItem value="INSUMO" className="rounded-lg">Insumo</SelectItem>
                         <SelectItem value="PRODUCTO" className="rounded-lg">SKU</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold">
+                  <div className="min-w-0 space-y-1.5">
+                    <Label htmlFor="purchase-resource" className="text-xs font-semibold">
                       {addItem.tipoRecurso === 'INSUMO' ? 'Insumo *' : 'SKU producto *'}
                     </Label>
                     <Select
                       value={addItem.idRecurso}
                       onValueChange={v => setAddItem(a => ({ ...a, idRecurso: v }))}
                     >
-                      <SelectTrigger className="h-10 rounded-xl text-xs">
+                      <SelectTrigger
+                        id="purchase-resource"
+                        className="h-auto min-h-10 min-w-0 items-start rounded-xl py-2 text-left text-xs whitespace-normal [&_[data-slot=select-value]]:min-w-0 [&_[data-slot=select-value]]:line-clamp-none [&_[data-slot=select-value]]:whitespace-normal"
+                      >
                         <SelectValue
                           placeholder={addItem.tipoRecurso === 'INSUMO'
                             ? 'Seleccionar insumo...'
                             : 'Seleccionar SKU...'}
                         />
                       </SelectTrigger>
-                      <SelectContent className="rounded-xl">
+                      <SelectContent className="w-[var(--radix-select-trigger-width)] max-w-[calc(100vw-2rem)] rounded-xl">
                         {addItem.tipoRecurso === 'INSUMO'
                           ? activeInsumos.map(s => (
                             <SelectItem
                               key={s.idInsumo}
                               value={String(s.idInsumo)}
-                              className="rounded-lg"
+                              className="items-start overflow-hidden rounded-lg py-2 [&>span:last-child]:min-w-0 [&>span:last-child]:whitespace-normal"
                             >
-                              {s.nombre} ({s.unidad})
+                              <span className="min-w-0 whitespace-normal leading-tight">
+                                <span className="block break-words font-medium">{s.nombre}</span>
+                                <span className="mt-1 block break-words text-xs text-muted-foreground">Unidad: {s.unidad}</span>
+                              </span>
                             </SelectItem>
                           ))
                           : activeProductSkus.map(p => (
                             <SelectItem
                               key={p.idProducto}
                               value={String(p.idProducto)}
-                              className="rounded-lg"
+                              className="items-start overflow-hidden rounded-lg py-2 [&>span:last-child]:min-w-0 [&>span:last-child]:whitespace-normal"
                             >
-                              {p.nombre}{p.sku ? ` (${p.sku})` : ''}
+                              <span className="min-w-0 whitespace-normal leading-tight">
+                                <span className="block break-words font-medium">{p.nombre}</span>
+                                {p.sku && <span className="mt-1 block break-all text-xs text-muted-foreground">SKU: {p.sku}</span>}
+                              </span>
                             </SelectItem>
                           ))}
                       </SelectContent>
@@ -494,10 +518,11 @@ export function Purchases() {
                   </div>
                 </div>
 
-                <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1.35fr_auto] lg:items-end">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold">Cantidad</Label>
+                <div className="mt-4 grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.35fr)_auto] lg:items-end">
+                  <div className="min-w-0 space-y-1.5">
+                    <Label htmlFor="purchase-quantity" className="text-xs font-semibold">Cantidad</Label>
                     <Input
+                      id="purchase-quantity"
                       placeholder="0"
                       type="number"
                       min="0.01"
@@ -508,9 +533,10 @@ export function Purchases() {
                     />
                   </div>
 
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold">Precio unitario</Label>
+                  <div className="min-w-0 space-y-1.5">
+                    <Label htmlFor="purchase-unit-price" className="text-xs font-semibold">Precio unitario</Label>
                     <Input
+                      id="purchase-unit-price"
                       placeholder="0.00"
                       type="number"
                       min="0.01"
@@ -521,9 +547,10 @@ export function Purchases() {
                     />
                   </div>
 
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold">Fecha de vencimiento</Label>
+                  <div className="min-w-0 space-y-1.5">
+                    <Label htmlFor="purchase-expiration-date" className="text-xs font-semibold">Fecha de vencimiento</Label>
                     <Input
+                      id="purchase-expiration-date"
                       type="date"
                       className="h-10 rounded-xl bg-background text-xs"
                       value={addItem.expirationDate}
@@ -533,6 +560,7 @@ export function Purchases() {
 
                   <Button
                     onClick={handleAddItem}
+                    aria-label="Agregar recurso a la compra"
                     className="h-10 w-full rounded-xl px-4 lg:w-10 lg:px-0"
                     size="icon"
                   >
@@ -542,21 +570,23 @@ export function Purchases() {
                 </div>
               </div>
 
-              <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+              <div className="min-w-0 space-y-2 max-h-60 overflow-y-auto pr-1">
                 {newItems.map((item, i) => (
                   <div
                     key={i}
-                    className="grid grid-cols-[auto_minmax(0,1fr)_auto] gap-3 rounded-xl border border-border bg-muted/10 p-3 text-xs sm:grid-cols-[auto_minmax(0,1fr)_auto_auto_auto_auto] sm:items-center"
+                    className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] gap-3 rounded-xl border border-border bg-muted/10 p-3 text-xs sm:grid-cols-[auto_minmax(0,1fr)_auto_auto_auto_auto] sm:items-center"
                   >
                     <span className="rounded-lg bg-muted px-2 py-1 text-[9px] font-bold">
                       {item.tipoRecurso === 'INSUMO' ? 'Insumo' : 'SKU'}
                     </span>
-                    <span className="min-w-0 truncate font-bold text-foreground">
-                      {item.nombre}{item.sku ? ` · ${item.sku}` : ''}
+                    <span className="min-w-0 whitespace-normal font-bold text-foreground">
+                      <span className="block break-words">{item.nombre}</span>
+                      {item.sku && <span className="mt-0.5 block break-all text-[10px] font-semibold text-muted-foreground">SKU: {item.sku}</span>}
                     </span>
                     <Button
                       size="icon"
                       variant="ghost"
+                      aria-label={`Eliminar ${item.tipoRecurso === 'INSUMO' ? 'insumo' : 'SKU'} ${item.nombre}`}
                       className="h-7 w-7 rounded-lg ui-status-danger hover:bg-[var(--status-danger-surface)] sm:order-last"
                       onClick={() => setNewItems(prev => prev.filter((_, idx) => idx !== i))}
                     >
@@ -583,40 +613,47 @@ export function Purchases() {
               </div>
 
               {newItems.length > 0 && (
-                <div className="flex items-center justify-between rounded-xl border border-border/40 bg-muted/30 p-3.5">
-                  <div>
+                <div className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-border/40 bg-muted/30 p-3.5">
+                  <div className="min-w-0">
                     <span className="block text-sm font-bold text-foreground">Total estimado</span>
                     <span className="text-[11px] font-semibold text-muted-foreground">
                       {newItems.length} {newItems.length === 1 ? 'recurso agregado' : 'recursos agregados'}
                     </span>
                   </div>
-                  <span className="text-lg font-black text-primary ui-tabular">S/ {newTotal.toFixed(2)}</span>
+                  <span className="shrink-0 text-lg font-black text-primary ui-tabular">S/ {newTotal.toFixed(2)}</span>
                 </div>
               )}
             </div>
           )}
 
           {step === 3 && (
-            <div className="space-y-4 mt-2">
-              <div className="p-5 rounded-2xl border border-border bg-muted/10 space-y-3">
-                <div className="flex justify-between text-sm">
+            <div className="min-w-0 space-y-4 mt-2">
+              <div className="min-w-0 p-4 sm:p-5 rounded-2xl border border-border bg-muted/10 space-y-3">
+                <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-3 text-sm">
                   <span className="text-muted-foreground font-semibold">Proveedor</span>
-                  <span className="font-bold text-foreground">{proveedores.find(s => s.idProveedor === Number(newForm.supplierId))?.razonSocial}</span>
+                  <span className="min-w-0 text-right font-bold text-foreground">
+                    <span className="block break-words">{selectedSupplier?.razonSocial}</span>
+                    {selectedSupplier?.ruc && <span className="mt-0.5 block break-all text-xs font-semibold text-muted-foreground">RUC: {selectedSupplier.ruc}</span>}
+                  </span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground font-semibold">Recursos totales</span>
                   <span className="font-bold text-foreground">{newItems.length} items</span>
                 </div>
                 <Separator />
-                <div className="flex justify-between">
+                <div className="flex justify-between gap-3">
                   <span className="font-bold text-foreground">Total de la Compra</span>
                   <span className="font-black text-lg text-primary ui-tabular">S/ {newTotal.toFixed(2)}</span>
                 </div>
               </div>
-              <div className="space-y-1.5 max-h-40 overflow-y-auto">
+              <div className="min-w-0 space-y-1.5 max-h-40 overflow-y-auto">
                 {newItems.map((item, i) => (
-                  <div key={i} className="flex justify-between text-xs text-muted-foreground font-semibold">
-                    <span>{item.tipoRecurso === 'INSUMO' ? 'Insumo' : 'SKU'} · {item.nombre} × {item.qty} {item.unidad} · vence {new Date(item.expirationDate + 'T00:00:00').toLocaleDateString()}</span>
+                  <div key={i} className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-3 text-xs text-muted-foreground font-semibold">
+                    <span className="min-w-0 break-words">
+                      <span className="block">{item.tipoRecurso === 'INSUMO' ? 'Insumo' : 'SKU'} · {item.nombre}</span>
+                      {item.sku && <span className="mt-0.5 block break-all text-[10px]">SKU: {item.sku}</span>}
+                      <span className="mt-0.5 block">{item.qty} {item.unidad} · vence {new Date(item.expirationDate + 'T00:00:00').toLocaleDateString()}</span>
+                    </span>
                     <span className="font-bold text-foreground ui-tabular">S/ {item.total.toFixed(2)}</span>
                   </div>
                 ))}
@@ -642,21 +679,21 @@ export function Purchases() {
 
       {/* Detail Dialog */}
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="max-w-lg rounded-2xl">
+        <DialogContent className="max-h-[calc(100dvh-2rem)] min-w-0 w-[calc(100vw-2rem)] max-w-lg overflow-x-hidden overflow-y-auto rounded-2xl p-4 sm:p-5">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold">Detalle — {selectedP?.codigoCompra || `COMP-${String(selectedP?.idCompra).padStart(4, '0')}`}</DialogTitle>
             {detailLoading && <DialogDescription className="text-xs">Cargando detalle real desde backend...</DialogDescription>}
           </DialogHeader>
           {selectedP && (
-            <div className="space-y-4 mt-2">
-              <div className="grid grid-cols-2 gap-3 text-sm p-4 rounded-xl border border-border bg-muted/10">
-                <div>
+            <div className="min-w-0 space-y-4 mt-2">
+              <div className="grid min-w-0 grid-cols-1 gap-3 text-sm p-4 rounded-xl border border-border bg-muted/10 sm:grid-cols-2">
+                <div className="min-w-0">
                   <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Proveedor</p>
-                  <p className="font-bold text-foreground mt-0.5">{selectedP.proveedorNombre}</p>
+                  <p className="break-words font-bold text-foreground mt-0.5">{selectedP.proveedorNombre}</p>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Comprador</p>
-                  <p className="font-bold text-foreground mt-0.5">{selectedP.empleadoNombre}</p>
+                  <p className="break-words font-bold text-foreground mt-0.5">{selectedP.empleadoNombre}</p>
                 </div>
                 <div>
                   <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Fecha</p>
@@ -669,16 +706,52 @@ export function Purchases() {
                   </Badge>
                 </div>
                 {selectedP.observacion && (
-                  <div className="col-span-2">
+                  <div className="min-w-0 sm:col-span-2">
                     <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Observación</p>
-                    <p className="font-semibold text-foreground mt-0.5 text-xs">{selectedP.observacion}</p>
+                    <p className="break-words font-semibold text-foreground mt-0.5 text-xs">{selectedP.observacion}</p>
                   </div>
                 )}
               </div>
 
-              <div>
+              <div className="min-w-0">
                 <p className="text-xs font-bold text-foreground mb-2">Items Comprados</p>
-                <div className="rounded-xl border border-border overflow-hidden">
+                <div className="space-y-2 sm:hidden">
+                  {selectedP.detalles?.map(item => (
+                    <article key={item.idDetalleCompra} className="min-w-0 rounded-xl border border-border bg-muted/10 p-3">
+                      <div className="min-w-0">
+                        <p className="break-words text-sm font-bold text-foreground">
+                          {item.tipoRecurso === 'PRODUCTO' ? item.nombreProducto : item.nombreInsumo}
+                        </p>
+                        {item.tipoRecurso === 'PRODUCTO' && item.skuProducto && (
+                          <p className="mt-1 break-all text-[10px] font-semibold text-muted-foreground">SKU: {item.skuProducto}</p>
+                        )}
+                      </div>
+                      <dl className="mt-3 grid min-w-0 grid-cols-2 gap-x-3 gap-y-2 text-xs">
+                        <div className="min-w-0">
+                          <dt className="font-semibold text-muted-foreground">Cantidad</dt>
+                          <dd className="mt-0.5 break-words font-bold text-foreground">
+                            {item.cantidad} {item.tipoRecurso === 'PRODUCTO' ? 'uds' : item.unidadInsumo}
+                          </dd>
+                        </div>
+                        <div className="min-w-0 text-right">
+                          <dt className="font-semibold text-muted-foreground">Vencimiento</dt>
+                          <dd className="mt-0.5 break-words font-bold text-foreground">
+                            {item.fechaVencimiento ? new Date(item.fechaVencimiento + 'T00:00:00').toLocaleDateString() : 'Sin fecha'}
+                          </dd>
+                        </div>
+                        <div className="min-w-0">
+                          <dt className="font-semibold text-muted-foreground">Precio unitario</dt>
+                          <dd className="mt-0.5 break-all font-bold text-foreground ui-tabular">S/ {Number(item.precioUnitario).toFixed(2)}</dd>
+                        </div>
+                        <div className="min-w-0 text-right">
+                          <dt className="font-semibold text-muted-foreground">Total</dt>
+                          <dd className="mt-0.5 break-all font-black text-primary ui-tabular">S/ {Number(item.subtotal).toFixed(2)}</dd>
+                        </div>
+                      </dl>
+                    </article>
+                  ))}
+                </div>
+                <div className="hidden min-w-0 rounded-xl border border-border overflow-hidden sm:block">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -692,19 +765,19 @@ export function Purchases() {
                     <TableBody>
                       {selectedP.detalles?.map(item => (
                         <TableRow key={item.idDetalleCompra}>
-                          <TableCell className="text-xs font-bold text-foreground">
+                          <TableCell className="max-w-48 whitespace-normal break-words text-xs font-bold text-foreground">
                             {item.tipoRecurso === 'PRODUCTO'
                               ? `${item.nombreProducto}${item.skuProducto ? ` · ${item.skuProducto}` : ''}`
                               : item.nombreInsumo}
                           </TableCell>
-                          <TableCell className="text-xs font-semibold text-muted-foreground text-right">
+                          <TableCell className="whitespace-nowrap text-xs font-semibold text-muted-foreground text-right">
                             {item.cantidad} {item.tipoRecurso === 'PRODUCTO' ? 'uds' : item.unidadInsumo}
                           </TableCell>
-                          <TableCell className="text-xs font-semibold text-muted-foreground text-right">
+                          <TableCell className="whitespace-nowrap text-xs font-semibold text-muted-foreground text-right">
                             {item.fechaVencimiento ? new Date(item.fechaVencimiento + 'T00:00:00').toLocaleDateString() : 'Sin fecha'}
                           </TableCell>
-                          <TableCell className="text-xs font-semibold text-muted-foreground text-right ui-tabular">S/ {Number(item.precioUnitario).toFixed(2)}</TableCell>
-                          <TableCell className="text-xs font-bold text-foreground text-right ui-tabular">S/ {Number(item.subtotal).toFixed(2)}</TableCell>
+                          <TableCell className="whitespace-nowrap text-xs font-semibold text-muted-foreground text-right ui-tabular">S/ {Number(item.precioUnitario).toFixed(2)}</TableCell>
+                          <TableCell className="whitespace-nowrap text-xs font-bold text-foreground text-right ui-tabular">S/ {Number(item.subtotal).toFixed(2)}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
